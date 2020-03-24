@@ -60,7 +60,7 @@ class StandaloneMainWidget(MainWidget):
         }
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = images.ImageCache.get_rsc_pixmap(u'icon_bw', None, 256)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
@@ -251,12 +251,17 @@ class StandaloneMainWidget(MainWidget):
         """
         if not isinstance(event, QtGui.QMouseEvent):
             return
+        if not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
+            event.ignore()
+            return
+
         if self.accept_resize_event(event):
             self.resize_area = self.set_resize_icon(event, clamp=False)
             self.resize_initial_pos = event.pos()
             self.resize_initial_rect = self.rect()
             event.accept()
             return
+
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None
@@ -270,6 +275,10 @@ class StandaloneMainWidget(MainWidget):
         """
         if not isinstance(event, QtGui.QMouseEvent):
             return
+        if not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
+            event.ignore()
+            return
+
         if self.resize_initial_pos == QtCore.QPoint(-1, -1):
             self.set_resize_icon(event, clamp=True)
             return
@@ -304,6 +313,10 @@ class StandaloneMainWidget(MainWidget):
         """Restores the mouse resize properties."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
+        if not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
+            event.ignore()
+            return
+
         if self.resize_initial_pos != QtCore.QPoint(-1, -1):
             self.save_widget_settings()
             if hasattr(self.stackedwidget.currentWidget(), 'reset'):
@@ -330,7 +343,7 @@ class StandaloneApp(QtWidgets.QApplication):
         self.set_model_id()
         common.font_db = common.FontDatabase()
         self.setFont(common.font_db.primary_font())
-        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 256)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.setWindowIcon(icon)
 

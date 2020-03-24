@@ -10,9 +10,6 @@ import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 
-BUTTON_SIZE = common.MARGIN
-ROW_HEIGHT = common.ROW_HEIGHT
-
 
 class AddAssetWidget(QtWidgets.QDialog):
     def __init__(self, path, parent=None):
@@ -41,25 +38,25 @@ class AddAssetWidget(QtWidgets.QDialog):
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'assets', common.SECONDARY_BACKGROUND, common.ROW_HEIGHT)
+            u'assets', common.SECONDARY_BACKGROUND, common.ROW_HEIGHT())
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
-            u' Add Asset', color=common.TEXT, size=common.LARGE_FONT_SIZE, parent=self)
+            u' Add Asset', color=common.TEXT, size=common.LARGE_FONT_SIZE(), parent=self)
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
 
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            BUTTON_SIZE,
+            common.MARGIN(),
             description=u'Hide',
             parent=row
         )
@@ -73,19 +70,19 @@ class AddAssetWidget(QtWidgets.QDialog):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        o = common.INDICATOR_WIDTH
+        o = common.INDICATOR_WIDTH()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
         painter.setBrush(common.BACKGROUND)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
+        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def sizeHint(self):
-        return QtCore.QSize(common.WIDTH, common.HEIGHT)
+        return QtCore.QSize(common.WIDTH(), common.HEIGHT())
 
 
 if __name__ == '__main__':

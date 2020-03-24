@@ -819,12 +819,12 @@ class BrowserButtonContextMenu(BaseContextMenu):
     @contextmenu
     def add_maya_actions_menu(self, menu_set):
         menu_set[u'save'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.MARGIN),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.MARGIN()),
             u'text': u'Save version...',
             u'action': self.parent().saveRequested.emit
         }
         menu_set[u'save_increment'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.SECONDARY_TEXT, common.MARGIN),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.SECONDARY_TEXT, common.MARGIN()),
             u'text': u'Save quick increment...',
             u'action': self.parent().incrementRequested.emit
         }
@@ -833,7 +833,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
     @contextmenu
     def add_export_alembic_menu(self, menu_set):
         objectset_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'set', None, common.MARGIN)
+            u'set', None, common.MARGIN())
 
         outliner_set_members = outliner_sets()
 
@@ -870,7 +870,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN()),
             u'text': u'Toggle {}'.format(common.PRODUCT),
             u'action': self.parent().clicked.emit
         }
@@ -878,7 +878,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_capture_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.MARGIN)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.MARGIN())
         k = 'Capture viewport'
         menu_set[k] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(k)] = pixmap
@@ -910,11 +910,11 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         super(MayaBrowserButton, self).__init__(
             u'icon_maya',
             (None, None),
-            common.ASSET_ROW_HEIGHT,
+            common.ASSET_ROW_HEIGHT(),
             description=u'Click to toggle Bookmarks.\nRight-click to see addittional options.',
             parent=parent
         )
-        self.setObjectName('MayaBrowserMainButton')
+        self.setObjectName(u'MayaBrowserMainButton')
         self.setAttribute(QtCore.Qt.WA_NoBackground, False)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -1026,7 +1026,7 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
     @contextmenu_mainwidget
     def add_apply_bookmark_settings_menu(self, menu_set, mainwidget=None):
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.MARGIN)
+            u'check', common.ADD, common.MARGIN())
 
         menu_set[u'apply_settings'] = {
             u'text': u'Apply scene settings...',
@@ -1045,9 +1045,9 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
 
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add_file', common.TEXT_SELECTED, common.MARGIN)
+            u'add_file', common.TEXT_SELECTED, common.MARGIN())
         pixmap2 = images.ImageCache.get_rsc_pixmap(
-            u'add_file', common.TEXT_DISABLED, common.MARGIN)
+            u'add_file', common.TEXT_DISABLED, common.MARGIN())
         menu_set[u'new'] = {
             u'text': u'Save version...',
             u'icon': pixmap,
@@ -1074,9 +1074,9 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
             return menu_set
 
         maya_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'maya', None, common.MARGIN)
+            u'maya', None, common.MARGIN())
         maya_reference_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'maya_reference', None, common.MARGIN)
+            u'maya_reference', None, common.MARGIN())
 
         menu_set[u'open_scene'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
@@ -1104,9 +1104,9 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
         file_info = QtCore.QFileInfo(path)
 
         alembic_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'abc', None, common.MARGIN)
+            u'abc', None, common.MARGIN())
         maya_reference_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'maya_reference', None, common.MARGIN)
+            u'maya_reference', None, common.MARGIN())
 
         menu_set[u'open_alembic'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
@@ -1129,7 +1129,7 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
     @contextmenu_mainwidget
     def add_export_alembic_menu(self, menu_set, mainwidget=None):
         objectset_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'set', None, common.MARGIN)
+            u'set', None, common.MARGIN())
 
         outliner_set_members = outliner_sets()
 
@@ -1164,7 +1164,7 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
     @contextmenu
     @contextmenu_mainwidget
     def add_capture_menu(self, menu_set, mainwidget=None):
-        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.MARGIN)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.MARGIN())
         k = 'Capture viewport'
         menu_set[k] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(k)] = pixmap
@@ -1493,7 +1493,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         """Shows the custom context menu."""
         width = parent.viewport().geometry().width()
         width = (width * 0.5) if width > 400 else width
-        width = width - common.INDICATOR_WIDTH
+        width = width - common.INDICATOR_WIDTH()
 
         widget = MayaMainWidgetContextMenu(index, parent=parent)
         if index.isValid():
@@ -1506,7 +1506,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             widget.move(QtGui.QCursor().pos())
 
         widget.setFixedWidth(width)
-        widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
+        widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())
         common.move_widget_to_available_geo(widget)
         widget.exec_()
 

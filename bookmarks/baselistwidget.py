@@ -162,7 +162,7 @@ class FilterOnOverlayWidget(ProgressWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         rect = self.rect()
-        rect.setHeight(2)
+        rect.setHeight(common.ROW_SEPARATOR() * 2.0)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setOpacity(0.8)
@@ -1104,8 +1104,10 @@ class BaseListWidget(QtWidgets.QListView):
 
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsActive
 
-        source_index.model().activeChanged.emit(source_index)
         self.update(index)
+
+        source_index.model().activeChanged.emit(source_index)
+        self.activated.emit(index)
 
     def deactivate(self, index):
         """Unsets the active flag."""
@@ -1335,8 +1337,6 @@ class BaseListWidget(QtWidgets.QListView):
             self.selectionModel().currentChanged.connect(w.delete_timer.start)
             w.show()
             return
-
-
 
     def key_down(self):
         """Custom action on  `down` arrow key-press.
@@ -1593,8 +1593,8 @@ class BaseListWidget(QtWidgets.QListView):
         index = self.indexAt(event.pos())
 
         width = self.viewport().geometry().width()
-        width = (width * 0.5) if width > 400 else width
-        width = width - common.INDICATOR_WIDTH
+        width = (width * 0.5) if width > common.HEIGHT() else width
+        width = width - common.INDICATOR_WIDTH()
 
         # Custom context menu
         shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
@@ -1624,7 +1624,7 @@ class BaseListWidget(QtWidgets.QListView):
             widget = self.ContextMenu(index, parent=self)
             widget.move(QtGui.QCursor().pos())
 
-        widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
+        widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())
         common.move_widget_to_available_geo(widget)
         widget.exec_()
 
@@ -1722,8 +1722,6 @@ class BaseListWidget(QtWidgets.QListView):
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-        font = common.font_db.primary_font()
-
         n = 0
         rect = QtCore.QRect(
             0, 0,
@@ -1740,7 +1738,7 @@ class BaseListWidget(QtWidgets.QListView):
             n += 1
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = 4
+        o = common.INDICATOR_WIDTH()
 
         _s = self._get_status_string()
         if not _s:
@@ -1766,7 +1764,7 @@ class BaseListWidget(QtWidgets.QListView):
         painter = QtGui.QPainter()
         painter.begin(self)
         pixmap = images.ImageCache.get_rsc_pixmap(
-            self._background_icon, QtGui.QColor(0, 0, 0, 30), common.ROW_HEIGHT * 3)
+            self._background_icon, QtGui.QColor(0, 0, 0, 30), common.ROW_HEIGHT() * 3)
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -1787,8 +1785,8 @@ class BaseListWidget(QtWidgets.QListView):
     def increase_row_size(self):
         proxy = self.model()
         model = proxy.sourceModel()
-        v = model.ROW_SIZE.height() + 20
-        if v >= common.ROW_HEIGHT * 10:
+        v = model.ROW_SIZE.height() + common.psize(20)
+        if v >= common.ROW_HEIGHT() * 10:
             return
         model.ROW_SIZE.setHeight(int(v))
 
@@ -1812,9 +1810,9 @@ class BaseListWidget(QtWidgets.QListView):
     def decrease_row_size(self):
         proxy = self.model()
         model = proxy.sourceModel()
-        v = model.ROW_SIZE.height() - 20
-        if v < common.ROW_HEIGHT:
-            v = common.ROW_HEIGHT
+        v = model.ROW_SIZE.height() - common.psize(20)
+        if v < common.ROW_HEIGHT():
+            v = common.ROW_HEIGHT()
         model.ROW_SIZE.setHeight(int(v))
 
         settings.local_settings.setValue(
@@ -2209,11 +2207,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         self.queue_model_timer = QtCore.QTimer(parent=self)
         self.queue_model_timer.setSingleShot(True)
-        self.queue_model_timer.setInterval(100)
+        self.queue_model_timer.setInterval(250)
 
         self.request_visible_fileinfo_timer = QtCore.QTimer(parent=self)
         self.request_visible_fileinfo_timer.setSingleShot(True)
-        self.request_visible_fileinfo_timer.setInterval(150)
+        self.request_visible_fileinfo_timer.setInterval(100)
 
         self.request_visible_thumbnail_timer = QtCore.QTimer(parent=self)
         self.request_visible_thumbnail_timer.setSingleShot(True)
@@ -2509,6 +2507,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                     common.Log.debug('thread.startTimer.emit()', self)
                     thread.startTimer.emit()
 
+    def showEvent(self, event):
+        super(ThreadedBaseWidget, self).showEvent(event)
+        self.request_visible_fileinfo_load()
+        self.request_visible_thumbnail_load()
 
 class StackedWidget(QtWidgets.QStackedWidget):
     """Stacked widget used to hold and toggle the list widgets containing the

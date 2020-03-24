@@ -42,7 +42,7 @@ class StatusBar(QtWidgets.QStatusBar):
             painter,
             font,
             self.rect().marginsRemoved(QtCore.QMargins(
-                common.INDICATOR_WIDTH, 0, common.INDICATOR_WIDTH, 0)),
+                common.INDICATOR_WIDTH(), 0, common.INDICATOR_WIDTH(), 0)),
             u'  {}  '.format(self.currentMessage()),
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             common.TEXT
@@ -88,7 +88,7 @@ class TrayMenu(BaseContextMenu):
 
         active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
         on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.MARGIN)
+            u'check', common.ADD, common.MARGIN())
 
         menu_set[u'Keep on top of other windows'] = {
             u'pixmap': on_pixmap if active else None,
@@ -108,7 +108,7 @@ class TrayMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN()),
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
@@ -122,7 +122,7 @@ class MinimizeButton(ClickableIconButton):
         super(MinimizeButton, self).__init__(
             u'minimize',
             (common.REMOVE, common.SECONDARY_TEXT),
-            common.MARGIN - common.INDICATOR_WIDTH,
+            common.MARGIN() - common.INDICATOR_WIDTH(),
             description=u'Click to minimize the window...',
             parent=parent
         )
@@ -135,7 +135,7 @@ class CloseButton(ClickableIconButton):
         super(CloseButton, self).__init__(
             u'close',
             (common.REMOVE, common.SECONDARY_TEXT),
-            common.MARGIN - common.INDICATOR_WIDTH,
+            common.MARGIN() - common.INDICATOR_WIDTH(),
             description=u'Click to close the window...',
             parent=parent
         )
@@ -155,8 +155,8 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.MARGIN +
-                            (common.INDICATOR_WIDTH * 2))
+        self.setFixedHeight(common.MARGIN() +
+                            (common.INDICATOR_WIDTH() * 2))
 
         self._create_UI()
 
@@ -174,9 +174,9 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
-        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
         self.layout().addWidget(CloseButton(parent=self))
-        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
 
     def mousePressEvent(self, event):
         """Custom ``movePressEvent``.
@@ -220,6 +220,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
 
 class ToggleModeButton(QtWidgets.QWidget):
+    """The button used to switch between syncronised and solo modes."""
     clicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
 
@@ -280,8 +281,8 @@ class ToggleModeButton(QtWidgets.QWidget):
         color = common.REMOVE if settings.local_settings.current_mode() else common.ADD
         pen = QtGui.QPen(color)
 
-        o = 6.0
-        pen.setWidth(3.0)
+        o = common.INDICATOR_WIDTH() * 1.5
+        pen.setWidth(common.INDICATOR_WIDTH() * 0.66)
         painter.setPen(pen)
         painter.setOpacity(self.animation.currentValue())
         rect = QtCore.QRect(self.rect())
@@ -337,7 +338,7 @@ class MainWidget(QtWidgets.QWidget):
         super(MainWidget, self).__init__(parent=parent)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 64)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, common.ASSET_ROW_HEIGHT())
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self._contextMenu = None
@@ -366,7 +367,7 @@ class MainWidget(QtWidgets.QWidget):
         common.set_custom_stylesheet(self)
 
         if self._frameless is True:
-            o = common.INDICATOR_WIDTH  # offset around the widget
+            o = common.INDICATOR_WIDTH()  # offset around the widget
         else:
             o = 0
 
@@ -406,7 +407,7 @@ class MainWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
 
-        height = common.MARGIN + (common.INDICATOR_WIDTH * 2)
+        height = common.MARGIN() + (common.INDICATOR_WIDTH() * 2)
         row = add_row(None, padding=0, height=height, parent=self)
         row.layout().setSpacing(0)
         row.layout().setContentsMargins(0, 0, 0, 0)
@@ -499,7 +500,6 @@ class MainWidget(QtWidgets.QWidget):
     def screenChanged(self):
         screen = self.window().windowHandle().screen()
         dpi = screen.logicalDotsPerInch()
-        common.DPI = dpi
         common.Log.success(u'{}'.format(dpi))
 
     @QtCore.Slot()
@@ -865,9 +865,9 @@ class MainWidget(QtWidgets.QWidget):
         painter.setBrush(common.SEPARATOR.darker(110))
 
         if self._frameless is True:
-            o = 4
+            o = common.INDICATOR_WIDTH()
             rect = rect.marginsRemoved(QtCore.QMargins(o, o, o, o))
-            painter.drawRoundedRect(rect, 12, 12)
+            painter.drawRoundedRect(rect, o * 3, o * 3)
         else:
             painter.drawRect(rect)
 
@@ -879,8 +879,8 @@ class MainWidget(QtWidgets.QWidget):
 
             pixmaprect = QtCore.QRect(rect)
             center = pixmaprect.center()
-            s = 96
-            o = common.MARGIN
+            s = common.ASSET_ROW_HEIGHT() * 1.5
+            o = common.MARGIN()
 
             pixmaprect.setWidth(s)
             pixmaprect.setHeight(s)
@@ -941,7 +941,7 @@ class MainWidget(QtWidgets.QWidget):
 
     def sizeHint(self):
         """The widget's default size."""
-        return QtCore.QSize(common.WIDTH, common.HEIGHT)
+        return QtCore.QSize(common.WIDTH(), common.HEIGHT())
 
     def showEvent(self, event):
         """Show event. When we first show the widget we will initialize it to

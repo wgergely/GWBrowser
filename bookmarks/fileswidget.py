@@ -84,8 +84,8 @@ class FilesModel(BaseModel):
 
     """
     val = settings.local_settings.value(u'widget/rowheight')
-    val = val if val else common.ROW_HEIGHT
-    ROW_SIZE = QtCore.QSize(120, val)
+    val = val if val else common.ROW_HEIGHT()
+    ROW_SIZE = QtCore.QSize(common.HEIGHT() * 0.25, val)
 
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
@@ -149,7 +149,7 @@ class FilesModel(BaseModel):
             _ext_path = common.rsc_path(__file__, ext)
             d[ext] = images.ImageCache.get(
                 _ext_path,
-                self.ROW_SIZE.height() - common.ROW_SEPARATOR,
+                self.ROW_SIZE.height() - common.ROW_SEPARATOR(),
                 overwrite=overwrite
             )
             k = _ext_path + u':backgroundcolor'
@@ -158,7 +158,7 @@ class FilesModel(BaseModel):
 
         d[u'placeholder'] = images.ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
-            delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+            self.ROW_SIZE.height() - common.ROW_SEPARATOR())
         d[u'placeholder:backgroundcolor'] = common.THUMBNAIL_BACKGROUND
         return d
 
@@ -567,12 +567,12 @@ class DragPixmap(QtWidgets.QWidget):
         metrics = QtGui.QFontMetricsF(font)
         self._text_width = metrics.width(text)
 
-        width = self._text_width + common.MARGIN
-        width = common.WIDTH + common.MARGIN if width > common.WIDTH else width
+        width = self._text_width + common.MARGIN()
+        width = common.WIDTH() + common.MARGIN() if width > common.WIDTH() else width
 
         self.setFixedHeight(pixmap.height())
         self.setFixedWidth(
-            pixmap.width() + common.INDICATOR_WIDTH + width + common.INDICATOR_WIDTH)
+            pixmap.width() + common.INDICATOR_WIDTH() + width + common.INDICATOR_WIDTH())
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -604,10 +604,10 @@ class DragPixmap(QtWidgets.QWidget):
         pixmap_rect = QtCore.QRect(0, 0, self.height(), self.height())
         painter.drawPixmap(pixmap_rect, self._pixmap, self._pixmap.rect())
 
-        width = self._text_width + common.INDICATOR_WIDTH
+        width = self._text_width + common.INDICATOR_WIDTH()
         width = 640 if width > 640 else width
         rect = QtCore.QRect(
-            self._pixmap.rect().width() + common.INDICATOR_WIDTH,
+            self._pixmap.rect().width() + common.INDICATOR_WIDTH(),
             0,
             width,
             self.height()
@@ -786,7 +786,7 @@ class FilesWidget(ThreadedBaseWidget):
         height = self.itemDelegate().sizeHint(option, index).height()
 
         def px(s):
-            return images.ImageCache.get_rsc_pixmap(s, None, common.MARGIN)
+            return images.ImageCache.get_rsc_pixmap(s, None, common.MARGIN())
 
         # Set drag icon
         drag.setDragCursor(px('CopyAction'), QtCore.Qt.CopyAction)

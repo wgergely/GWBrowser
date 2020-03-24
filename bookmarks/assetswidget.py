@@ -51,7 +51,7 @@ class AssetModel(BaseModel):
     thread workers.
 
     """
-    ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT)
+    ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT())
 
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
@@ -84,7 +84,7 @@ class AssetModel(BaseModel):
 
         default_thumbnail_image = images.ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
-            self.ROW_SIZE.height() - common.ROW_SEPARATOR)
+            self.ROW_SIZE.height() - common.ROW_SEPARATOR())
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({

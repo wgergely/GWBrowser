@@ -20,7 +20,7 @@ class BaseControlButton(ClickableIconButton):
         super(BaseControlButton, self).__init__(
             pixmap,
             (common.TEXT_SELECTED, common.SECONDARY_BACKGROUND),
-            common.MARGIN,
+            common.MARGIN(),
             description=description,
             parent=parent
         )
@@ -107,8 +107,8 @@ class CollapseSequenceButton(BaseControlButton):
 
     def pixmap(self):
         if self.state():
-            return images.ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.MARGIN)
-        return images.ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.MARGIN)
+            return images.ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.MARGIN())
+        return images.ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.MARGIN())
 
     def state(self):
         if not self.current_widget():
@@ -152,8 +152,8 @@ class ToggleArchivedButton(BaseControlButton):
 
     def pixmap(self):
         if self.state():
-            return images.ImageCache.get_rsc_pixmap(u'active', self._on_color, common.MARGIN)
-        return images.ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.MARGIN)
+            return images.ImageCache.get_rsc_pixmap(u'active', self._on_color, common.MARGIN())
+        return images.ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.MARGIN())
 
     def state(self):
         if not self.current_widget():
@@ -410,7 +410,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         index = self.active_index(self.index)
         if index.isValid():
             text = index.data(QtCore.Qt.DisplayRole).split(u'/').pop().upper()
-            if self.parent().parent().width() < common.WIDTH:
+            if self.parent().parent().width() < common.WIDTH():
                 if len(text) > 20:
                     text = u'{}...{}'.format(text[0:8], text[-9:])
         else:
@@ -418,7 +418,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         return text
 
     def get_width(self):
-        o = common.INDICATOR_WIDTH * 3
+        o = common.INDICATOR_WIDTH() * 3
         width = QtGui.QFontMetricsF(self.font).width(self.text()) + (o * 2)
         return width
 
@@ -465,7 +465,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         path.addText(x, y, self.font, self.text())
         painter.drawPath(path)
 
-        rect.setHeight(2.0)
+        rect.setHeight(common.ROW_SEPARATOR() * 2.0)
         painter.setPen(QtCore.Qt.NoPen)
         rect.setWidth(self.rect().width())
 
@@ -520,9 +520,9 @@ class QuickAssetsContextMenu(BaseContextMenu):
             items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
 
         off_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.MARGIN)
+            u'folder', common.SECONDARY_TEXT, common.MARGIN())
         on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.MARGIN)
+            u'check', common.ADD, common.MARGIN())
 
         for idx, item in items:
             active = current.lower() == item[QtCore.Qt.DisplayRole].lower()
@@ -620,7 +620,7 @@ class FilesTabButton(PaintedTextButton):
 
             rect = self.rect()
             center = rect.center()
-            rect.setHeight(2.0)
+            rect.setHeight(common.ROW_SEPARATOR() * 2.0)
             painter.setBrush(common.ADD)
             painter.drawRect(rect)
 
@@ -709,19 +709,19 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(self.rect(), common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
+        painter.drawRoundedRect(self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
 
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'slack', common.ADD, self.rect().height() - (common.INDICATOR_WIDTH * 1.5))
+            u'slack', common.ADD, self.rect().height() - (common.INDICATOR_WIDTH() * 1.5))
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
-        o = common.INDICATOR_WIDTH
+        o = common.INDICATOR_WIDTH()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         painter.setBrush(QtCore.Qt.NoBrush)
         pen = QtGui.QPen(common.ADD)
-        pen.setWidthF(common.ROW_SEPARATOR * 2.0)
+        pen.setWidthF(common.ROW_SEPARATOR() * 2.0)
         painter.setPen(pen)
         painter.drawRoundedRect(rect, o, o)
         painter.end()
@@ -796,7 +796,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        height = common.MARGIN + (common.INDICATOR_WIDTH * 3)
+        height = common.MARGIN() + (common.INDICATOR_WIDTH() * 3)
         self.setFixedHeight(height)
 
         # Control view/model/button
@@ -823,20 +823,20 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.favourites_button)
         self.layout().addStretch()
         self.layout().addWidget(self.simple_mode_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.generate_thumbnails_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.filter_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.collapse_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.archived_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.favourite_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.slack_button)
         #
-        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
 
         self.drop_overlay = SlackDropOverlayWidget(parent=self)
         self.drop_overlay.setHidden(True)

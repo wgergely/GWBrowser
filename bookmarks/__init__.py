@@ -61,7 +61,7 @@ def exec_(debug=False):
         app = QtWidgets.QApplication.instance()
     else:
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, False)
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
         app = bookmarks.StandaloneApp([])
 
     if debug:

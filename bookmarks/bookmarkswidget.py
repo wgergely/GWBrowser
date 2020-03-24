@@ -83,7 +83,7 @@ class BookmarksModel(BaseModel):
     """The model used store the data necessary to display bookmarks.
     """
 
-    ROW_SIZE = QtCore.QSize(120, common.BOOKMARK_ROW_HEIGHT)
+    ROW_SIZE = QtCore.QSize(1, common.BOOKMARK_ROW_HEIGHT())
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
@@ -113,7 +113,7 @@ class BookmarksModel(BaseModel):
 
         dkey = self.data_key()
 
-        _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
+        _height = common.BOOKMARK_ROW_HEIGHT()
 
         active_paths = settings.local_settings.verify_paths()
         favourites = settings.local_settings.favourites()

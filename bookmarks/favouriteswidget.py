@@ -88,7 +88,7 @@ class DropIndicatorWidget(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         pen = QtGui.QPen(common.FAVOURITE)
-        pen.setWidth(common.INDICATOR_WIDTH)
+        pen.setWidth(common.INDICATOR_WIDTH())
         painter.setPen(pen)
         painter.setBrush(common.FAVOURITE)
         painter.setOpacity(0.35)

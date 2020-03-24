@@ -432,7 +432,7 @@ class ThumbnailWorker(BaseWorker):
             return None
 
         thumbnail_path = ref()[common.ThumbnailPathRole]
-        height = ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
+        height = ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR()
         ext = ref()[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
@@ -501,7 +501,7 @@ class ThumbnailWorker(BaseWorker):
             # Load the image and the background color
             image = images.ImageCache.get(
                 ref()[common.ThumbnailPathRole],
-                ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR,
+                ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR(),
                 overwrite=True)
             color = images.ImageCache.get(
                 ref()[common.ThumbnailPathRole],

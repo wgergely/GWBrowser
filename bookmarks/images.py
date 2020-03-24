@@ -223,7 +223,7 @@ class CaptureScreen(QtWidgets.QDialog):
             painter.setCompositionMode(
                 QtGui.QPainter.CompositionMode_SourceOver)
 
-        pen = QtGui.QPen(QtGui.QColor(255, 255, 255, 64), 1, QtCore.Qt.DotLine)
+        pen = QtGui.QPen(QtGui.QColor(255, 255, 255, 64), common.ROW_SEPARATOR(), QtCore.Qt.DotLine)
         painter.setPen(pen)
 
         # Draw cropping markers at click position
@@ -471,7 +471,7 @@ class ImageCache(QtCore.QObject):
 
         image = cls.get(
             thumbnail_path,
-            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR,
+            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR(),
             overwrite=True
         )
         color = cls.get(
@@ -550,7 +550,7 @@ class ImageCache(QtCore.QObject):
         )
         image = cls.get(
             thumbnail_path,
-            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR,
+            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR(),
             overwrite=True)
         color = cls.get(
             thumbnail_path,
@@ -758,7 +758,10 @@ class ImageCache(QtCore.QObject):
         for i in spec.extra_attribs:
             if i.name.lower() == 'iccprofile':
                 continue
-            _spec[i.name] = i.value
+            try:
+                _spec[i.name] = i.value
+            except ValueError:
+                continue
         spec = _spec
 
         # On some dpx images I'm getting "GammaCorrectedinf"
@@ -823,7 +826,7 @@ class Viewer(QtWidgets.QGraphicsView):
         painter.begin(self.viewport())
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = common.MARGIN
+        o = common.MARGIN()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
         font = common.font_db.primary_font()
@@ -966,7 +969,7 @@ class ImageViewer(QtWidgets.QWidget):
         self.load_timer.timeout.connect(self.load_timer.deleteLater)
 
         QtWidgets.QVBoxLayout(self)
-        height = common.ROW_HEIGHT * 0.6
+        height = common.ROW_HEIGHT() * 0.6
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
@@ -1016,7 +1019,7 @@ class ImageViewer(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)

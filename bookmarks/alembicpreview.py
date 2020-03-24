@@ -181,14 +181,14 @@ class AlembicModel(QtCore.QAbstractItemModel):
 
         if role == QtCore.Qt.DecorationRole:
             if u'.childBnds' in node.name:
-                return images.ImageCache.get_rsc_pixmap(u'abc', None, common.MARGIN)
+                return images.ImageCache.get_rsc_pixmap(u'abc', None, common.MARGIN())
             if u'.geom' in node.name:
-                return images.ImageCache.get_rsc_pixmap(u'mesh', None, common.MARGIN)
+                return images.ImageCache.get_rsc_pixmap(u'mesh', None, common.MARGIN())
             if u'.xform' in node.name:
-                return images.ImageCache.get_rsc_pixmap(u'loc', None, common.MARGIN)
+                return images.ImageCache.get_rsc_pixmap(u'loc', None, common.MARGIN())
 
         if role == QtCore.Qt.SizeHintRole:
-            return QtCore.QSize(0, common.ROW_HEIGHT)
+            return QtCore.QSize(0, common.ROW_HEIGHT())
         return None
 
     def headerData(self, section, orientation, role):  # pylint: disable=W0613
@@ -342,12 +342,12 @@ class AlembicView(QtWidgets.QWidget):
 
         self._create_UI()
         self.view.setStyleSheet(u'QTreeView {{padding:{p}px; border-radius: {p}px; border: {s}px solid gray;}}'.format(
-            p=common.INDICATOR_WIDTH * 2, s=common.ROW_SEPARATOR))
+            p=common.INDICATOR_WIDTH() * 2, s=common.ROW_SEPARATOR()))
 
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN()
         self.layout().setSpacing(o)
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)

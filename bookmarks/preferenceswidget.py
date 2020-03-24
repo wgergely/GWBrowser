@@ -25,7 +25,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
 
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
@@ -181,7 +181,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         row = common_ui.add_row(u'Version', parent=grp, height=None)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'icon_bw', None, common.MARGIN)
+            u'icon_bw', None, common.MARGIN())
         label.setPixmap(pixmap)
 
         self.check_updates = common_ui.PaintedButton(u'Update', parent=row)
@@ -194,7 +194,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(None, parent=grp)
 
-        pixmap = images.ImageCache.get_rsc_pixmap(u'rv', None, common.ROW_HEIGHT)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'rv', None, common.ROW_HEIGHT())
         icon = QtWidgets.QLabel(parent=self)
         icon.setPixmap(pixmap)
         label = common_ui.PaintedLabel(u'Shotgun RV Integration', parent=row)
@@ -221,11 +221,11 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         row.layout().addWidget(self.frameless_window)
         #######################################################
         grp = common_ui.get_group(parent=self)
-        o = common.MARGIN
+        o = common.MARGIN()
         grp.layout().setContentsMargins(o, o, o, o)
 
         label = common_ui.PaintedLabel(
-            u'Shortcuts', size=common.LARGE_FONT_SIZE, parent=self)
+            u'Shortcuts', size=common.LARGE_FONT_SIZE(), parent=self)
         grp.layout().addWidget(label)
         grp.layout().addSpacing(o)
         label = QtWidgets.QLabel(parent=self)
@@ -382,7 +382,7 @@ class PreferencesWidget(QtWidgets.QDialog):
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN()
         self.layout().setContentsMargins(o, o * 0.5, o, o)
         self.layout().setSpacing(0)
 
@@ -390,10 +390,10 @@ class PreferencesWidget(QtWidgets.QDialog):
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            common.ROW_HEIGHT * 0.6
+            common.ROW_HEIGHT() * 0.6
         )
         label = common_ui.PaintedLabel(
-            'Preferences', size=common.LARGE_FONT_SIZE)
+            'Preferences', size=common.LARGE_FONT_SIZE())
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
         row.layout().addWidget(self.hide_button, 0)
@@ -424,7 +424,7 @@ class PreferencesWidget(QtWidgets.QDialog):
             item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
             item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                0, common.ROW_HEIGHT * 0.66))
+                0, common.ROW_HEIGHT() * 0.66))
             self.sections_list_widget.addItem(item)
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
 
@@ -447,7 +447,7 @@ class PreferencesWidget(QtWidgets.QDialog):
         pen.setWidthF(1.0)
         painter.setBrush(common.BACKGROUND)
         painter.setPen(pen)
-        o = common.MARGIN * 0.4
+        o = common.MARGIN() * 0.4
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         painter.setOpacity(0.9)
         painter.drawRoundedRect(rect, 4, 4)

@@ -85,7 +85,7 @@ class UsersModel(QtCore.QAbstractItemModel):
         profiles = self.slacker.profiles()
         self.INTERNAL_USER_DATA = {}
 
-        row_size = QtCore.QSize(1, 28.0)
+        row_size = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
         for profile in sorted(profiles, key=lambda x: self.get_name(x)):
             if u'email' not in profile:
                 continue
@@ -186,31 +186,6 @@ class UsersWidget(QtWidgets.QListView):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.installEventFilter(self)
-
-        self.setStyleSheet("""
-QListView {{
-    icon-size: 18px;
-    padding: 1px;
-}}
-QListView::item {{
-    border-left: 4px solid rgba(0,0,0,0);
-    color: rgba({SECONDARY_TEXT});
-    background: rgba(255,255,255,0);
-}}
-QListView::item:hover {{
-    background: rgba(255,255,255,20);
-}}
-QListView::item:selected {{
-    border-left: 4px solid rgba({ADD});
-    color: rgba({ADD});
-    background: rgba(255,255,255,40);
-}}
-        """.format(
-            ADD=common.rgb(common.ADD),
-            SECONDARY_TEXT=common.rgb(common.SECONDARY_TEXT),
-            REMOVE=common.rgb(common.REMOVE)
-        ))
-
         self.set_model()
         self._connect_signals()
 
@@ -261,7 +236,7 @@ QListView::item:selected {{
             painter.begin(self)
             painter.setBrush(QtCore.Qt.NoBrush)
             painter.setPen(common.SECONDARY_TEXT)
-            o = common.MARGIN * 0.5
+            o = common.MARGIN() * 0.5
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
             text = u'To send messages add a valid Slack API Token to the bookmark \
 (select the bookmark tab and click the preferences icon).' if not self.token else u''
@@ -285,7 +260,6 @@ class MessageWidget(QtWidgets.QSplitter):
         self.slack_message = u''
         self.message_widget = None
         self.users_widget = None
-        self.send_button = None
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setOrientation(QtCore.Qt.Horizontal)
@@ -319,7 +293,7 @@ class MessageWidget(QtWidgets.QSplitter):
         bottom_widget.layout().setSpacing(o)
 
         row = common_ui.add_row(u'', parent=bottom_widget)
-        bottom_widget.layout().addSpacing(common.MARGIN)
+        bottom_widget.layout().addSpacing(common.MARGIN())
 
         self.user_filter = common_ui.NameBase(parent=self, transparent=True)
         self.user_filter.setPlaceholderText(u'Search...')
@@ -338,7 +312,7 @@ class MessageWidget(QtWidgets.QSplitter):
             self.user_filter.setDisabled(True)
             self.setSizes([0, 1])
         else:
-            self.setSizes([100, 50])
+            self.setSizes([common.WIDTH() * 0.15, common.WIDTH() * 0.08])
 
     def _connect_signals(self):
         self.user_filter.textChanged.connect(
@@ -384,7 +358,7 @@ class MessageWidget(QtWidgets.QSplitter):
                 u'{}'.format(err),
                 parent=self
             )
-            common.Log.error('Failed to send message.')
+            common.Log.error(u'Failed to send message.')
             return
 
         username = self.users_widget.selectionModel().currentIndex().data(
@@ -414,11 +388,11 @@ class SlackWidget(QtWidgets.QDialog):
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setSpacing(common.INDICATOR_WIDTH())
 
-        height = common.ROW_HEIGHT * 0.7
+        height = common.ROW_HEIGHT() * 0.7
         row = common_ui.add_row(None, height=height, padding=None, parent=self)
 
         self.channel_button = common_ui.ClickableIconButton(
@@ -426,25 +400,25 @@ class SlackWidget(QtWidgets.QDialog):
             (common.TEXT, common.TEXT),
             height,
         )
-        # label = common_ui.PaintedLabel(
-        #     u'Slack Message', size=common.LARGE_FONT_SIZE, parent=self)
-        # label.setFixedHeight(height)
+        label = common_ui.PaintedLabel(
+            u'Slack Message', size=common.LARGE_FONT_SIZE(), parent=row)
+        label.setFixedHeight(height)
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            height * 0.7,
-            parent=self
+            height,
+            parent=row
         )
 
-        row.layout().addWidget(self.channel_button, 0)
-        # row.layout().addWidget(label, 0)
+        row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
+        row.layout().addWidget(self.channel_button, 0)
         row.layout().addWidget(self.hide_button, 0)
 
         self.message_widget = MessageWidget(self.token, parent=self)
         self.layout().addWidget(self.message_widget)
 
-        self.send_button = common_ui.PaintedButton(u'Send')
+        self.send_button = common_ui.PaintedButton(u'Send', parent=self)
         self.layout().addSpacing(o)
         self.layout().addWidget(self.send_button)
         self.layout().addSpacing(o)
@@ -468,30 +442,21 @@ class SlackWidget(QtWidgets.QDialog):
         painter = QtGui.QPainter()
         painter.begin(self)
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(common.BACKGROUND)
-        o = common.MARGIN * 0.3
+        o = common.MARGIN() * 0.3
         painter.setOpacity(0.95)
         painter.drawRoundedRect(
-            self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)), 4, 4)
+            self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
 
 if __name__ == '__main__':
     common.DEBUG_ON = True
-    app = QtWidgets.QApplication([])
-    # w = SlackWidget('https://apple.com',
-    #                 u'xoxb-4397889867-789355634130-sAKdLytI8aql9cQFFNUNScLY')
+    import bookmarks.standalone as standalone
+    app = standalone.StandaloneApp([])
     w = SlackWidget(None, None)
     w.show()
     app.exec_()
-
-    import sys
-    log = open('C:/temp/modules.txt', 'w+')
-    for k in sys.modules.values():
-        try:
-            print >> log, k.__file__
-        except:
-            print >> log, k

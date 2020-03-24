@@ -139,7 +139,7 @@ class SelectButton(QtWidgets.QLabel):
 
         common.set_custom_stylesheet(self)
 
-        self.setFixedHeight(common.ROW_HEIGHT)
+        self.setFixedHeight(common.ROW_HEIGHT())
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setText(self._label)
         self.setFocusProxy(self.view())
@@ -227,7 +227,7 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot()
     def move_view(self):
         """Moves the view associated with the button in place."""
-        x = self.window().geometry().bottomLeft().x() + common.MARGIN
+        x = self.window().geometry().bottomLeft().x() + common.MARGIN()
         pos = QtCore.QPoint(
             0,
             self.geometry().bottomLeft().y())
@@ -252,7 +252,7 @@ class SelectButton(QtWidgets.QLabel):
             QtCore.Qt.Window)
 
         self.move_view()
-        self.view().setFixedWidth(self.window().geometry().width() - (common.MARGIN * 2))
+        self.view().setFixedWidth(self.window().geometry().width() - (common.MARGIN() * 2))
 
         if self.view().selectionModel().hasSelection():
             self.view().scrollTo(self.view().selectionModel().currentIndex(),
@@ -267,7 +267,7 @@ class SelectButton(QtWidgets.QLabel):
         super(SelectButton, self).setText(text)
         metrics = QtGui.QFontMetricsF(common.font_db.primary_font())
         width = metrics.width(self.text().upper())
-        self.setFixedWidth(width + common.MARGIN)
+        self.setFixedWidth(width + common.MARGIN())
         self.update()
 
     def paintEvent(self, event):
@@ -295,10 +295,10 @@ class SelectButton(QtWidgets.QLabel):
             self.text().upper(), QtCore.Qt.AlignCenter, color)
 
         rect = QtCore.QRect(self.rect())
-        rect.setTop(rect.bottom() - common.ROW_SEPARATOR)
+        rect.setTop(rect.bottom() - common.ROW_SEPARATOR())
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
-        painter.drawRoundedRect(rect, common.ROW_SEPARATOR, common.ROW_SEPARATOR)
+        painter.drawRoundedRect(rect, common.ROW_SEPARATOR(), common.ROW_SEPARATOR())
         painter.end()
 
     def contextMenuEvent(self, event):
@@ -387,7 +387,7 @@ class BaseListView(BaseInlineIconWidget):
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(option, index).height()
-            if height > common.HEIGHT:
+            if height > common.HEIGHT():
                 break
         if height == 0:
             self.hide()
@@ -414,7 +414,7 @@ class BookmarksWidgetDelegate2(BookmarksWidgetDelegate):
         self.paint_selection_indicator(*args)
 
     def sizeHint(self, index, parent):
-        return QtCore.QSize(0, common.ROW_HEIGHT)
+        return QtCore.QSize(0, common.ROW_HEIGHT())
 
 
 class BookmarksListView(BaseListView):
@@ -457,8 +457,8 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         """Paints the item names inside the ``AssetsWidget``."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + common.MARGIN)
-        rect.setRight(rect.right() - common.MARGIN)
+        rect.setLeft(rect.left() + common.MARGIN())
+        rect.setRight(rect.right() - common.MARGIN())
 
         # Name
         color = common.TEXT_SELECTED if hover else common.TEXT
@@ -514,7 +514,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         painter.drawPath(path)
 
     def sizeHint(self, index, parent):
-        return QtCore.QSize(0, common.ROW_HEIGHT)
+        return QtCore.QSize(0, common.ROW_HEIGHT())
 
 
 class AssetsListView(BaseListView):
@@ -660,7 +660,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
                     return data.upper()
 
         if role == QtCore.Qt.SizeHintRole and index.column() == 0:
-            return QtCore.QSize(150, 24)
+            return QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
         return super(SelectFolderModel, self).data(index, role=role)
 
 
@@ -788,8 +788,8 @@ class SelectFolderView(QtWidgets.QTreeView):
             if not index.isValid():
                 break
         height = row_height + margins
-        if height > common.HEIGHT:
-            height = common.HEIGHT
+        if height > common.HEIGHT():
+            height = common.HEIGHT()
         self.setFixedHeight(height)
 
     @QtCore.Slot()
@@ -848,8 +848,8 @@ class SelectFolderView(QtWidgets.QTreeView):
         index = self.indexAt(event.pos())
 
         width = self.viewport().geometry().width()
-        width = (width * 0.5) if width > 400 else width
-        width = width - common.INDICATOR_WIDTH
+        width = (width * 0.5) if width > (common.WIDTH() * 0.6) else width
+        width = width - common.INDICATOR_WIDTH()
 
         widget = self.ContextMenu(  # pylint: disable=E1102
             index, parent=self)
@@ -864,7 +864,7 @@ class SelectFolderView(QtWidgets.QTreeView):
             widget.move(QtGui.QCursor().pos())
 
         widget.setFixedWidth(width)
-        widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
+        widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())
         common.move_widget_to_available_geo(widget)
 
         self._context_menu_open = True
@@ -884,11 +884,11 @@ class ThumbnailContextMenu(BaseContextMenu):
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'capture_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
         pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
         remove_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.FAVOURITE, common.MARGIN)
+            u'remove', common.FAVOURITE, common.MARGIN())
 
         menu_set[u'Capture thumbnail'] = {
             u'icon': capture_thumbnail_pixmap,
@@ -1117,7 +1117,7 @@ class NameModeWidget(QtWidgets.QComboBox):
         item.setData(v[u'description'], QtCore.Qt.ToolTipRole)
         item.setData(v[u'path'], QtCore.Qt.StatusTipRole)
         item.setData(QtCore.QSize(
-            common.WIDTH, common.ROW_HEIGHT * 0.8), QtCore.Qt.SizeHintRole)
+            common.WIDTH(), common.ROW_HEIGHT() * 0.8), QtCore.Qt.SizeHintRole)
         self.view().model().appendRow(item)
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -1356,13 +1356,13 @@ class FilePathWidget(QtWidgets.QWidget):
 
         rect = self.rect()
         center = self.rect().center()
-        rect.setHeight(rect.height() - common.MARGIN)
-        rect.setWidth(rect.width() - common.MARGIN)
+        rect.setHeight(rect.height() - common.MARGIN())
+        rect.setWidth(rect.width() - common.MARGIN())
         rect.moveCenter(center)
 
         bg_rect = self.rect()
-        rect.setHeight(rect.height() - (common.MARGIN * 0.5))
-        rect.setWidth(rect.width() - (common.MARGIN * 0.5))
+        rect.setHeight(rect.height() - (common.MARGIN() * 0.5))
+        rect.setWidth(rect.width() - (common.MARGIN() * 0.5))
         rect.moveCenter(center)
         bg_rect.moveCenter(center)
         painter.setPen(QtCore.Qt.NoPen)
@@ -1371,7 +1371,7 @@ class FilePathWidget(QtWidgets.QWidget):
             painter.setOpacity(0.1)
         else:
             painter.setOpacity(0.5)
-        painter.drawRoundedRect(bg_rect, 4, 4)
+        painter.drawRoundedRect(bg_rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.setOpacity(1)
 
         metrics = QtGui.QFontMetricsF(font)
@@ -1599,7 +1599,7 @@ class AddFileWidget(QtWidgets.QDialog):
 
     def _create_UI(self):
         self.thumbnail_widget = ThumbnailButton(
-            100, description=u'Add thumbnail...', parent=self)
+            common.ROW_HEIGHT() * 3.0, description=u'Add thumbnail...', parent=self)
 
         # Bookmarks
         bookmark_view = BookmarksListView(parent=self)
@@ -1618,28 +1618,28 @@ class AddFileWidget(QtWidgets.QDialog):
         self.description_editor_widget = DescriptionEditor(parent=self)
         self.name_mode_widget = NameModeWidget(parent=self)
         self.name_prefix_widget = NamePrefixWidget(parent=self)
-        self.name_prefix_widget.setFixedWidth(common.MARGIN * 4.5)
+        self.name_prefix_widget.setFixedWidth(common.MARGIN() * 4.5)
         self.name_user_widget = NameUserWidget(parent=self)
-        self.name_user_widget.setFixedWidth(common.MARGIN * 4.5)
+        self.name_user_widget.setFixedWidth(common.MARGIN() * 4.5)
         self.name_version_widget = NameVersionWidget(parent=self)
-        self.name_version_widget.setFixedWidth(common.MARGIN * 2.5)
+        self.name_version_widget.setFixedWidth(common.MARGIN() * 2.5)
         self.name_custom_widget = NameCustomWidget(parent=self)
         self.toggle_custom_name_widget = ToggleCustomNameWidget(parent=self)
 
         self.file_path_widget = FilePathWidget(parent=self)
 
         self.save_button = common_ui.PaintedButton(u'Save', parent=self)
-        self.save_button.setFixedWidth(common.MARGIN * 4.5)
+        self.save_button.setFixedWidth(common.MARGIN() * 4.5)
         self.cancel_button = common_ui.PaintedButton(u'Cancel', parent=self)
-        self.cancel_button.setFixedWidth(common.MARGIN * 4.5)
+        self.cancel_button.setFixedWidth(common.MARGIN() * 4.5)
 
-        o = common.MARGIN
+        o = common.MARGIN()
         common.set_custom_stylesheet(self)
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedWidth(common.WIDTH * 1.5)
+        self.setFixedWidth(common.WIDTH() * 1.5)
 
         self.layout().addWidget(self.thumbnail_widget)
         self.layout().addSpacing(o)
@@ -1647,7 +1647,7 @@ class AddFileWidget(QtWidgets.QDialog):
         mainrow = QtWidgets.QWidget(parent=self)
         QtWidgets.QVBoxLayout(mainrow)
         mainrow.layout().setContentsMargins(0, 0, 0, 0)
-        mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
+        mainrow.layout().setSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(mainrow)
 
         def get_row(vertical=False, parent=None):
@@ -1701,9 +1701,9 @@ class AddFileWidget(QtWidgets.QDialog):
             parent=mainrow,
         )
 
-        row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        row.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
         row.layout().addWidget(common_ui.PaintedLabel(
-            u'Destination:', size=common.MEDIUM_FONT_SIZE, color=common.FAVOURITE))
+            u'Destination:', size=common.MEDIUM_FONT_SIZE(), color=common.FAVOURITE))
         row.layout().addWidget(self.file_path_widget)
         row.layout().addWidget(self.save_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
@@ -1793,13 +1793,13 @@ class AddFileWidget(QtWidgets.QDialog):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
         painter.setBrush(common.BACKGROUND)
         rect = self.rect()
-        o = common.MARGIN * 0.5
+        o = common.MARGIN() * 0.5
         painter.drawRoundedRect(rect.marginsRemoved(
-            QtCore.QMargins(o, o, o, o)), common.INDICATOR_WIDTH * 2.0, common.INDICATOR_WIDTH * 2.0)
+            QtCore.QMargins(o, o, o, o)), common.INDICATOR_WIDTH() * 2.0, common.INDICATOR_WIDTH() * 2.0)
         painter.end()
 
     def save_thumbnail_and_description(self):

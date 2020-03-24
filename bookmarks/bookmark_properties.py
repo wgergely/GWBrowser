@@ -27,8 +27,8 @@ class RectanglesWidget(QtWidgets.QLabel):
         self._duration = 0.0
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setMinimumHeight(200)
-        self.setMinimumWidth(100)
+        self.setMinimumHeight(common.HEIGHT() * 0.41)
+        self.setMinimumWidth(common.WIDTH() * 0.15)
 
     @QtCore.Slot()
     def set_attr(self, k, v, type=float):
@@ -48,7 +48,7 @@ class RectanglesWidget(QtWidgets.QLabel):
         h = self._height + 0.01
 
         factor = float(min((self.width(), self.height())) -
-                       common.MARGIN) / max(float(w), float(h))
+                       common.MARGIN()) / max(float(w), float(h))
         w *= factor
         h *= factor
 
@@ -64,7 +64,7 @@ class RectanglesWidget(QtWidgets.QLabel):
         # Outline
         painter.setOpacity(0.2)
         pen = QtGui.QPen(common.ADD)
-        pen.setWidthF(2.0)
+        pen.setWidthF(common.ROW_SEPARATOR() * 2.0)
         pen.setStyle(QtCore.Qt.SolidLine)
         pen.setJoinStyle(QtCore.Qt.RoundJoin)
         painter.setPen(pen)
@@ -79,7 +79,7 @@ class RectanglesWidget(QtWidgets.QLabel):
         painter.setPen(common.TEXT)
         painter.setFont(common.font_db.secondary_font())
         _rect = self.rect()
-        _rect.setLeft(rect.left() + 8)
+        _rect.setLeft(rect.left() + common.SMALL_FONT_SIZE())
 
         text = u'{w}{h}{fps}{pre}{start}{duration}'.format(
             w=u'{}px'.format(int(self._width)) if self._width else u'',
@@ -133,9 +133,9 @@ class ScrollArea(QtWidgets.QScrollArea):
         # self.init_last_used_values()
 
     def _create_UI(self):
-        o = common.INDICATOR_WIDTH
-        self.setMinimumWidth(360)
-        height = common.ROW_HEIGHT * 0.8
+        o = common.INDICATOR_WIDTH()
+        self.setMinimumWidth(common.WIDTH() * 0.5)
+        height = common.ROW_HEIGHT() * 0.8
 
         widget = QtWidgets.QWidget(parent=self)
         QtWidgets.QVBoxLayout(widget)
@@ -227,7 +227,7 @@ will be read as assets.'.format(common.PRODUCT)
 
         # Slack API token
         label = common_ui.PaintedLabel(
-            u'Slack Settings', size=common.MEDIUM_FONT_SIZE + 1)
+            u'Slack Settings', size=common.MEDIUM_FONT_SIZE() * 1.2)
         grpA.layout().addWidget(label, 0)
         grpA.layout().addSpacing(o * 2)
 
@@ -529,15 +529,15 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
 
-        height = common.ROW_HEIGHT * 0.8
+        height = common.ROW_HEIGHT() * 0.8
         # ********************************************
         row = common_ui.add_row(None, padding=None, parent=self)
         label = common_ui.PaintedLabel(
-            u'Bookmark Properties', size=common.LARGE_FONT_SIZE)
+            u'Bookmark Properties', size=common.LARGE_FONT_SIZE())
         self.load_last_button = common_ui.PaintedButton(u'Load Used')
         self.load_last_button.setFixedHeight(height * 0.7)
 
@@ -606,13 +606,13 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(common.BACKGROUND)
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
 
-        o = common.MARGIN * 0.5
+        o = common.MARGIN() * 0.5
         painter.setOpacity(0.95)
         painter.drawRoundedRect(self.rect().marginsRemoved(
-            QtCore.QMargins(o, o, o, o)), 3, 3)
+            QtCore.QMargins(o, o, o, o)), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def showEvent(self, event):
@@ -620,8 +620,9 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
+    import bookmarks.standalone as standalone
     common.DEBUG_ON = True
-    app = QtWidgets.QApplication([])
+    app = standalone.StandaloneApp([])
     w = BookmarkPropertiesWidget(
         QtCore.QModelIndex(),
         server='C:/temp',

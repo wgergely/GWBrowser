@@ -55,7 +55,7 @@ class DataKeyViewDelegate(BaseDelegate):
         painter.drawRect(option.rect)
         rect = QtCore.QRect(option.rect)
         center = rect.center()
-        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR())
         rect.moveCenter(center)
         background = QtGui.QColor(common.BACKGROUND)
         background.setAlpha(150)
@@ -78,20 +78,20 @@ class DataKeyViewDelegate(BaseDelegate):
 
         font = common.font_db.primary_font()
 
-        o = common.MARGIN
+        o = common.MARGIN()
         rect = QtCore.QRect(option.rect)
         if selected:
             pixmap = images.ImageCache.get_rsc_pixmap(u'check', common.ADD, o)
             _rect = QtCore.QRect(option.rect)
             _rect.setSize(pixmap.size())
             _rect.moveCenter(option.rect.center())
-            _rect.moveLeft(option.rect.left() + ((o + common.INDICATOR_WIDTH) * 0.5))
+            _rect.moveLeft(option.rect.left() + ((o + common.INDICATOR_WIDTH()) * 0.5))
             painter.drawPixmap(_rect, pixmap, pixmap.rect())
             rect = rect.marginsRemoved(QtCore.QMargins(o * 2, 0, o, 0))
         else:
             rect = rect.marginsRemoved(QtCore.QMargins(o, 0, o, 0))
-        # rect.setLeft(common.MARGIN)
-        # rect.setRight(rect.right() - common.MARGIN)
+        # rect.setLeft(common.MARGIN())
+        # rect.setRight(rect.right() - common.MARGIN())
 
 
 
@@ -193,7 +193,7 @@ class DataKeyView(QtWidgets.QListView):
         if self.parent():
             return QtCore.QSize(self.parent().width(), self.parent().height())
         else:
-            return QtCore.QSize(460, 360)
+            return QtCore.QSize(common.WIDTH() * 0.6, common.HEIGHT() * 0.6)
 
     def inline_icons_count(self):
         return 0
@@ -253,7 +253,7 @@ class DataKeyView(QtWidgets.QListView):
 
         widget = self.ContextMenu(index, parent=self)
         rect = self.visualRect(index)
-        offset = self.visualRect(index).height() - common.INDICATOR_WIDTH
+        offset = self.visualRect(index).height() - common.INDICATOR_WIDTH()
         widget.move(
             self.viewport().mapToGlobal(rect.bottomLeft()).x() + offset,
             self.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
@@ -282,7 +282,7 @@ class DataKeyModel(BaseModel):
 
     The model keeps track of the selections internally and is updated
     via the signals and slots."""
-    ROW_SIZE = QtCore.QSize(120, 30)
+    ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
 
     def __init__(self, parent=None):
         self._parent = parent

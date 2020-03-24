@@ -375,7 +375,7 @@ QMenu::separator {{
 }}
 QMenu::indicator,
 QMenu::icon {{
-	padding: 7px;
+	padding: {CONTEXT_MENU_PADDING}px;
 	alignment: center;
 	text-align: center;
 	background-color: rgba(0,0,0,30);
@@ -386,9 +386,9 @@ QMenu::indicator:selected {{
 }}
 QMenu::item {{
 	color: rgba({TEXT});
-	padding: 0px {ROW_HEIGHT}px 0px {MARGIN}px;
+	padding: 0px {MARGIN}px 0px {MARGIN}px;
 	margin: 0px 0px 0px 0px;
-	height: {ROW_HEIGHT}px;
+	height: {CONTEXT_MENU_HEIGHT}px;
   background-color: transparent;
 }}
 QMenu::item:selected {{
@@ -497,7 +497,7 @@ SectionSwitcherWidget  {{
 }}
 
 BaseListView {{
-  margin: {ROW_SEPARATOR};
+  margin: {ROW_SEPARATOR}px;
 }}
 
 NameBase,
@@ -511,4 +511,23 @@ NameModeWidget {{
 }}
 NameBase:!read-only:focus{{
     border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
+}}
+
+
+UsersWidget {{
+    icon-size: {MARGIN}px;
+    padding: {ROW_SEPARATOR}px;
+}}
+UsersWidget::item {{
+    border-left: {RADIUS}px solid rgba(0,0,0,0);
+    color: rgba({SECONDARY_TEXT});
+    background: rgba(255,255,255,0);
+}}
+UsersWidget::item:hover {{
+    background: rgba(255,255,255,20);
+}}
+UsersWidget::item:selected {{
+    border-left: {RADIUS}px solid rgba({ADD});
+    color: rgba({ADD});
+    background: rgba(255,255,255,40);
 }}

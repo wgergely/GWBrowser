@@ -8,7 +8,7 @@ import bookmarks.images as images
 
 
 def get_group(parent=None):
-    o = common.INDICATOR_WIDTH
+    o = common.INDICATOR_WIDTH()
     grp = QtWidgets.QGroupBox(parent=parent)
     QtWidgets.QVBoxLayout(grp)
     grp.layout().setContentsMargins(o, o, o, o)
@@ -27,7 +27,7 @@ class NameBase(QtWidgets.QLineEdit):
         self.setAlignment(QtCore.Qt.AlignLeft)
 
 
-def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_HEIGHT, cls=None, vertical=False):
+def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGHT(), cls=None, vertical=False):
     """macro for adding a new row"""
     if cls:
         w = cls(parent=parent)
@@ -39,7 +39,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_HEIGHT,
         QtWidgets.QHBoxLayout(w)
     common.set_custom_stylesheet(w)
     w.layout().setContentsMargins(0, 0, 0, 0)
-    w.layout().setSpacing(common.INDICATOR_WIDTH)
+    w.layout().setSpacing(common.INDICATOR_WIDTH())
     w.layout().setAlignment(QtCore.Qt.AlignCenter)
 
     w.setSizePolicy(
@@ -52,7 +52,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_HEIGHT,
     w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
     if label:
-        l = PaintedLabel(label, size=common.SMALL_FONT_SIZE,
+        l = PaintedLabel(label, size=common.SMALL_FONT_SIZE(),
                          color=common.SECONDARY_TEXT, parent=parent)
         common.set_custom_stylesheet(l)
         l.setFixedWidth(120)
@@ -70,7 +70,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_HEIGHT,
 def add_label(text, parent=None):
     label = QtWidgets.QLabel(text, parent=parent)
     common.set_custom_stylesheet(label)
-    label.setFixedHeight(common.ROW_HEIGHT)
+    label.setFixedHeight(common.ROW_HEIGHT())
     label.setSizePolicy(
         QtWidgets.QSizePolicy.Expanding,
         QtWidgets.QSizePolicy.Expanding
@@ -88,7 +88,7 @@ def add_line_edit(label, parent=None):
     return w
 
 
-def add_description(text, label=u' ', padding=common.MARGIN, parent=None):
+def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
     row = add_row(label, padding=padding, height=None, parent=parent)
     label = QtWidgets.QLabel(text, parent=parent)
     common.set_custom_stylesheet(label)
@@ -96,7 +96,7 @@ def add_description(text, label=u' ', padding=common.MARGIN, parent=None):
     label.setStyleSheet(
         u'color: rgba({}); font-size: {}px'.format(
             common.rgb(common.SECONDARY_TEXT),
-            common.SMALL_FONT_SIZE
+            common.SMALL_FONT_SIZE()
         )
     )
     label.setWordWrap(True)
@@ -109,7 +109,7 @@ class PaintedButton(QtWidgets.QPushButton):
 
     def __init__(self, text, width=None, parent=None):
         super(PaintedButton, self).__init__(text, parent=parent)
-        self.setFixedHeight(24.0)
+        self.setFixedHeight(common.ROW_HEIGHT() * 0.8)
         if width:
             self.setFixedWidth(width)
 
@@ -136,17 +136,19 @@ class PaintedButton(QtWidgets.QPushButton):
             pen = QtGui.QPen(common.FAVOURITE)
         else:
             pen = QtGui.QPen(bg_color)
-            pen.setWidthF(1.0)
+            pen.setWidthF(common.ROW_SEPARATOR())
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(bg_color)
         painter.setPen(pen)
-        rect = self.rect().marginsRemoved(QtCore.QMargins(1, 1, 1, 1))
-        painter.drawRoundedRect(rect, 2, 2)
+        o = common.ROW_SEPARATOR()
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
+        o = common.INDICATOR_WIDTH()
+        painter.drawRoundedRect(rect, o, o)
 
         rect = QtCore.QRect(self.rect())
         center = rect.center()
-        rect.setWidth(rect.width() - (common.INDICATOR_WIDTH * 2))
+        rect.setWidth(rect.width() - (common.INDICATOR_WIDTH() * 2))
         rect.moveCenter(center)
         common.draw_aliased_text(
             painter,
@@ -163,13 +165,13 @@ class PaintedButton(QtWidgets.QPushButton):
 class PaintedLabel(QtWidgets.QLabel):
     """Used for static informative text."""
 
-    def __init__(self, text, color=common.TEXT, size=common.MEDIUM_FONT_SIZE, parent=None):
+    def __init__(self, text, color=common.TEXT, size=common.MEDIUM_FONT_SIZE(), parent=None):
         super(PaintedLabel, self).__init__(text, parent=parent)
         self._font = common.font_db.primary_font(font_size=size)
         self._color = color
         metrics = QtGui.QFontMetricsF(self._font)
         self.setFixedHeight(metrics.height())
-        self.setFixedWidth(metrics.width(text) + 2)
+        self.setFixedWidth(metrics.width(text) * 1.01)
 
     def paintEvent(self, event):
         """Custom paint event to use the aliased paint method."""
@@ -319,7 +321,7 @@ QWidget {{
     font-size: {SIZE}px;
 }}
             """.format(
-            SIZE=common.LARGE_FONT_SIZE,
+            SIZE=common.LARGE_FONT_SIZE(),
             FAMILY=common.font_db.primary_font().family(),
             TEXT=common.rgb(self.secondary_color.darker(150)),
             BG=common.rgb(self.secondary_color)))
@@ -362,7 +364,7 @@ QWidget {{
         long_text_row = get_row(parent=columns)
 
         pixmap = images.ImageCache.get_rsc_pixmap(
-            self.icon, self.secondary_color.lighter(150), common.ROW_HEIGHT)
+            self.icon, self.secondary_color.lighter(150), common.ROW_HEIGHT())
         label = QtWidgets.QLabel(parent=self)
         label.setPixmap(pixmap)
         label.setSizePolicy(
@@ -371,7 +373,7 @@ QWidget {{
         )
         label.setStyleSheet(
             u'padding: {}px; background-color: rgba({});'.format(
-                common.MEDIUM_FONT_SIZE,
+                common.MEDIUM_FONT_SIZE(),
                 common.rgb(self.primary_color)
             )
         )
@@ -381,18 +383,18 @@ QWidget {{
         short_text_row.layout().addWidget(self.short_text_label)
         self.short_text_label.setStyleSheet(
             u'padding:{m}px {s}px {m}px {s}px; background-color: rgba({c}); font-size: {s}px;'.format(
-                m=common.MARGIN,
+                m=common.MARGIN(),
                 c=common.rgb(self.secondary_color.lighter(125)),
-                s=common.MEDIUM_FONT_SIZE
+                s=common.MEDIUM_FONT_SIZE()
             ))
         self.short_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
         long_text_row.layout().addWidget(self.long_text_label)
         self.long_text_label.setStyleSheet(
             u'padding:{m}px;background-color: rgba({c}); font-size:{s}px;'.format(
-            m=common.MARGIN,
+            m=common.MARGIN(),
             c=common.rgb(self.secondary_color),
-            s=common.SMALL_FONT_SIZE
+            s=common.SMALL_FONT_SIZE()
         ))
         self.long_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
@@ -421,8 +423,8 @@ QWidget {{
             background-color: rgba({pd});
         }}
         """.format(
-                i=common.INDICATOR_WIDTH,
-                s=common.ROW_SEPARATOR,
+                i=common.INDICATOR_WIDTH(),
+                s=common.ROW_SEPARATOR(),
                 c=common.rgb(self.secondary_color.lighter(150)),
                 p=common.rgb(self.primary_color),
                 pl=common.rgb(self.primary_color.lighter(120)),
@@ -431,7 +433,7 @@ QWidget {{
         )
 
     def sizeHint(self):
-        return QtCore.QSize(common.HEIGHT, common.HEIGHT * 0.5)
+        return QtCore.QSize(common.HEIGHT(), common.HEIGHT() * 0.5)
 
     def eventFilter(self, widget, event):
         if widget != self:
@@ -442,7 +444,7 @@ QWidget {{
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(self.secondary_color)
-            o = common.MARGIN * 0.5
+            o = common.MARGIN() * 0.5
             painter.drawRect(self.rect())
             painter.end()
             return True

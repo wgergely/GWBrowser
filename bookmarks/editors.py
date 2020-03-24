@@ -75,14 +75,14 @@ class DescriptionEditorWidget(common_ui.NameBase):
             self.hide()
 
         # Let's set the size based on the size provided by the delegate but
-        # center it instead of a direct overlay
-        o = common.INDICATOR_WIDTH
+        # center it instead
+        o = common.INDICATOR_WIDTH() * 2.0
         rect = description_rect.marginsAdded(QtCore.QMargins(0, o, 0, o))
         rect.moveCenter(rectangles[delegate.DataRect].center())
         rect.setLeft(
-            rectangles[delegate.DataRect].left() + common.INDICATOR_WIDTH)
+            rectangles[delegate.DataRect].left() + common.INDICATOR_WIDTH())
         rect.setRight(
-            rectangles[delegate.DataRect].right() - common.INDICATOR_WIDTH)
+            rectangles[delegate.DataRect].right() - common.INDICATOR_WIDTH())
         self.setGeometry(rect)
 
         # Set the text and select it
@@ -170,16 +170,16 @@ class FilterEditor(QtWidgets.QDialog):
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN * 2
+        o = common.MARGIN() * 2
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        row = add_row(None, parent=self, padding=0, height=common.ROW_HEIGHT)
+        row = add_row(None, parent=self, padding=0, height=common.ROW_HEIGHT())
         icon = ClickableIconButton(
             u'filter',
             (common.REMOVE, common.REMOVE),
-            common.ROW_HEIGHT
+            common.ROW_HEIGHT()
         )
         label = u'Search filter'
         label = PaintedLabel(label, parent=self)
@@ -211,15 +211,15 @@ class FilterEditor(QtWidgets.QDialog):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
 
-        o = common.MARGIN
+        o = common.MARGIN()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        rect.setHeight(common.ROW_HEIGHT + (common.MARGIN * 2))
+        rect.setHeight(common.ROW_HEIGHT() + (common.MARGIN() * 2))
         painter.setBrush(common.SECONDARY_BACKGROUND)
         painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def mousePressEvent(self, event):
@@ -302,7 +302,7 @@ class ThumbnailLabel(QtWidgets.QLabel):
 class ThumbnailsWidget(QtWidgets.QWidget):
     """The widget used to let the end-user pick a new thumbnail."""
     thumbnailSelected = QtCore.Signal(unicode)
-    thumbnail_size = 64.0
+    thumbnail_size = common.ASSET_ROW_HEIGHT()
 
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
@@ -318,7 +318,8 @@ class ThumbnailsWidget(QtWidgets.QWidget):
     def _create_UI(self):
         """Using scandir we will get all the installed thumbnail files from the rsc directory."""
         QtWidgets.QVBoxLayout(self)
-        o = 16
+        o = common.MARGIN()
+
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
@@ -332,11 +333,11 @@ class ThumbnailsWidget(QtWidgets.QWidget):
         QtWidgets.QGridLayout(widget)
         widget.layout().setAlignment(QtCore.Qt.AlignCenter)
         widget.layout().setContentsMargins(
-            common.INDICATOR_WIDTH,
-            common.INDICATOR_WIDTH,
-            common.INDICATOR_WIDTH,
-            common.INDICATOR_WIDTH)
-        widget.layout().setSpacing(common.INDICATOR_WIDTH)
+            common.INDICATOR_WIDTH(),
+            common.INDICATOR_WIDTH(),
+            common.INDICATOR_WIDTH(),
+            common.INDICATOR_WIDTH())
+        widget.layout().setSpacing(common.INDICATOR_WIDTH())
 
         scrollarea = QtWidgets.QScrollArea(parent=self)
         scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -383,7 +384,7 @@ class ThumbnailsWidget(QtWidgets.QWidget):
         painter.setBrush(common.SECONDARY_BACKGROUND)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = 8
+        o = common.INDICATOR_WIDTH() * 2.0
         painter.drawRoundedRect(
             self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)),
             o, o

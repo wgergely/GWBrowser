@@ -117,7 +117,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
 
         """
         font = self.document().defaultFont()
-        font.setPixelSize(common.MEDIUM_FONT_SIZE)
+        font.setPixelSize(common.MEDIUM_FONT_SIZE())
 
         char_format = QtGui.QTextCharFormat()
         char_format.setFont(font)
@@ -235,13 +235,13 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def __init__(self, text, read_only=False, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        self.document().setDocumentMargin(common.MARGIN)
+        self.document().setDocumentMargin(common.MARGIN())
 
         self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
         self.setOpenLinks(False)
         self.setReadOnly(False)
-        self.verticalScrollBar().setFixedWidth(common.INDICATOR_WIDTH)
+        self.verticalScrollBar().setFixedWidth(common.INDICATOR_WIDTH())
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         if read_only:
             self.setTextInteractionFlags(
@@ -252,7 +252,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         metrics = QtGui.QFontMetricsF(self.document().defaultFont())
         metrics.width(u'   ')
-        self.setTabStopWidth(common.MARGIN)
+        self.setTabStopWidth(common.MARGIN())
 
         self.setUndoRedoEnabled(True)
 
@@ -275,14 +275,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font(font_size=11.0)
+        font = common.font_db.primary_font()
         metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font(font_size=11.0)
+        font = common.font_db.primary_font()
         metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
@@ -296,7 +296,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             return self.get_minHeight()
         if height > self.get_maxHeight():
             return self.get_maxHeight()
-        return height + 4
+        return height
 
     def keyPressEvent(self, event):
         """I'm defining custom key events here, the default behaviour is pretty poor.
@@ -316,7 +316,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             cursor.movePosition(
                 QtGui.QTextCursor.Start,
                 QtGui.QTextCursor.MoveAnchor,
-                cursor.position() - 4,
+                cursor.position(),
             )
             return
         super(TodoItemEditor, self).keyPressEvent(event)
@@ -401,7 +401,7 @@ class RemoveNoteButton(ClickableIconButton):
         super(RemoveNoteButton, self).__init__(
             u'remove',
             (common.REMOVE, common.REMOVE),
-            common.MARGIN * 0.66,
+            common.MARGIN() * 0.66,
             description=u'Click to remove this note',
             parent=parent
         )
@@ -454,10 +454,10 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """Custom disabled function."""
         if b:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT_SELECTED, common.MARGIN * 0.66)
+                u'drag_indicator', common.TEXT_SELECTED, common.MARGIN() * 0.66)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT, common.MARGIN * 0.66)
+                u'drag_indicator', common.TEXT, common.MARGIN() * 0.66)
 
         self.setPixmap(pixmap)
 
@@ -577,11 +577,11 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.BACKGROUND, common.MARGIN)
+                u'check', common.BACKGROUND, common.MARGIN())
             self.setPixmap(pixmap)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.ADD, common.MARGIN)
+                u'check', common.ADD, common.MARGIN())
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -594,7 +594,7 @@ class CheckBoxButton(QtWidgets.QLabel):
 class Separator(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(Separator, self).__init__(parent=parent)
-        pixmap = QtGui.QPixmap(QtCore.QSize(4096, 1))
+        pixmap = QtGui.QPixmap(QtCore.QSize(4096, common.ROW_SEPARATOR()))
         pixmap.fill(common.FAVOURITE)
         self.setPixmap(pixmap)
 
@@ -614,7 +614,7 @@ class Separator(QtWidgets.QLabel):
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum
         )
-        self.setFixedWidth(1)
+        self.setFixedWidth(common.ROW_SEPARATOR())
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasFormat(u'bookmarks/todo-drag'):
@@ -642,7 +642,7 @@ class TodoEditors(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().setSpacing(common.INDICATOR_WIDTH() * 2)
 
         self.setAcceptDrops(True)
 
@@ -771,7 +771,7 @@ class TodoItemWidget(QtWidgets.QWidget):
 
     def _create_UI(self):
         QtWidgets.QHBoxLayout(self)
-        o = common.INDICATOR_WIDTH
+        o = common.INDICATOR_WIDTH()
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
@@ -780,7 +780,7 @@ class TodoItemWidget(QtWidgets.QWidget):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QColor(255,255,255,255))
-        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.drawRoundedRect(self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
 
@@ -820,12 +820,12 @@ class TodoEditorWidget(QtWidgets.QDialog):
     def _create_UI(self):
         """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN * 1.5
-        self.layout().setSpacing(12.0)
+        o = common.MARGIN() * 1.5
+        self.layout().setSpacing(common.MEDIUM_FONT_SIZE())
         self.layout().setContentsMargins(o, o, o, o)
 
         # Top row
-        height = 20
+        height = common.ROW_HEIGHT() * 0.8
         row = add_row(None, height=height, parent=self)
 
         def paintEvent(event):
@@ -851,10 +851,10 @@ class TodoEditorWidget(QtWidgets.QDialog):
         # Name label
         text = u'Notes and Tasks'
         label = PaintedLabel(text, color=common.SECONDARY_TEXT,
-                             size=common.LARGE_FONT_SIZE, parent=self)
+                             size=common.LARGE_FONT_SIZE(), parent=self)
 
         row.layout().addWidget(self.add_button, 0)
-        row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        row.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
         row.layout().addWidget(label, 1)
         row.layout().addStretch(1)
 
@@ -880,10 +880,10 @@ class TodoEditorWidget(QtWidgets.QDialog):
         self.remove_button.clicked.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
 
-        # self.layout().addSpacing(common.INDICATOR_WIDTH)
+        # self.layout().addSpacing(common.INDICATOR_WIDTH())
 
         self.todoeditors_widget = TodoEditors(parent=self)
-        self.setMinimumHeight(100)
+        self.setMinimumHeight(common.ROW_HEIGHT() * 3.0)
 
         self.scrollarea = QtWidgets.QScrollArea(parent=self)
         self.scrollarea.setWidgetResizable(True)
@@ -962,19 +962,19 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
-            font = common.font_db.secondary_font(font_size=common.MEDIUM_FONT_SIZE)
+            font = common.font_db.secondary_font(font_size=common.MEDIUM_FONT_SIZE())
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 
-            o = 4
+            o = common.INDICATOR_WIDTH()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
             painter.setBrush(QtGui.QColor(250, 250, 250, 255))
             painter.setPen(QtCore.Qt.NoPen)
             painter.drawRoundedRect(rect, o * 2, o * 2)
 
             center = rect.center()
-            rect.setWidth(rect.width() - common.MARGIN)
-            rect.setHeight(rect.height() - common.MARGIN)
+            rect.setWidth(rect.width() - common.MARGIN())
+            rect.setHeight(rect.height() - common.MARGIN())
             rect.moveCenter(center)
 
             text = u'Click the plus icon on the top to add a note'
@@ -1078,7 +1078,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             widget.setDisabled(not b)
 
         item = TodoItemWidget(parent=self)
-        item.layout().addSpacing(common.MARGIN)
+        item.layout().addSpacing(common.MARGIN())
         checkbox = CheckBoxButton(checked=not checked, parent=item)
         checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
         drag = DragIndicatorButton(checked=False, parent=item)
@@ -1094,7 +1094,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         if not self.read_only:
             item.layout().addWidget(checkbox)
-            item.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+            item.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
             item.layout().addWidget(drag)
         else:
             checkbox.hide()
@@ -1105,7 +1105,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             remove = RemoveNoteButton(parent=item)
             remove.setFocusPolicy(QtCore.Qt.NoFocus)
             item.layout().addWidget(remove)
-            item.layout().addSpacing(common.INDICATOR_WIDTH)
+            item.layout().addSpacing(common.INDICATOR_WIDTH())
 
         if idx is None:
             self.todoeditors_widget.layout().addWidget(item, 0)
@@ -1240,11 +1240,12 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
     def sizeHint(self):
         """Custom size."""
-        return QtCore.QSize(460, 460)
+        return QtCore.QSize(common.WIDTH(), common.HEIGHT())
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
+    import bookmarks.standalone as standalone
+    app = standalone.StandaloneApp([])
     widget = TodoEditorWidget(QtCore.QModelIndex())
     widget.add_item(
         idx=0, text=u'!@#$%^&{Saját tyúkól készítése{;:::hello world!', checked=False)
