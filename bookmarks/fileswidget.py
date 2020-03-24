@@ -85,6 +85,8 @@ class FilesModel(BaseModel):
     """
     val = settings.local_settings.value(u'widget/rowheight')
     val = val if val else common.ROW_HEIGHT()
+    val = common.ROW_HEIGHT() if val < common.ROW_HEIGHT() else val
+    
     ROW_SIZE = QtCore.QSize(common.HEIGHT() * 0.25, val)
 
     def __init__(self, parent=None):
@@ -564,7 +566,7 @@ class DragPixmap(QtWidgets.QWidget):
         self._text = text
 
         font = common.font_db.primary_font()
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         self._text_width = metrics.width(text)
 
         width = self._text_width + common.MARGIN()

@@ -265,7 +265,7 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot(unicode)
     def setText(self, text):
         super(SelectButton, self).setText(text)
-        metrics = QtGui.QFontMetricsF(common.font_db.primary_font())
+        metrics = QtGui.QFontMetrics(common.font_db.primary_font())
         width = metrics.width(self.text().upper())
         self.setFixedWidth(width + common.MARGIN())
         self.update()
@@ -501,7 +501,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        _metrics = QtGui.QFontMetricsF(common.font_db.secondary_font())
+        _metrics = QtGui.QFontMetrics(common.font_db.secondary_font())
         text = _metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -1374,7 +1374,7 @@ class FilePathWidget(QtWidgets.QWidget):
         painter.drawRoundedRect(bg_rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.setOpacity(1)
 
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         file_path = self.window().get_file_path()
 
         if not file_path:

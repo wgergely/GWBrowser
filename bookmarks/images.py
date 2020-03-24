@@ -830,7 +830,7 @@ class Viewer(QtWidgets.QGraphicsView):
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
         font = common.font_db.primary_font()
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         rect.setHeight(metrics.height())
 
         # Filename
@@ -857,7 +857,7 @@ class Viewer(QtWidgets.QGraphicsView):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in common.get_oiio_extensions():
-            metrics = QtGui.QFontMetricsF(common.font_db.secondary_font())
+            metrics = QtGui.QFontMetrics(common.font_db.secondary_font())
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)

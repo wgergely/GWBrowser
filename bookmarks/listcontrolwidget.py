@@ -341,7 +341,6 @@ class PaintedTextButton(QtWidgets.QLabel):
         super(PaintedTextButton, self).__init__(parent=parent)
         self.default_label = label
         self.index = idx
-        self.font = common.font_db.primary_font()
 
         self.setStatusTip(description)
         self.setToolTip(description)
@@ -419,7 +418,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
     def get_width(self):
         o = common.INDICATOR_WIDTH() * 3
-        width = QtGui.QFontMetricsF(self.font).width(self.text()) + (o * 2)
+        width = QtGui.QFontMetrics(common.font_db.primary_font()).width(self.text()) + (o * 2)
         return width
 
     @QtCore.Slot()
@@ -442,7 +441,6 @@ class PaintedTextButton(QtWidgets.QLabel):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
 
         option = QtWidgets.QStyleOptionButton()
         option.initFrom(self)
@@ -456,13 +454,13 @@ class PaintedTextButton(QtWidgets.QLabel):
             color = common.TEXT if hover else common.BACKGROUND
             painter.setBrush(color)
 
-        metrics = QtGui.QFontMetricsF(self.font)
+        metrics = QtGui.QFontMetrics(common.font_db.primary_font())
         width = metrics.width(self.text())
 
         x = (self.width() / 2.0) - (width / 2.0)
         y = self.rect().center().y() + (metrics.ascent() * 0.5)
         path = QtGui.QPainterPath()
-        path.addText(x, y, self.font, self.text())
+        path.addText(x, y, common.font_db.primary_font(), self.text())
         painter.drawPath(path)
 
         rect.setHeight(common.ROW_SEPARATOR() * 2.0)

@@ -77,7 +77,7 @@ class RectanglesWidget(QtWidgets.QLabel):
         painter.setOpacity(1.0)
 
         painter.setPen(common.TEXT)
-        painter.setFont(common.font_db.secondary_font())
+        painter.setFont(common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE()))
         _rect = self.rect()
         _rect.setLeft(rect.left() + common.SMALL_FONT_SIZE())
 
@@ -108,7 +108,6 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.job = job
         self.root = root
 
-        self.load_last_button = None
         self.save_button = None
 
         self.framerate_editor = None
@@ -130,7 +129,6 @@ class ScrollArea(QtWidgets.QScrollArea):
         self._connect_signals()
 
         self.init_database_values()
-        # self.init_last_used_values()
 
     def _create_UI(self):
         o = common.INDICATOR_WIDTH()
@@ -337,30 +335,6 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
     def preference_key(self, name):
         return u'preferences/{}'.format(name)
 
-    def init_last_used_values(self):
-        def set_saved(k):
-            v = settings.local_settings.value(self.preference_key(k))
-            getattr(self, k).setText(unicode(v) if v else u'')
-
-        def emit_text(k):
-            getattr(self, k).textEdited.emit(getattr(self, k).text())
-
-        controls = (
-            u'framerate_editor',
-            u'width_editor',
-            u'height_editor',
-            u'prefix_editor',
-            u'startframe_editor',
-            u'duration_editor',
-            u'identifier_editor',
-            u'slackurl_editor',
-            u'slacktoken_editor'
-        )
-
-        for control in controls:
-            set_saved(control)
-            emit_text(control)
-
     def init_database_values(self, compare=False):
         def set_saved(k):
             v = db.value(0, k.replace(u'_editor', u''), table=u'properties')
@@ -538,9 +512,6 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         row = common_ui.add_row(None, padding=None, parent=self)
         label = common_ui.PaintedLabel(
             u'Bookmark Properties', size=common.LARGE_FONT_SIZE())
-        self.load_last_button = common_ui.PaintedButton(u'Load Used')
-        self.load_last_button.setFixedHeight(height * 0.7)
-
         self.save_button = common_ui.ClickableIconButton(
             u'check',
             (common.ADD, common.ADD),
@@ -551,7 +522,6 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.save_button, 0)
 
         row = common_ui.add_row(None, padding=None, parent=self)
-        row.layout().addWidget(self.load_last_button, 0)
         row.layout().addStretch(1)
 
         self.scrollarea = ScrollArea(
@@ -564,8 +534,6 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         self.layout().addWidget(self.scrollarea)
         self.save_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
-        self.load_last_button.clicked.connect(
-            self.scrollarea.init_last_used_values)
 
     @QtCore.Slot()
     def done(self, r):

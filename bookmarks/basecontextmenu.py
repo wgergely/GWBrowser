@@ -157,7 +157,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             if not action.text():
                 continue
 
-            metrics = QtGui.QFontMetricsF(self.font())
+            metrics = QtGui.QFontMetrics(self.font())
             text = metrics.elidedText(
                 action.text(),
                 QtCore.Qt.ElideMiddle,

@@ -106,7 +106,7 @@ MEDIUM_FONT_SIZE = lambda: psize(12.0) #9pt@72dpi
 LARGE_FONT_SIZE = lambda: psize(16.0) # 12pt@72dpi
 
 ROW_HEIGHT = lambda: psize(34.0)
-BOOKMARK_ROW_HEIGHT = lambda: psize(42.0)
+BOOKMARK_ROW_HEIGHT = lambda: psize(48.0)
 ASSET_ROW_HEIGHT = lambda: psize(64.0)
 ROW_SEPARATOR = lambda: psize(1.0)
 
@@ -653,7 +653,7 @@ TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
 SEPARATOR = QtGui.QColor(45, 45, 45)
-FAVOURITE = QtGui.QColor(107, 126, 180)
+FAVOURITE = QtGui.QColor(107, 135, 165)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 
@@ -849,7 +849,7 @@ class FontDatabase(QtGui.QFontDatabase):
                 raise RuntimeError(u'Failed to add required font to the application')
 
     def primary_font(self, font_size=MEDIUM_FONT_SIZE()):
-        k = u'bmRobotoBold' + unicode(psize(font_size))
+        k = u'bmRobotoBold' + unicode(font_size)
         if k in self._fonts:
             return self._fonts[k]
         self._fonts[k] = self.font(u'bmRobotoBold', u'Regular', font_size)
@@ -860,14 +860,14 @@ class FontDatabase(QtGui.QFontDatabase):
         return self._fonts[k]
 
     def secondary_font(self, font_size=SMALL_FONT_SIZE()):
-        k = u'bmRobotoMedium' + unicode(float(font_size))
+        k = u'bmRobotoMedium' + unicode(font_size)
         if k in self._fonts:
             return self._fonts[k]
 
-        self._fonts[k] = self.font(u'bmRobotoRegular', u'Regular', font_size)
+        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', font_size)
         self._fonts[k].setPixelSize(font_size)
 
-        if self._fonts[k].family() != u'bmRobotoRegular':
+        if self._fonts[k].family() != u'bmRobotoMedium':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
 
@@ -1214,14 +1214,10 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
     painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
 
-    x, y = (rect.left(), rect.top())
     elide = None
     metrics = QtGui.QFontMetricsF(font)
 
-    x = rect.left()
-    y = rect.center().y() + (metrics.ascent() / 2.0)
     elide = QtCore.Qt.ElideLeft
-
     if QtCore.Qt.AlignLeft & align:
         elide = QtCore.Qt.ElideRight
     if QtCore.Qt.AlignRight & align:
@@ -1232,7 +1228,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     text = metrics.elidedText(
         u'{}'.format(text),
         elide,
-        rect.width() + 2)
+        rect.width() * 1.01)
     width = metrics.width(text)
 
     if QtCore.Qt.AlignLeft & align:
@@ -1240,14 +1236,9 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     if QtCore.Qt.AlignRight & align:
         x = rect.right() - width
     if QtCore.Qt.AlignHCenter & align:
-        x = rect.left() + (rect.width() / 2.0) - (width / 2.0)
+        x = rect.left() + (rect.width() * 0.5) - (width * 0.5)
 
-    if QtCore.Qt.AlignTop & align:
-        y = rect.top() + metrics.ascent()
-    if QtCore.Qt.AlignVCenter & align:
-        y = rect.center().y() + (metrics.ascent() / 2.0)
-    if QtCore.Qt.AlignBottom & align:
-        y = rect.bottom() - metrics.descent()
+    y = rect.center().y() + (metrics.ascent() * 0.5) - (metrics.descent() * 0.5)
 
     # Making sure text fits the rectangle
     painter.setBrush(color)

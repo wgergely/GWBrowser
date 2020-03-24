@@ -250,7 +250,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             self.setTextInteractionFlags(
                 QtCore.Qt.TextEditorInteraction | QtCore.Qt.LinksAccessibleByMouse)
 
-        metrics = QtGui.QFontMetricsF(self.document().defaultFont())
+        metrics = QtGui.QFontMetrics(self.document().defaultFont())
         metrics.width(u'   ')
         self.setTabStopWidth(common.MARGIN())
 
@@ -276,14 +276,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
         font = common.font_db.primary_font()
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
         font = common.font_db.primary_font()
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
 

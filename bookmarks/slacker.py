@@ -236,6 +236,7 @@ class UsersWidget(QtWidgets.QListView):
             painter.begin(self)
             painter.setBrush(QtCore.Qt.NoBrush)
             painter.setPen(common.SECONDARY_TEXT)
+            painter.setFont(common.font_db.primary_font())
             o = common.MARGIN() * 0.5
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
             text = u'To send messages add a valid Slack API Token to the bookmark \

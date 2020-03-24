@@ -174,6 +174,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.show_help = None
         self.check_updates = None
         self.frameless_window = None
+        self.ui_scale = None
 
     def _create_UI(self):
         import bookmarks
@@ -216,9 +217,24 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(u'Frameless window', parent=grp)
         self.frameless_window = QtWidgets.QCheckBox(
-            u'Use frameless window (restart required)', parent=self)
+            u'Use frameless window', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.frameless_window)
+        label = common_ui.PaintedLabel(u'(Restart required)')
+        row.layout().addWidget(label, 0)
+
+        if common.STANDALONE:
+            row = common_ui.add_row(u'Scale Interface', parent=grp)
+            self.ui_scale = QtWidgets.QComboBox(parent=self)
+            self.ui_scale.addItem(u'100%', userData=1.0)
+            self.ui_scale.addItem(u'125%', userData=1.25)
+            self.ui_scale.addItem(u'150%', userData=1.5)
+            self.ui_scale.addItem(u'175%', userData=1.75)
+            self.ui_scale.addItem(u'200%', userData=2.0)
+            row.layout().addWidget(self.ui_scale, 1)
+            label = common_ui.PaintedLabel(u'(Restart required)')
+            row.layout().addWidget(label, 0)
+
         #######################################################
         grp = common_ui.get_group(parent=self)
         o = common.MARGIN()
@@ -274,6 +290,10 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.frameless_window.toggled.connect(
             lambda x: settings.local_settings.setValue(get_preference(u'frameless_window'), x))
 
+        if common.STANDALONE:
+            self.ui_scale.activated.connect(
+                lambda x: settings.local_settings.setValue(get_preference(u'ui_scale'), self.ui_scale.itemData(x)))
+
         self.rv_path.textChanged.connect(self.set_rv_path)
 
     def _init_values(self):
@@ -282,6 +302,14 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         val = val if not None else False
         if val is not None:
             self.frameless_window.setChecked(val)
+
+        if common.STANDALONE:
+            val = settings.local_settings.value(get_preference(u'ui_scale'))
+            val = val if not None else 1.0
+            if val is not None:
+                idx = self.ui_scale.findData(val)
+                if idx != -1:
+                    self.ui_scale.setCurrentIndex(idx)
 
         rv_path = settings.local_settings.value(get_preference(u'rv_path'))
         val = rv_path if rv_path else None
@@ -444,13 +472,13 @@ class PreferencesWidget(QtWidgets.QDialog):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setBrush(common.BACKGROUND)
         painter.setPen(pen)
         o = common.MARGIN() * 0.4
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def showEvent(self, event):
@@ -459,7 +487,8 @@ class PreferencesWidget(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
+    import bookmarks.standalone as standalone
+    app = standalone.StandaloneApp([])
     w = PreferencesWidget()
     w.show()
     app.exec_()

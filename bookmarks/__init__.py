@@ -56,6 +56,11 @@ def exec_(debug=False):
         u'{}.standalone'.format(name))
 
     from PySide2 import QtWidgets, QtCore
+    import bookmarks.common as common
+
+    import bookmarks.settings as settings
+    ui_scale = settings.local_settings.value('ui_scale')
+    ui_scale = ui_scale if ui_scale else 1.0
 
     if QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication.instance()
@@ -65,7 +70,6 @@ def exec_(debug=False):
         app = bookmarks.StandaloneApp([])
 
     if debug:
-        import bookmarks.common as common
         common.DEBUG_ON = True
         logview = common.LogView()
         logview.show()
@@ -74,5 +78,5 @@ def exec_(debug=False):
 
     import bookmarks.mainwidget as mainwidget
     mainwidget.show_window()
-    
+
     app.exec_()

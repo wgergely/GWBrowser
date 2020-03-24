@@ -903,7 +903,7 @@ class MainWidget(QtWidgets.QWidget):
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
             painter.setOpacity(1.0)
 
-            metrics = QtGui.QFontMetricsF(font)
+            metrics = QtGui.QFontMetrics(font)
             rect.setTop(pixmaprect.bottom() + (o * 0.5))
             rect.setHeight(metrics.height())
             common.draw_aliased_text(

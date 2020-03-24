@@ -109,7 +109,7 @@ class PaintedButton(QtWidgets.QPushButton):
 
     def __init__(self, text, width=None, parent=None):
         super(PaintedButton, self).__init__(text, parent=parent)
-        self.setFixedHeight(common.ROW_HEIGHT() * 0.8)
+        self.setFixedHeight(common.ROW_HEIGHT() * 0.7)
         if width:
             self.setFixedWidth(width)
 
@@ -143,7 +143,7 @@ class PaintedButton(QtWidgets.QPushButton):
         painter.setPen(pen)
         o = common.ROW_SEPARATOR()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        o = common.INDICATOR_WIDTH()
+        o = common.INDICATOR_WIDTH() * 0.7
         painter.drawRoundedRect(rect, o, o)
 
         rect = QtCore.QRect(self.rect())
@@ -167,18 +167,29 @@ class PaintedLabel(QtWidgets.QLabel):
 
     def __init__(self, text, color=common.TEXT, size=common.MEDIUM_FONT_SIZE(), parent=None):
         super(PaintedLabel, self).__init__(text, parent=parent)
-        self._font = common.font_db.primary_font(font_size=size)
+        self._size = size
         self._color = color
-        metrics = QtGui.QFontMetricsF(self._font)
+        self._text = text
+
+        self.update_size()
+
+    def update_size(self):
+        metrics = QtGui.QFontMetrics(common.font_db.primary_font(font_size=self._size))
         self.setFixedHeight(metrics.height())
-        self.setFixedWidth(metrics.width(text) * 1.01)
+        self.setFixedWidth(metrics.width(self._text) * 1.01)
 
     def paintEvent(self, event):
         """Custom paint event to use the aliased paint method."""
         painter = QtGui.QPainter()
         painter.begin(self)
         common.draw_aliased_text(
-            painter, self._font, self.rect(), self.text(), QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, self._color)
+            painter,
+            common.font_db.primary_font(font_size=self._size),
+            self.rect(),
+            self.text(),
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            self._color
+        )
         painter.end()
 
 

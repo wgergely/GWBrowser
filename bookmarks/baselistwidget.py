@@ -1795,6 +1795,8 @@ class BaseListWidget(QtWidgets.QListView):
 
         rect = rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o))
         painter.setPen(QtCore.Qt.NoPen)
+        font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
+        painter.setFont(font)
         painter.setBrush(QtGui.QColor(0,0,0,50))
         painter.setOpacity(0.3)
         painter.drawRoundedRect(rect, o, o)
@@ -1802,7 +1804,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         painter.setPen(common.TEXT_DISABLED)
         painter.drawText(
-            rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o)),
+            rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
             _s,
             boundingRect=rect,

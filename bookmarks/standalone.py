@@ -342,7 +342,6 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName(common.PRODUCT)
         self.set_model_id()
         common.font_db = common.FontDatabase()
-        self.setFont(common.font_db.primary_font())
         pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.setWindowIcon(icon)

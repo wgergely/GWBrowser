@@ -85,7 +85,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rectangles = self.get_rectangles(option.rect)
         font = common.font_db.primary_font()
         painter.setFont(font)
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         cursor_position = self.parent().mapFromGlobal(QtGui.QCursor().pos())
 
@@ -268,20 +268,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         color = common.BACKGROUND_SELECTED if selected else common.BACKGROUND
         painter.setBrush(color)
 
-        # if index.row() != (self.parent().model().rowCount() - 1):
-        #     _rect = QtCore.QRect(rect)
-        #     _rect.setBottom(_rect.bottom() + common.ROW_SEPARATOR())
-        #     _rect.setTop(_rect.bottom() - common.ROW_SEPARATOR())
-        #     _rect.setLeft(common.INDICATOR_WIDTH() + option.rect.height() - common.ROW_SEPARATOR())
-        #     painter.setOpacity(0.666)
-        #     painter.drawRect(_rect)
-
         painter.setOpacity(1.0)
         painter.drawRect(rect)
 
 
         # Active indicator
         if active:
+            rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH() + option.rect.height())
             painter.setOpacity(0.7)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(rect)
@@ -302,14 +295,17 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_inline_icons(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
 
+        painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
         rect = rectangles[FavouriteRect]
         if rect and not archived:
-            if rect.contains(cursor_position):
+            if rect.contains(cursor_position) or favourite:
                 painter.setOpacity(1.0)
-            color = common.TEXT_SELECTED if rect.contains(
+
+            color = common.TEXT_DISABLED if rect.contains(
                 cursor_position) else common.SEPARATOR
+            color = common.TEXT_SELECTED if favourite else color
+
             pixmap = images.ImageCache.get_rsc_pixmap(
                 u'favourite', color, common.MARGIN())
             painter.drawPixmap(rect, pixmap)
@@ -375,7 +371,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
                     text = unicode(index.data(common.TodoCountRole))
                     _font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
-                    _metrics = QtGui.QFontMetricsF(_font)
+                    _metrics = QtGui.QFontMetrics(_font)
                     x = count_rect.center().x() - (_metrics.width(text) / 2.0) + common.ROW_SEPARATOR()
                     y = count_rect.center().y() + (_metrics.ascent() / 2.0)
 
@@ -504,7 +500,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         for i, s in enumerate(v):
 
             if i == 0:
-                c = common.FAVOURITE.darker(150)
+                c = common.FAVOURITE.darker(250)
             else:
                 c = common.TEXT
 
@@ -513,9 +509,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 _s = _s.upper().strip()
                 d[len(d)] = (_s, c)
                 if _i < (len(_v) - 1):
-                    d[len(d)] = (u' / ', common.FAVOURITE.darker(150))
+                    d[len(d)] = (u' / ', common.FAVOURITE.darker(250))
             if i < (len(v) - 1):
-                d[len(d)] = (u'  |  ', common.FAVOURITE.darker(200))
+                d[len(d)] = (u'  |  ', common.FAVOURITE.darker(250))
         return d
 
     @paintmethod
@@ -545,11 +541,11 @@ class BookmarksWidgetDelegate(BaseDelegate):
         r = r.marginsAdded(QtCore.QMargins(o * 2, o, o * 2, o))
         if (r.right() + o) > rect.right():
             r.setRight(rect.right() - o)
-        painter.setBrush(common.FAVOURITE)
+        color = common.FAVOURITE.darker(150) if active else common.FAVOURITE.darker(120)
+        painter.setBrush(color)
 
-        pcolor = QtGui.QColor(
-            255, 255, 255, 255) if active else common.FAVOURITE.darker(175)
-        pen = QtGui.QPen(pcolor)
+        color = common.FAVOURITE.darker(230) if active else common.FAVOURITE.darker(200)
+        pen = QtGui.QPen(color)
         pen.setWidth(common.ROW_SEPARATOR())
         painter.setPen(pen)
         painter.drawRoundedRect(r, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
@@ -597,7 +593,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         rect = rect.marginsRemoved(
             QtCore.QMargins(o, common.INDICATOR_WIDTH(), o * 0.5, common.INDICATOR_WIDTH()))
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         lines = index.data(common.DescriptionRole).split(u'\n')
         for n, text in enumerate(lines):
@@ -607,22 +603,27 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 rect.width()
             )
             if n == 0:
-                painter.setPen(common.TEXT)
+                color = common.TEXT
                 if len(lines) > 1:
                     text = text + u'\n' if lines[1] else text
             else:
-                painter.setPen(common.SECONDARY_TEXT)
+                color = common.SECONDARY_TEXT
                 text = u'\n' + text
 
             if selected:
-                painter.setPen(common.TEXT)
+                painter.setOpacity(1.0)
+                color = common.TEXT
 
-            painter.drawText(
-                rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-                text,
-                boundingRect=rect
-            )
+            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+            rect.setHeight(metrics.height())
+
+            rect.moveTop(option.rect.center().y() - (metrics.ascent() * 0.5))
+            if len(text.split(u'\n')) > 1:
+                rect.moveTop(rect.top() - (metrics.lineSpacing() * 0.5))
+
+            for t in text.split(u'\n'):
+                common.draw_aliased_text(painter, font, rect, t, align, color)
+                rect.moveTop(rect.top() + metrics.lineSpacing())
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
@@ -659,7 +660,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         rect.setLeft(rect.left() + common.MARGIN())
 
         font = common.font_db.primary_font()
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         name_rect = QtCore.QRect(rect)
         center = name_rect.center()
@@ -729,7 +730,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         text = text if text else u''
         font = common.font_db.primary_font(font_size=common.MEDIUM_FONT_SIZE() * (0.9))
         painter.setFont(font)
-        _metrics = QtGui.QFontMetricsF(font)
+        _metrics = QtGui.QFontMetrics(font)
         text = _metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -872,7 +873,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         def draw_subdirs(text_edge):
             font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
-            metrics = QtGui.QFontMetricsF(font)
+            metrics = QtGui.QFontMetrics(font)
 
             subdir_rectangles = self.get_subdir_rectangles(
                 index, rectangles, metrics)
@@ -986,7 +987,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 left_limit = rectangles[DataRect].left()
                 right_limit = rectangles[DataRect].right() - common.MARGIN()
                 font = common.font_db.primary_font()
-                metrics = QtGui.QFontMetricsF(font)
+                metrics = QtGui.QFontMetrics(font)
 
             text = index.data(common.DescriptionRole)
             text = metrics.elidedText(
@@ -1031,7 +1032,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
         font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         it = self.get_text_segments(index).itervalues()
         offset = 0
 
@@ -1041,7 +1042,7 @@ class FilesWidgetDelegate(BaseDelegate):
         it = self.get_filedetail_text_segments(index).itervalues()
         offset = metrics.ascent()
         font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE() * 0.95)
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         right_limit = draw_segments(it, font, metrics, offset)
         draw_description(font, metrics, left_limit, right_limit, offset)
 
@@ -1071,7 +1072,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setPen(common.TEXT)
         painter.setBrush(QtCore.Qt.NoBrush)
         font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE() * 1.1)
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         offset = 0
 
@@ -1111,7 +1112,7 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         font = common.font_db.secondary_font(font_size=common.SMALL_FONT_SIZE() * 1.2)
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         description_rect = QtCore.QRect(name_rect)
         description_rect = QtCore.QRect(rect)
@@ -1158,7 +1159,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.setLeft(rect.left() + (common.INDICATOR_WIDTH() * 2))
 
         font = common.font_db.primary_font()
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         # File-name
         name_rect = QtCore.QRect(rect)
@@ -1172,7 +1173,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         text_segments = self.get_text_segments(index)
         font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE() * 1.1)
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
 
         offset = 0
         for k in sorted(text_segments, reverse=True):
@@ -1188,7 +1189,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if r.right() > rect.right():
                 r.setRight(rect.right() - (common.INDICATOR_WIDTH()))
 
-        metrics = QtGui.QFontMetricsF(font)
+        metrics = QtGui.QFontMetrics(font)
         font = common.font_db.secondary_font(font_size=common.SMALL_FONT_SIZE() * 1.2)
 
         description_rect = QtCore.QRect(name_rect)
