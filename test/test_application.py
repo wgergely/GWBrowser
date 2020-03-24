@@ -397,6 +397,10 @@ class TestModules(unittest.TestCase):
 
     def test_standalone(self):
         import bookmarks.standalone as standalone
+        import bookmarks.mainwidget as mainwidget
+        if mainwidget.__instance__:
+            mainwidget.__instance__.deleteLater()
+            mainwidget.__instance__ = None
         widget = standalone.StandaloneMainWidget()
         widget.show()
 

@@ -528,7 +528,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
     @QtCore.Slot()
     def sort_data(self):
-        """Sorts the internal `INTERNAL_MODEL_DATA`.
+        """Sorts the internal `INTERNAL_MODEL_DATA` dictionary.
         """
         common.Log.debug(u'sort_data()', self)
 
@@ -571,11 +571,12 @@ class BaseModel(QtCore.QAbstractListModel):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_active(self, index):
-        """This is a slot, setting the parent of the model.
+        """Sets the model's ``self.parent_path``.
 
-        Parent refers to the search path the model will get it's data from. It
-        us usually contained in the `common.ParentPathRole` data with the exception
-        of the bookmark items - we don't have parent for these.
+        The parent path is used by the model to load it's data. It is saved
+        in the `common.ParentPathRole` with the exception of the bookmark
+        items - we don't have parents for these as the source data is stored
+        in a the local settings.
 
         """
         if not index.isValid():
@@ -959,7 +960,6 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.blockSignals(False)
         self.blockSignals(False)
 
-
         self.interruptRequested.connect(model.set_interrupt_requested)
 
         model.modelAboutToBeReset.connect(
@@ -970,6 +970,9 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelDataResetRequested.connect(
             lambda: common.Log.debug('modelDataResetRequested -> __resetdata__', model))
         model.modelDataResetRequested.connect(model.__resetdata__)
+
+        # Saves the active in the local settings
+        model.activeChanged.connect(self.save_state)
 
         model.activeChanged.connect(
             lambda: common.Log.debug('activeChanged -> save_activated', model))
@@ -1033,6 +1036,52 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelReset.connect(
             lambda: common.Log.debug('modelReset -> scheduleDelayedItemsLayout', model))
         model.modelReset.connect(self.scheduleDelayedItemsLayout)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def save_state(self, index):
+        """Saves the active item to the local settings."""
+        common.Log.success('{}'.format(index))
+        if not index.isValid():
+            return
+
+        try:
+            settings.local_settings.save_state(
+                u'server', index.data(common.ParentPathRole)[0])
+            settings.local_settings.save_state(
+                u'job', index.data(common.ParentPathRole)[1])
+            settings.local_settings.save_state(
+                u'root', index.data(common.ParentPathRole)[2])
+        except IndexError:
+            pass
+        except Exception as e:
+            common.Log.error('Could not save the state.')
+
+        try:
+            settings.local_settings.save_state(
+                u'asset', index.data(common.ParentPathRole)[3])
+        except IndexError:
+            pass
+        except Exception as e:
+            common.Log.error('Could not save the state.')
+
+        try:
+            settings.local_settings.save_state(
+                u'asset', index.data(common.ParentPathRole)[3])
+        except IndexError:
+            pass
+        except Exception as e:
+            common.Log.error('Could not save the state.')
+
+        try:
+            settings.local_settings.save_state(
+                u'location', index.data(common.ParentPathRole)[4])
+        except IndexError:
+            pass
+        except Exception as e:
+            common.Log.error('Could not save the state.')
+
+        common.Log.debug('save_state()', self)
+
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update(self, index):

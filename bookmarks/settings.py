@@ -100,6 +100,7 @@ class LocalSettings(QtCore.QSettings):
     activeFileChanged = QtCore.Signal(unicode)
 
     filename = u'settings.ini'
+    keys = (u'server', u'job', u'root', u'asset', u'location', u'file')
 
     def __init__(self, parent=None):
         self.config_path = QtCore.QStandardPaths.writableLocation(
@@ -193,6 +194,8 @@ class LocalSettings(QtCore.QSettings):
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
     def save_state(self, k, d):
+        if k not in self.keys:
+            raise ValueError(u'{} is an invalid key.'.format(k))
         self._active_paths[k] = d
 
     @QtCore.Slot()

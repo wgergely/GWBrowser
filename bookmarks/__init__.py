@@ -71,6 +71,8 @@ def exec_(debug=False):
         logview.show()
 
     widget = bookmarks.StandaloneMainWidget()
-    widget.show()
 
+    import bookmarks.mainwidget as mainwidget
+    mainwidget.show_window()
+    
     app.exec_()

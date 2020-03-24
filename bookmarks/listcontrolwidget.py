@@ -514,7 +514,7 @@ class QuickAssetsContextMenu(BaseContextMenu):
     @contextmenu
     def add_assetlist_menu(self, menu_set):
         widget = self.parent().parent().parent().stackedwidget.widget(1)
-        current = widget.model().sourceModel().active_index().data(QtCore.Qt.DisplayRole)
+        active_index = widget.model().sourceModel().active_index()
         items = widget.model().sourceModel().model_data().items()
         items = sorted(
             items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
@@ -525,7 +525,9 @@ class QuickAssetsContextMenu(BaseContextMenu):
             u'check', common.ADD, common.MARGIN())
 
         for idx, item in items:
-            active = current.lower() == item[QtCore.Qt.DisplayRole].lower()
+            active = False
+            if active_index.isValid():
+                active = active_index.data(QtCore.Qt.DisplayRole).lower() == item[QtCore.Qt.DisplayRole].lower()
             if item[common.FlagsRole] & common.MarkedAsArchived:
                 continue
             source_index = widget.model().sourceModel().index(idx, 0)

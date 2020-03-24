@@ -56,8 +56,13 @@ def initializePlugin(plugin):
 
     try:
         import bookmarks.common as common
+
+        # Must initiate the font_db manually here.
         common.font_db = common.FontDatabase()
         common.STANDALONE = False
+
+        # If Maya has any UI scaling, this will scale Bookmark's interface accordingly
+        common.UI_SCALE = cmds.mayaDpiSetting(scaleValue=True, query=True)
 
         import bookmarks.maya.widget as widget
         widget.maya_button = widget.MayaBrowserButton()

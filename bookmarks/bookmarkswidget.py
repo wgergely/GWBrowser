@@ -274,24 +274,30 @@ class BookmarksModel(BaseModel):
         v = {}
 
         ASSET_IDENTIFIER = db.value(0, u'identifier', table=t)
-        data[common.AssetCountRole] = count_assets(data[QtCore.Qt.StatusTipRole], ASSET_IDENTIFIER)
+        data[common.AssetCountRole] = count_assets(
+            data[QtCore.Qt.StatusTipRole], ASSET_IDENTIFIER)
 
         for _k in bookmark_db.KEYS[t]:
             v[_k] = db.value(0, _k, table=t)
 
         info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
-            w=u'{}'.format(int(v['width'])) if (v['width'] and v['height']) else u'',
-            h=u'x{}px'.format(int(v['height'])) if (v['width'] and v['height']) else u'',
-            fps=u'  |  {}fps'.format(v['framerate']) if v['framerate'] else u'',
+            w=u'{}'.format(int(v['width'])) if (
+                v['width'] and v['height']) else u'',
+            h=u'x{}px'.format(int(v['height'])) if (
+                v['width'] and v['height']) else u'',
+            fps=u'  |  {}fps'.format(
+                v['framerate']) if v['framerate'] else u'',
             pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
-            start=u'  |  {}'.format(int(v['startframe'])) if v['startframe'] else u'',
+            start=u'  |  {}'.format(
+                int(v['startframe'])) if v['startframe'] else u'',
             duration=u'-{} ({} frames)'.format(
                 int(v['startframe']) + int(v['duration']),
                 int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
         )
 
         desc = u'{server}  |  {count} assets{info}'.format(
-            server=data[common.ParentPathRole][0].strip().strip(u'/').strip('\\'),
+            server=data[common.ParentPathRole][0].strip().strip(
+                u'/').strip('\\'),
             count=data[common.AssetCountRole],
             info=u'\n{}'.format(info),
         )
@@ -352,7 +358,6 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         self.manage_bookmarks.widget().bookmark_list.bookmarkAdded.connect(_update)
         self.manage_bookmarks.widget().bookmark_list.bookmarkRemoved.connect(_update)
-
         self.resized.connect(self.manage_bookmarks.setGeometry)
 
     def buttons_hidden(self):

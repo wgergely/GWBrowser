@@ -24,6 +24,24 @@ import bookmarks.common as common
 
 __instance__ = None
 
+@QtCore.Slot()
+def show_window():
+    if not __instance__:
+        return
+
+    __instance__.showNormal()
+    __instance__.activateWindow()
+    common.move_widget_to_available_geo(__instance__)
+
+    w = __instance__.window()
+    h = w.windowHandle()
+
+    if h:
+        geo = h.screen().availableGeometry()
+        if __instance__.width() > geo.width() or __instance__.height() > geo.height():
+            o = common.MARGIN()
+            __instance__.setGeometry(geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
+
 
 class StatusBar(QtWidgets.QStatusBar):
     def __init__(self, height, parent=None):
@@ -63,13 +81,6 @@ class TrayMenu(BaseContextMenu):
         self.add_show_menu()
         self.add_visibility_menu()
 
-    def show_window(self):
-        """Raises and shows the widget."""
-        screen = self.parent().window().windowHandle().screen()
-        self.parent().move(screen.geometry().center() - self.parent().rect().center())
-        self.parent().showNormal()
-        self.parent().activateWindow()
-
     @contextmenu
     def add_visibility_menu(self, menu_set):
         """Actions associated with the visibility of the widget."""
@@ -95,7 +106,7 @@ class TrayMenu(BaseContextMenu):
             u'action': toggle_window_flag
         }
         menu_set[u'Restore window...'] = {
-            u'action': self.show_window
+            u'action': show_window
         }
         menu_set[u'separator1'] = {}
         menu_set[u'Quit'] = {
@@ -724,17 +735,9 @@ class MainWidget(QtWidgets.QWidget):
             lambda: lc.listChanged.emit(2))
         lc.favourites_button.clicked.connect(
             lambda: lc.listChanged.emit(3))
+
         #####################################################
-        # Sync settings.local_settings.active_monitor
-        b.activated.connect(
-            lambda x: settings.local_settings.save_state(u'server', x.data(common.ParentPathRole)[0]))
-        b.activated.connect(
-            lambda x: settings.local_settings.save_state(u'job', x.data(common.ParentPathRole)[1]))
-        b.activated.connect(
-            lambda x: settings.local_settings.save_state(u'root', x.data(common.ParentPathRole)[2]))
-        a.activated.connect(
-            lambda x: settings.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[3]))
-        #####################################################
+
         # Bookmark -> Asset
         b.model().sourceModel().activeChanged.connect(
             a.model().sourceModel().set_active)
