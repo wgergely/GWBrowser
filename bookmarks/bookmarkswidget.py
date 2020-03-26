@@ -192,7 +192,7 @@ class BookmarksModel(BaseModel):
                 common.TypeRole: common.FileItem,
                 common.FileInfoLoaded: True,
                 #
-                common.SortByName: common.namekey(filepath),
+                common.SortByName: text,
                 common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySize: file_info.size(),
                 #

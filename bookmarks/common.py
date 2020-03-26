@@ -106,7 +106,7 @@ MEDIUM_FONT_SIZE = lambda: psize(12.0) #9pt@72dpi
 LARGE_FONT_SIZE = lambda: psize(16.0) # 12pt@72dpi
 
 ROW_HEIGHT = lambda: psize(34.0)
-BOOKMARK_ROW_HEIGHT = lambda: psize(48.0)
+BOOKMARK_ROW_HEIGHT = lambda: psize(40.0)
 ASSET_ROW_HEIGHT = lambda: psize(64.0)
 ROW_SEPARATOR = lambda: psize(1.0)
 
@@ -643,7 +643,6 @@ def clear_favourites():
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
 SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
 BACKGROUND = QtGui.QColor(80, 80, 80)
-THUMBNAIL_BACKGROUND = SECONDARY_BACKGROUND
 
 TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(250, 250, 250)
@@ -656,6 +655,7 @@ SEPARATOR = QtGui.QColor(45, 45, 45)
 FAVOURITE = QtGui.QColor(107, 135, 165)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
+THUMBNAIL_BACKGROUND = SEPARATOR
 
 
 def get_oiio_extensions():

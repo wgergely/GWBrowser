@@ -1374,15 +1374,15 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.data(common.FileThumbnailLoaded):
             return
 
-        path = index.data(common.ThumbnailPathRole)
-        if QtCore.QFileInfo(path).exists():
-            w = images.ImageViewer(path, parent=self)
+        if file_info.suffix().lower() in common.oiio_formats:
+            w = images.ImageViewer(file_info.filePath(), parent=self)
             self.selectionModel().currentChanged.connect(w.delete_timer.start)
             w.show()
             return
-
-        if file_info.suffix().lower() in common.oiio_formats:
-            w = images.ImageViewer(file_info.filePath(), parent=self)
+            
+        path = index.data(common.ThumbnailPathRole)
+        if QtCore.QFileInfo(path).exists():
+            w = images.ImageViewer(path, parent=self)
             self.selectionModel().currentChanged.connect(w.delete_timer.start)
             w.show()
             return

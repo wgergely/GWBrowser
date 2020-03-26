@@ -296,6 +296,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_inline_icons(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
 
+        c = self.parent().inline_icons_count()
+        if c:
+            o = (common.MARGIN() + (common.INDICATOR_WIDTH() * 2)) * c + common.MARGIN()
+            bg_rect = QtCore.QRect(rectangles[BackgroundRect])
+            bg_rect.setLeft(bg_rect.right() - o)
+            painter.setBrush(common.SEPARATOR)
+            painter.setOpacity(0.3)
+            painter.drawRect(bg_rect)
+
         painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
         rect = rectangles[FavouriteRect]
         if rect and not archived:
@@ -428,7 +437,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints a drop-shadow"""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = QtCore.QRect(rectangles[DataRect])
-        rect.setLeft(rect.right())
+        rect.setLeft(rect.right() - (common.MARGIN() * 0.5))
         rect.setWidth(common.MARGIN())
         pixmap = images.ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
         painter.setOpacity(1.0)
@@ -470,11 +479,12 @@ class BookmarksWidgetDelegate(BaseDelegate):
             painter, option, index, antialiasing=False)
         self.paint_background(*args)
         self.paint_thumbnail(*args)
-        self.paint_thumbnail_shadow(*args)
+        # self.paint_thumbnail_shadow(*args)
         self.paint_name(*args)
         self.paint_archived(*args)
         self.paint_inline_icons(*args)
         self.paint_description_editor_background(*args)
+        self.paint_file_shadow(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_drop_indicator(*args)
 
@@ -519,8 +529,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """Paints name of the ``BookmarkWidget``'s items."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
-        painter.setOpacity(0.9)
-        if hover:
+        painter.setOpacity(0.8)
+        if hover or selected or active:
             painter.setOpacity(1.0)
 
         text_segments = self.get_text_segments(index)
@@ -583,47 +593,51 @@ class BookmarksWidgetDelegate(BaseDelegate):
             offset += width
 
         rect.setLeft(_r.right())
-        font = common.font_db.primary_font(
+        font = common.font_db.secondary_font(
             font_size=common.SMALL_FONT_SIZE())
 
         painter.setFont(font)
         o = common.MARGIN()
-        if not hover:
-            painter.setOpacity(0.666)
 
-        rect = rect.marginsRemoved(
-            QtCore.QMargins(o, common.INDICATOR_WIDTH(), o * 0.5, common.INDICATOR_WIDTH()))
-        metrics = QtGui.QFontMetrics(font)
+        if hover or selected or active:
+            if not selected:
+                painter.setOpacity(0.5)
 
-        lines = index.data(common.DescriptionRole).split(u'\n')
-        for n, text in enumerate(lines):
-            text = metrics.elidedText(
-                text,
-                QtCore.Qt.ElideLeft,
-                rect.width()
-            )
-            if n == 0:
-                color = common.TEXT
-                if len(lines) > 1:
-                    text = text + u'\n' if lines[1] else text
-            else:
-                color = common.SECONDARY_TEXT
-                text = u'\n' + text
+            rect = rect.marginsRemoved(
+                QtCore.QMargins(o, common.INDICATOR_WIDTH(), o * 1.5, common.INDICATOR_WIDTH()))
+            metrics = QtGui.QFontMetrics(font)
 
-            if selected:
-                painter.setOpacity(1.0)
-                color = common.TEXT
+            lines = index.data(common.DescriptionRole).split(u'\n')
 
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-            rect.setHeight(metrics.height())
+            for n, text in enumerate(lines):
+                text = metrics.elidedText(
+                    text,
+                    QtCore.Qt.ElideLeft,
+                    rect.width()
+                )
+                if n == 0:
+                    color = common.TEXT
+                    if len(lines) > 1:
+                        text = text + u'\n' if lines[1] else text
+                else:
+                    color = common.SECONDARY_TEXT
+                    text = u'\n' + text
+                if active:
+                    color = common.FAVOURITE.darker(220)
 
-            rect.moveTop(option.rect.center().y() - (metrics.ascent() * 0.5))
-            if len(text.split(u'\n')) > 1:
-                rect.moveTop(rect.top() - (metrics.lineSpacing() * 0.5))
+                if selected:
+                    color = common.TEXT
 
-            for t in text.split(u'\n'):
-                common.draw_aliased_text(painter, font, rect, t, align, color)
-                rect.moveTop(rect.top() + metrics.lineSpacing())
+                align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+                rect.setHeight(metrics.height())
+
+                rect.moveTop(option.rect.center().y() - (metrics.ascent() * 0.5))
+                if len(text.split(u'\n')) > 1:
+                    rect.moveTop(rect.top() - (metrics.lineSpacing() * 0.5))
+
+                for t in text.split(u'\n'):
+                    common.draw_aliased_text(painter, font, rect, t, align, color)
+                    rect.moveTop(rect.top() + metrics.lineSpacing())
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
@@ -643,11 +657,12 @@ class AssetsWidgetDelegate(BaseDelegate):
             painter, option, index, antialiasing=False)
         self.paint_background(*args)
         self.paint_thumbnail(*args)
-        self.paint_thumbnail_shadow(*args)
+        # self.paint_thumbnail_shadow(*args)
         self.paint_name(*args)
         self.paint_archived(*args)
         self.paint_description_editor_background(*args)
         self.paint_inline_icons(*args)
+        self.paint_file_shadow(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_drop_indicator(*args)
 
@@ -820,20 +835,11 @@ class FilesWidgetDelegate(BaseDelegate):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         self._clickable_rectangles[index.row()] = []
 
-        def draw_separator_line():
-            _rect = QtCore.QRect(rectangles[DataRect])
-            _rect.setWidth(common.ROW_SEPARATOR())
-            _rect.moveLeft(rectangles[DataRect].right())
-            painter.setBrush(common.SEPARATOR)
-            painter.setOpacity(0.1)
-            painter.drawRect(_rect)
-            painter.setOpacity(1.0)
-
         def draw_segments(it, font, metrics, offset):
             x = 0
 
             rect = QtCore.QRect(rectangles[DataRect])
-            rect.setRight(rectangles[DataRect].right() - common.MARGIN())
+            rect.setRight(rectangles[DataRect].right() - common.MARGIN() * 1.5)
 
             o = 0.9 if selected else 0.8
             o = 1.0 if hover else o
@@ -885,25 +891,30 @@ class FilesWidgetDelegate(BaseDelegate):
             filter_text = self.parent().model().filter_text()
             rootdir = index.data(common.ParentPathRole)[-1]
             rootdirs = rootdir.split(u'/')
+            _o = common.INDICATOR_WIDTH() * 2
 
             if text_edge > rectangles[DataRect].left() + common.MARGIN():
                 # Inner gray rectangle containing all other subfolder rectangles
                 painter.setBrush(common.SEPARATOR)
                 _r = QtCore.QRect(rectangles[DataRect])
                 _r.setRight(
-                    subdir_rectangles[-1][0].right() + (common.INDICATOR_WIDTH() * 2))
-                _r.setLeft(_r.left() - (common.INDICATOR_WIDTH() * 2))
-                if (_r.right() > (text_edge + common.INDICATOR_WIDTH() * 2)):
+                    subdir_rectangles[-1][0].right() + _o)
+                _r.setLeft(_r.left() - _o)
+
+                if (_r.right() > (text_edge + _o)):
                     _r.setRight(text_edge)
+
                 if _r.left() < rectangles[DataRect].left():
                     o = common.INDICATOR_WIDTH()
                     y = (option.rect.height() - common.ROW_HEIGHT()) / 2
                     __r = _r.marginsRemoved(
                         QtCore.QMargins(o, o + y, o, o + y))
+                else:
+                    __r = _r
 
                 if not hover and not selected and not active:
                     painter.setOpacity(0.3)
-                    _r.setRight(text_edge + (common.INDICATOR_WIDTH() * 2))
+                    _r.setRight(text_edge + _o)
                     if (_r.right() - common.ASSET_ROW_HEIGHT()) > rectangles[DataRect].left():
                         painter.drawRect(_r)
 
@@ -1027,8 +1038,6 @@ class FilesWidgetDelegate(BaseDelegate):
             path = QtGui.QPainterPath()
             path.addText(x, y, font, text)
             painter.drawPath(path)
-
-        draw_separator_line()
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
         font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
