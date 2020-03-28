@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Maya plugin."""
+"""Bookmarks Maya plugin.
 
+Make sure Bookmark is installed before trying to load the plugin.
+The `BOOKMARKS_ROOT` environment is set by the installer and is
+required to find and load all necessary Python modules.
+
+"""
 import sys
 import os
 
@@ -11,9 +16,6 @@ import maya.api.OpenMaya as OpenMaya
 import maya.OpenMayaUI as OpenMayaUI
 
 import maya.cmds as cmds
-
-
-__version__ = u'0.3.0'
 
 
 def maya_useNewAPI():
