@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Setings window for setting a bookmark's properties (width, height, frame
-rate, etc...).
+"""Setings window for setting a bookmark's properties where `width`, `height`,
+`frame rate`, and the `Slack API Token` can be configured.
 
 """
 import re
@@ -9,7 +9,6 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 import bookmarks.common_ui as common_ui
 import bookmarks.common as common
-import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.bookmark_db as bookmark_db
 
@@ -27,7 +26,7 @@ class RectanglesWidget(QtWidgets.QLabel):
         self._duration = 0.0
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setMinimumHeight(common.HEIGHT() * 0.41)
+        self.setMinimumHeight(common.HEIGHT() * 0.30)
         self.setMinimumWidth(common.WIDTH() * 0.15)
 
     @QtCore.Slot()
@@ -119,7 +118,6 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.duration_editor = None
         self.rectangles_widget = None
         self.identifier_editor = None
-        self.slackurl_editor = None
         self.slacktoken_editor = None
 
         self.setWidgetResizable(True)
@@ -231,26 +229,6 @@ will be read as assets.'.format(common.PRODUCT)
 
         grp = common_ui.get_group(parent=grpA)
 
-        row = common_ui.add_row(u'Slack Workspace URL',
-                                parent=grp, height=height)
-
-        label = QtWidgets.QLabel(parent=self)
-        pixmap = images.ImageCache.get_rsc_pixmap(u'slack', common.TEXT, height)
-        label.setPixmap(pixmap)
-        row.layout().addWidget(label)
-
-        self.slackurl_editor = common_ui.NameBase(
-            parent=self, transparent=True)
-        self.slackurl_editor.setPlaceholderText(u'http://mystudio.slack.com')
-
-        button = common_ui.PaintedButton(u'Visit')
-        button.setFixedHeight(height * 0.7)
-        button.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(self.slackurl_editor.text()))
-
-        row.layout().addWidget(self.slackurl_editor, 0)
-        row.layout().addWidget(button, 0)
-
         row = common_ui.add_row(u'Slack API Token', parent=grp, height=height)
         self.slacktoken_editor = common_ui.NameBase(
             parent=self, transparent=True)
@@ -261,9 +239,17 @@ will be read as assets.'.format(common.PRODUCT)
         button.clicked.connect(self.test_slack_token)
         row.layout().addWidget(self.slacktoken_editor, 0)
         row.layout().addWidget(button)
-        text = u'If you have a Slack Bot set up, {} can send messages to team-members.<br>\
-Paste the o-auth token, usually starting with "xoxb-0123...", above.<br><br>\
-Make sure the bot has permissions to "users.list" and to send messages.'.format(common.PRODUCT)
+        text = u'{p} can send messages to team-members using Slack.<br><br>\
+To get started, create a new app and install it for your workspace. \
+Paste the generated <span style="{h}">OAuth</span> token, usually starting with "xoxb-0123..." above.<br> \
+See <a href="http://api.slack.com/apps">http://api.slack.com/apps</a> for more information.<br><br> \
+The Slack app needs to have the <span style="{h}">users:read</span> and \
+<span style="{h}">chat:write</span> scopes enabled. To send messages to channels \
+the bot is not part of, add <span style="{h}">chat:write.public</span>. \
+Scopes <span style="{h}">channels:read</span> and <span style="{h}">groups:read</span> are needed to list available \
+Slack Channels.<br><br>'.format(
+            p=common.PRODUCT,
+            h='color: rgba({});'.format(common.rgb(common.ADD)))
         common_ui.add_description(text, label=u'Slack API Hint', parent=grp)
         # ********************************************
         self.widget().layout().addStretch(1)
@@ -283,8 +269,6 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             lambda v: self.feedback(v, self.duration_editor))
         self.identifier_editor.textEdited.connect(
             lambda v: self.feedback(v, self.identifier_editor, type=unicode))
-        self.slackurl_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.slackurl_editor, type=unicode))
         self.slacktoken_editor.textEdited.connect(
             lambda v: self.feedback(v, self.slacktoken_editor, type=unicode))
 
@@ -312,7 +296,6 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
         connect_save(u'startframe_editor')
         connect_save(u'duration_editor')
         connect_save(u'identifier_editor')
-        connect_save(u'slackurl_editor')
         connect_save(u'slacktoken_editor')
 
         self.suggest_prefix_button.clicked.connect(self.suggest_prefix)
@@ -353,7 +336,6 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             u'startframe_editor',
             u'duration_editor',
             u'identifier_editor',
-            u'slackurl_editor',
             u'slacktoken_editor'
         )
 
@@ -409,7 +391,6 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             u'startframe_editor',
             u'duration_editor',
             u'identifier_editor',
-            u'slackurl_editor',
             u'slacktoken_editor'
         )
         db = bookmark_db.get_db(
@@ -450,42 +431,31 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             common.Log.error('Slack import error.')
             return
 
-        try:
-            client = slacker.Slacker(self.slacktoken_editor.text())
-        except Exception as err:
-            self.slacktoken_editor.setStyleSheet(
-                u'color: rgba({});'.format(common.rgb(common.REMOVE)))
-            common_ui.ErrorBox(
-                u'An error occured validating the token.',
-                unicode(err),
-                parent=self
-            ).exec_()
-            return
-
-        if not client.isValid():
-            common_ui.ErrorBox(
-                u'The token is invalid.',
-                u'Check again if the token is active and has the necessary permissions.',
-                parent=self
-            ).exec_()
-            return
+        client = slacker.Client(self.slacktoken_editor.text())
+        client.verify_token(silent=False)
 
         self.slacktoken_editor.setStyleSheet(
             u'color: rgba({});'.format(common.rgb(common.ADD)))
+        pretty_response = u'Slack URL: {url}\nTeam: {team}'.format(
+            url=client._response['url'],
+            team=client._response['team'],
+        )
         common_ui.OkBox(
             u'Token is valid.',
-            u'',
+            pretty_response,
             parent=self
         ).exec_()
 
     @QtCore.Slot(unicode)
     def feedback(self, v, w, type=float):
         pass
-        # valid = type(v) if v else False
 
 
 class BookmarkPropertiesWidget(QtWidgets.QDialog):
+    """The widget containing all the UI elements used to edit the saved
+    Bookmark properties.
 
+    """
     def __init__(self, index, server=None, job=None, root=None, parent=None):
         super(BookmarkPropertiesWidget, self).__init__(parent=parent)
         self.scrollarea = None
@@ -521,9 +491,6 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         row.layout().addStretch(1)
         row.layout().addWidget(self.save_button, 0)
 
-        row = common_ui.add_row(None, padding=None, parent=self)
-        row.layout().addStretch(1)
-
         self.scrollarea = ScrollArea(
             self.index,
             server=self.server,
@@ -531,7 +498,9 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
             root=self.root,
             parent=self
         )
+        self.layout().addSpacing(o * 0.5)
         self.layout().addWidget(self.scrollarea)
+
         self.save_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
 
