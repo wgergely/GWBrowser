@@ -762,6 +762,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         index = parent.widget(0).model().sourceModel().active_index()
         if not index.isValid():
             return
+            
         widget = parent.currentWidget().show_slacker(index)
         widget.message_widget.append_message(message)
 

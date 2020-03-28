@@ -89,6 +89,8 @@ def oiio_get_qimage(path):
         format = QtGui.QImage.Format_RGB888
     elif np_arr.shape[2] == 4:
         format = QtGui.QImage.Format_RGBA8888
+    else:
+        format = QtGui.QImage.Format_RGB888
 
     image = QtGui.QImage(
         np_arr,
