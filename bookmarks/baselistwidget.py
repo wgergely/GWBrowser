@@ -1379,7 +1379,7 @@ class BaseListWidget(QtWidgets.QListView):
             self.selectionModel().currentChanged.connect(w.delete_timer.start)
             w.show()
             return
-            
+
         path = index.data(common.ThumbnailPathRole)
         if QtCore.QFileInfo(path).exists():
             w = images.ImageViewer(path, parent=self)
@@ -2215,23 +2215,43 @@ class BaseInlineIconWidget(BaseListWidget):
                 u'Could not import SlackClient',
                 u'The Slack API python module was not loaded:\n{}'.format(err),
                 parent=self
-            ).exec_()
-            common.Log.error('Slack import error.')
-            return
+            ).open()
+            common.Log.error(u'Slack import error.')
+            raise
 
         try:
             db = bookmark_db.get_db(index)
-            with db.transactions():
-                url = db.value(0, u'slackurl', table=u'properties')
-                token = db.value(0, u'slacktoken', table=u'properties')
-            widget = slacker.SlackWidget(url, token, parent=self)
-            self.resized.connect(widget.setGeometry)
-            widget.setGeometry(self.viewport().geometry())
-            widget.open()
-            return widget
-        except:
+            token = db.value(0, u'slacktoken', table=u'properties')
+        except Exception as e:
             common.Log.error(u'Could not open Slacker')
-            return None
+            common.ErrorBox(
+                u'Could not open Slacker',
+                u'{}'.format(e),
+                parent=self
+            ).open()
+            raise
+
+        if slacker.instance is not None:
+            source_model = slacker.instance.message_widget.users_widget.model().sourceModel()
+            if source_model.client.token == token:
+                slacker.instance.setGeometry(self.viewport().geometry())
+                slacker.instance.open()
+                return slacker.instance
+
+        slacker.instance = slacker.SlackWidget(token, parent=self)
+        source_model = slacker.instance.message_widget.users_widget.model().sourceModel()
+        self.resized.connect(slacker.instance.setGeometry)
+        slacker.instance.setGeometry(self.viewport().geometry())
+
+        try:
+            source_model.client.verify_token()
+            slacker.instance.open()
+            return slacker.instance
+        except:
+            common.Log.error(u'Invalid token')
+            raise
+
+
 
     @QtCore.Slot()
     def start_requestinfo_timers(self):
