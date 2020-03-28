@@ -21,7 +21,7 @@ import bookmarks.common as common
 KEYS = {
     'data': (u'description', u'notes', u'flags', u'thumbnail_stamp', u'user'),
     'info': (u'server', u'job', u'root', u'user', u'host', u'created'),
-    'properties': (u'width', u'height', u'framerate', u'prefix', u'startframe', u'duration', u'identifier', u'slackurl', u'slacktoken'),
+    'properties': (u'width', u'height', u'framerate', u'prefix', u'startframe', u'duration', u'identifier', u'slacktoken'),
 }
 
 DB_CONNECTIONS = {}
@@ -253,7 +253,6 @@ CREATE TABLE IF NOT EXISTS info (
                     startframe REAL,
                     duration REAL,
                     identifier TEXT,
-                    slackurl TEXT,
                     slacktoken TEXT
                 );
             """)
