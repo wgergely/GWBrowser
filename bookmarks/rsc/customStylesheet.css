@@ -512,22 +512,3 @@ NameModeWidget {{
 NameBase:!read-only:focus{{
     border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
 }}
-
-
-UsersWidget {{
-    icon-size: {MARGIN}px;
-    padding: {ROW_SEPARATOR}px;
-}}
-UsersWidget::item {{
-    border-left: {RADIUS}px solid rgba(0,0,0,0);
-    color: rgba({SECONDARY_TEXT});
-    background: rgba(255,255,255,0);
-}}
-UsersWidget::item:hover {{
-    background: rgba(255,255,255,20);
-}}
-UsersWidget::item:selected {{
-    border-left: {RADIUS}px solid rgba({ADD});
-    color: rgba({ADD});
-    background: rgba(255,255,255,40);
-}}
