@@ -85,8 +85,15 @@ class TemplateContextMenu(BaseContextMenu):
 
             if res == QtWidgets.QMessageBox.No:
                 return
+
             if QtCore.QFile.remove(self.index.data(QtCore.Qt.UserRole + 1)):
                 self.parent().load_templates()
+            else:
+                common_ui.ErrorBox(
+                    u'Could not remove the template.',
+                    u'An unknown error occured.',
+                    parent=self
+                ).open()
 
         menu_set[u'Delete'] = {
             u'action': delete,
@@ -102,17 +109,20 @@ class TemplateContextMenu(BaseContextMenu):
         add_pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
 
-        parent = self.parent().parent().parent().parent()
-        k = u'Import a new {} folder template...'.format(parent.mode())
-        menu_set[k] = {
-            u'action': parent.add_new_template,
-            u'icon': add_pixmap
-        }
+        try:
+            parent = self.parent().parent().parent().parent()
+            k = u'Import a new {} folder template...'.format(parent.mode())
+            menu_set[k] = {
+                u'action': parent.add_new_template,
+                u'icon': add_pixmap
+            }
 
-        menu_set[u'Refresh'] = {
-            u'action': self.parent().load_templates,
-            u'icon': pixmap
-        }
+            menu_set[u'Refresh'] = {
+                u'action': self.parent().load_templates,
+                u'icon': pixmap
+            }
+        except:
+            pass
         return menu_set
 
     @contextmenu
@@ -149,16 +159,22 @@ class TemplateListWidget(QtWidgets.QListWidget):
     def __init__(self, mode, parent=None):
         super(TemplateListWidget, self).__init__(parent=parent)
         self._mode = mode
+        self._drag_in_progress = False
+
         self.setEditTriggers(
             QtWidgets.QAbstractItemView.DoubleClicked |
             QtWidgets.QAbstractItemView.EditKeyPressed
         )
+
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
+
         self.installEventFilter(self)
+        self.viewport().installEventFilter(self)
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Maximum,
@@ -173,7 +189,92 @@ class TemplateListWidget(QtWidgets.QListWidget):
 
         self.model().dataChanged.connect(self.dataChanged)
 
+    def supportedDropActions(self):
+        return QtCore.Qt.CopyAction | QtCore.Qt.MoveAction
+
+    def dropMimeData(self, index, data, action):
+        if not data.hasUrls():
+            return False
+
+        if action & self.supportedDropActions():
+            return False
+
+        return True
+
+    def copy_template(self, source):
+        templates_dir = self.templates_dir_path()
+
+        file_info = QtCore.QFileInfo(source)
+        destination = u'{}/{}'.format(templates_dir, file_info.fileName())
+        dest_info = QtCore.QFileInfo(destination)
+
+        # Let's check if file exists before we copy anything...
+        if dest_info.exists():
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setIcon(QtWidgets.QMessageBox.Warning)
+            mbox.setWindowTitle(u'A file already exists')
+            mbox.setText(
+                u'"{}" already exists.'.format(dest_info.fileName()))
+            mbox.setInformativeText(u'Are you sure you want to override it?')
+            mbox.setStandardButtons(
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+
+            res = mbox.exec_()
+            if res == QtWidgets.QMessageBox.Cancel:
+                return
+            elif res == QtWidgets.QMessageBox.Yes:
+                QtCore.QFile.remove(destination)
+
+        # If copied successfully, let's reload the ``TemplateListWidget``
+        # contents.
+        res = QtCore.QFile.copy(source, destination)
+        if res:
+            self.load_templates()
+        else:
+            common.Log.error('Could not copy the template')
+            common_ui.ErrorBox(
+                u'Error saving the template.',
+                u'Could not copy the template file, an unknown error occured.',
+                parent=self
+            ).open()
+
     def eventFilter(self, widget, event):
+        if widget == self.viewport():
+            if event.type() == QtCore.QEvent.DragEnter:
+                if event.mimeData().hasUrls():
+                    self._drag_in_progress = True
+                    self.repaint()
+                    event.accept()
+                else:
+                    event.ignore()
+                return True
+
+            if event.type() == QtCore.QEvent.DragLeave:
+                self._drag_in_progress = False
+                self.repaint()
+                return True
+
+            if event.type() == QtCore.QEvent.DragMove:
+                if event.mimeData().hasUrls():
+                    self._drag_in_progress = True
+                    event.accept()
+                else:
+                    self._drag_in_progress = False
+                    event.ignore()
+                return True
+
+            if event.type() == QtCore.QEvent.Drop:
+                self._drag_in_progress = False
+                self.repaint()
+
+                for url in event.mimeData().urls():
+                    p = url.toLocalFile()
+                    if zipfile.is_zipfile(p):
+                        self.copy_template(p)
+
+                return True
+
         if widget is not self:
             return False
 
@@ -181,17 +282,30 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
 
-            painter.setBrush(common.BACKGROUND)
+            painter.setBrush(common.SEPARATOR)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.font_db.secondary_font())
+            painter.setOpacity(0.3)
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-            painter.setPen(QtGui.QColor(255, 255, 255, 50))
+
+            if self._drag_in_progress:
+                painter.setBrush(common.ADD)
+                pen = QtGui.QPen(common.ADD)
+                pen.setWidth(common.INDICATOR_WIDTH())
+                painter.setPen(pen)
+                painter.setOpacity(0.5)
+                painter.drawRect(self.rect())
+                painter.setOpacity(1.0)
+            else:
+                painter.setBrush(QtCore.Qt.NoBrush)
+                painter.setPen(QtGui.QColor(255, 255, 255, 100))
+
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
-                u'Available templates (right-click to add a new one)',
+                u'Templates\n(right-click or drag and drop to import)',
                 boundingRect=self.rect(),
             )
             painter.end()
@@ -211,7 +325,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
 
         newpath = u'{}/{}.zip'.format(
             self.templates_dir_path(),
-            name
+            name.replace(u' ', u'_')
         )
         if QtCore.QFile.rename(oldpath, newpath):
             self.model().setData(index, name, QtCore.Qt.DisplayRole)
@@ -283,6 +397,7 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
     def eventFilter(self, widget, event):
         if widget is not self:
             return False
+
         if event.type() is QtCore.QEvent.Paint:
             if self.model().rowCount():
                 return False
@@ -290,11 +405,11 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.begin(self)
             painter.setBrush(common.SECONDARY_BACKGROUND)
             painter.setPen(QtCore.Qt.NoPen)
+
             painter.setFont(common.font_db.secondary_font())
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-            painter.setPen(QtGui.QColor(255, 255, 255, 50))
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
@@ -342,7 +457,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
     def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.INDICATOR_WIDTH() * 2
+        o = common.INDICATOR_WIDTH() * 3
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
@@ -384,7 +499,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self.template_contents_widget = TemplatesPreviewWidget(parent=self)
         splitter.addWidget(self.template_list_widget)
         splitter.addWidget(self.template_contents_widget)
-        splitter.setSizes([common.WIDTH() * 0.12, common.WIDTH() * 0.2])
+        splitter.setSizes([common.WIDTH() * 0.2, common.WIDTH() * 0.12])
         row.layout().addWidget(splitter, 1)
 
     def _connect_signals(self):
@@ -489,20 +604,49 @@ class TemplatesWidget(QtWidgets.QGroupBox):
                             u'Select {} folder template'.format(self.mode().title()))
         dialog.setWindowTitle(
             u'Select a zip file containing the {m} folder hierarchy'.format(m=self.mode().lower()))
+
         if not dialog.exec_():
             return
 
         templates_dir = self.template_list_widget.templates_dir_path()
+
         # Let's iterate over the selected files
         for source in dialog.selectedFiles():
             file_info = QtCore.QFileInfo(source)
             destination = u'{}/{}'.format(templates_dir, file_info.fileName())
-            res = QtCore.QFile.copy(source, destination)
+            dest_info = QtCore.QFileInfo(destination)
+
+            # Let's check if file exists before we copy anything...
+            if dest_info.exists():
+                mbox = QtWidgets.QMessageBox(parent=self)
+                mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                mbox.setWindowTitle(u'A file already exists')
+                mbox.setText(
+                    u'"{}" already exists.'.format(dest_info.fileName()))
+                mbox.setInformativeText(u'Are you sure you want to override it?')
+                mbox.setStandardButtons(
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel)
+                mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+
+                res = mbox.exec_()
+                if res == QtWidgets.QMessageBox.Cancel:
+                    continue
+                elif res == QtWidgets.QMessageBox.Yes:
+                    QtCore.QFile.remove(destination)
+
+                res = QtCore.QFile.copy(source, destination)
 
             # If copied successfully, let's reload the ``TemplateListWidget``
             # contents.
             if res:
                 self.template_list_widget.load_templates()
+            else:
+                common.Log.error('Could not copy the template')
+                common_ui.ErrorBox(
+                    u'Error saving the template.',
+                    u'Could not copy the template file, an unknown error occured.',
+                    parent=self
+                ).open()
 
     @QtCore.Slot()
     def itemActivated(self, selectionList):
@@ -1340,6 +1484,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         inside the given path.
 
         """
+        if self._interrupt_requested:
+            return arr
+
         count += 1
         if count > limit:
             return arr
@@ -1351,8 +1498,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.progressUpdate.emit(
             u'<span>Scanning for Bookmarks, please wait...</span><br><span>{}</span>'.format(path))
-        QtWidgets.QApplication.instance().processEvents(
-            QtCore.QEventLoop.ExcludeUserInputEvents)
+        QtWidgets.QApplication.instance().processEvents()
 
         for entry in it:
             if not entry.is_dir():
@@ -1375,7 +1521,11 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.bookmark_list.clear()
         path = self.job_combobox.itemData(idx, role=QtCore.Qt.UserRole)
+
+        self._interrupt_requested = False
         dirs = self.get_bookmark_dirs(path, -1, 4, [])
+        self._interrupt_requested = False
+
         self.bookmark_list.add_bookmark_items(dirs)
 
         saved_bookmarks = self.get_saved_bookmarks()
@@ -1413,10 +1563,17 @@ class Bookmarks(QtWidgets.QScrollArea):
     def showEvent(self, event):
         self.setFocus(QtCore.Qt.PopupFocusReason)
 
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Escape:
+            print '!'
+            self.widget()._interrupt_requested = True
+
+
 
 if __name__ == '__main__':
     import bookmarks.standalone as standalone
     app = standalone.StandaloneApp([])
+    # widget = TemplateListWidget('job')
     widget = Bookmarks()
     widget.show()
     app.exec_()

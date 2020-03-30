@@ -55,7 +55,7 @@ SectionsStackWidget {{
 }}
 
 QSplitter:handle {{
-	border-top: {ROW_SEPARATOR}px dotted rgba(0,0,0,230);
+	border: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
 	/* background-color: rgba(0, 0, 0, 150); */
 }}
 
@@ -262,20 +262,20 @@ QListWidget::item,
 QListView::item {{
 	outline: 0;
 	color: rgba({TEXT});
-  background: rgba(255,255,255,20);
+  background: rgba({BACKGROUND});
 	border-bottom: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
 }}
 QListWidget::item:hover,
 QListView::item:hover {{
-  background: rgba(255,255,255,50);
+  background: rgba({BACKGROUND_SELECTED});
 }}
 QListWidget::item:selected,
 QListView::item:selected {{
-	background: rgba(255,255,255,100);
+	background: rgba({BACKGROUND_SELECTED});
 }}
 QListWidget::item:selected:hover,
 QListView::item:selected:hover {{
-	background: rgba(255,255,255,130);
+	background: rgba({BACKGROUND_SELECTED});
 }}
 QListWidget::indicator,
 QListView::indicator {{
@@ -511,4 +511,13 @@ NameModeWidget {{
 }}
 NameBase:!read-only:focus{{
     border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
+}}
+
+Bookmarks,
+TemplatesWidget {{
+		border: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
+}}
+
+TemplateListWidget {{
+	padding: {RADIUS};
 }}
