@@ -573,7 +573,6 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             with zipfile.ZipFile(source, 'r', zipfile.ZIP_DEFLATED) as f:
                 f.extractall(file_info.absoluteFilePath(),
                              members=None, pwd=None)
-            # common.reveal(file_info.filePath())
             self.templateCreated.emit(self.name_widget.text())
         except Exception as err:
             common_ui.ErrorBox(
@@ -909,6 +908,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
     SERVER_KEY = u'servers'
 
     progressUpdate = QtCore.Signal(unicode)
+    widgetShown = QtCore.Signal(QtWidgets.QWidget)
 
     def __init__(self, parent=None):
         super(ManageBookmarksWidget, self).__init__(parent=parent)
@@ -936,6 +936,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             is_hidden = self.server_editor.isHidden()
             if is_hidden:
                 self.server_editor.setHidden(False)
+                self.widgetShown.emit(self.server_editor)
                 if not self.templates_widget.isHidden():
                     self.add_template_button.clicked.emit()
                 return
@@ -970,6 +971,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             is_hidden = self.templates_widget.isHidden()
             if is_hidden:
                 self.templates_widget.setHidden(False)
+                self.widgetShown.emit(self.templates_widget)
 
                 if not self.server_editor.isHidden():
                     self.edit_servers_button.clicked.emit()
@@ -982,7 +984,11 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         def job(s):
             # Re-populate the
             server_idx = self.server_combobox.currentIndex()
+
+            self.job_combobox.blockSignals(True)
             self.init_job_combobox(server_idx)
+            self.job_combobox.blockSignals(False)
+
             # Find and select the newly added template
             for n in xrange(self.job_combobox.count()):
                 d = self.job_combobox.itemData(n, role=QtCore.Qt.DisplayRole)
@@ -1051,8 +1057,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         o = common.MEDIUM_FONT_SIZE()
         label.setContentsMargins(o, o, o, o)
 
-        s = u'Click the plus icons to add a server, job or a bookmark \
-(to toggle a bookmark simply click it).'.format(
+        s = u'Click the plus icons to add a server, job or a bookmark.'.format(
             common.PRODUCT)
 
         label.setText(s)
@@ -1547,8 +1552,19 @@ class Bookmarks(QtWidgets.QScrollArea):
     def __init__(self, parent=None):
         super(Bookmarks, self).__init__(parent=parent)
 
+        self.setWindowTitle(u'Manage Bookmarks')
         common.set_custom_stylesheet(self)
-        self.setWidget(ManageBookmarksWidget(parent=self))
+
+        widget = ManageBookmarksWidget(parent=self)
+
+        @QtCore.Slot(QtWidgets.QWidget)
+        def e(w):
+            self.ensureWidgetVisible(w, xmargin=0, ymargin=200)
+
+        widget.widgetShown.connect(e)
+        widget.hide_button.clicked.connect(self.hide)
+
+        self.setWidget(widget)
         self.setWidgetResizable(True)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
@@ -1557,15 +1573,12 @@ class Bookmarks(QtWidgets.QScrollArea):
             QtWidgets.QSizePolicy.Minimum,
         )
 
-        self.setWindowTitle(u'Manage Bookmarks')
-        self.widget().hide_button.clicked.connect(self.hide)
 
     def showEvent(self, event):
         self.setFocus(QtCore.Qt.PopupFocusReason)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
-            print '!'
             self.widget()._interrupt_requested = True
 
 
