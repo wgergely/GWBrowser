@@ -137,8 +137,6 @@ class SelectButton(QtWidgets.QLabel):
         self.update_timer.setSingleShot(False)
         self.update_timer.setInterval(200)
 
-        common.set_custom_stylesheet(self)
-
         self.setFixedHeight(common.ROW_HEIGHT())
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setText(self._label)
@@ -265,7 +263,7 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot(unicode)
     def setText(self, text):
         super(SelectButton, self).setText(text)
-        metrics = QtGui.QFontMetrics(common.font_db.primary_font())
+        metrics = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
         width = metrics.width(self.text().upper())
         self.setFixedWidth(width + common.MARGIN())
         self.update()
@@ -291,7 +289,7 @@ class SelectButton(QtWidgets.QLabel):
             painter.setOpacity(0.8)
 
         common.draw_aliased_text(
-            painter, common.font_db.primary_font(), self.rect(),
+            painter, common.font_db.primary_font(common.MEDIUM_FONT_SIZE()), self.rect(),
             self.text().upper(), QtCore.Qt.AlignCenter, color)
 
         rect = QtCore.QRect(self.rect())
@@ -305,7 +303,7 @@ class SelectButton(QtWidgets.QLabel):
         if not self.ContextMenu:
             return
 
-        w = self.ContextMenu(parent=self)
+        w = self.ContextMenu(parent=self)  # pylint: disable=E1102
         pos = self.rect().bottomLeft()
         pos = self.mapToGlobal(pos)
         w.move(pos)
@@ -501,7 +499,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        _metrics = QtGui.QFontMetrics(common.font_db.secondary_font())
+        _metrics = QtGui.QFontMetrics(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
         text = _metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -510,7 +508,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         x = description_rect.left()
         y = description_rect.center().y() + (metrics.height() / 2.0)
         path = QtGui.QPainterPath()
-        path.addText(x, y, common.font_db.secondary_font(), text)
+        path.addText(x, y, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), text)
         painter.drawPath(path)
 
     def sizeHint(self, index, parent):
@@ -574,9 +572,8 @@ class SelectFolderViewContextMenu(BaseContextMenu):
             if self.index.column() != 0:
                 self.index = self.index.sibling(self.index.row(), 0)
 
-            w = QtWidgets.QInputDialog()
-            common.set_custom_stylesheet(w)
-            w.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+            w = QtWidgets.QInputDialog(parent=self)
+            w.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
             w.setLabelText(u'Enter the name of the folder:')
 
             if w.exec_():
@@ -1352,7 +1349,7 @@ class FilePathWidget(QtWidgets.QWidget):
 
         painter = QtGui.QPainter()
         painter.begin(self)
-        font = common.font_db.primary_font()
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         rect = self.rect()
         center = self.rect().center()
@@ -1553,6 +1550,9 @@ class AddFileWidget(QtWidgets.QDialog):
         **{folder}/{prefix}_{asset}_{mode}_{user}_{version}.{ext}**
 
         """
+        if not self.parent():
+            common.set_custom_stylesheet(self)
+            
         if self._file_to_increment:
             return self._file_to_increment.filePath()
         folder = self.folder_widget.view().selectionModel().currentIndex()
@@ -1634,7 +1634,6 @@ class AddFileWidget(QtWidgets.QDialog):
         self.cancel_button.setFixedWidth(common.MARGIN() * 4.5)
 
         o = common.MARGIN()
-        common.set_custom_stylesheet(self)
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)

@@ -17,15 +17,23 @@ QWidget:window {{
 	border: none;
 	border-width: 0;
 	border-color: rgba({FAVOURITE});
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 }}
 
 MainWidget  {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({SEPARATOR});
 }}
 MayaMainWidget {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({SEPARATOR});
 }}
 QStackedWidget {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({SEPARATOR});
 }}
 QStackedWidget:focus {{
@@ -33,22 +41,26 @@ QStackedWidget:focus {{
 }}
 
 QGroupBox {{
-		border: {ROW_SEPARATOR}px solid rgba(0, 0, 0, 50);
-		border-radius: {RADIUS}px;
-		background-color: rgba(0, 0, 0, 10);
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
+	border: {ROW_SEPARATOR}px solid rgba(0, 0, 0, 50);
+	border-radius: {RADIUS}px;
+	background-color: rgba(0, 0, 0, 10);
 }}
 QGroupBox::title {{
-		font-size: {SMALL_FONT_SIZE}px;
-		color: rgba({SECONDARY_TEXT});
-    subcontrol-origin: margin;
-    subcontrol-position: top center; /* position at the top center */
-    margin: 0px {RADIUS}px;
-    /* background-color: rgba({BACKGROUND}); */
+	font-family: "{PRIMARY_FONT}";
+	font-size: {SMALL_FONT_SIZE}px;
+	color: rgba({SECONDARY_TEXT});
+  subcontrol-origin: margin;
+  subcontrol-position: top center; /* position at the top center */
+  margin: 0px {RADIUS}px;
 }}
 
 
 /* Preferences widget */
 SectionsStackWidget {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({BACKGROUND});
 	border-top: {ROW_SEPARATOR}px solid rgba(30,30,30,200);
 	border-bottom: {ROW_SEPARATOR}px solid rgba(30,30,30,200);
@@ -61,14 +73,16 @@ QSplitter:handle {{
 
 
 QStatusBar {{
-	color: rgba({TEXT});
-	background-color: rgba({SEPARATOR});
 	font-family: "{PRIMARY_FONT}";
 	font-size: {SMALL_FONT_SIZE}px;
+	color: rgba({TEXT});
+	background-color: rgba({SEPARATOR});
 	padding: {RADIUS}px;
 	margin: {RADIUS}px;
 }}
 QStatusBar::item {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	text-align: center;
 	padding: {RADIUS}px;
 	margin: {RADIUS}px;
@@ -77,6 +91,8 @@ QStatusBar::item {{
 
 
 QCheckBox {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	height: {MEDIUM_FONT_SIZE}px;
 	border-radius: {RADIUS}px;
 	background-color: rgba({SECONDARY_BACKGROUND});
@@ -98,6 +114,8 @@ QCheckBox::indicator:checked  {{
 
 
 QRadioButton {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({SECONDARY_TEXT});
 	background-color: transparent;
 	margin: 0px;
@@ -122,15 +140,15 @@ QRadioButton::indicator:checked  {{
 
 
 QPushButton {{
-		text-align: center;
-		padding-left: {MEDIUM_FONT_SIZE}px;
-		padding-right: {MEDIUM_FONT_SIZE}px;
-		color: rgba({TEXT});
-		background-color: rgba({SECONDARY_TEXT});
-		border-radius: 0px;
-		font-family: "{PRIMARY_FONT}";
-		font-size: {MEDIUM_FONT_SIZE}px;
-		border: {ROW_SEPARATOR}px solid rgba({SECONDARY_TEXT});
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
+	text-align: center;
+	padding-left: {MEDIUM_FONT_SIZE}px;
+	padding-right: {MEDIUM_FONT_SIZE}px;
+	color: rgba({TEXT});
+	background-color: rgba({SECONDARY_TEXT});
+	border-radius: 0px;
+	border: {ROW_SEPARATOR}px solid rgba({SECONDARY_TEXT});
 }}
 QPushButton:disabled {{
 	color: rgba({SECONDARY_TEXT});
@@ -154,32 +172,38 @@ QPushButton:focus {{
 
 
 QComboBox {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({TEXT});
 	text-align: left;
 	padding-left: {MEDIUM_FONT_SIZE}px;
 	padding-right: {MEDIUM_FONT_SIZE}px;
 	border-style: none;
 	background-color: rgba({BACKGROUND_SELECTED});
-	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}px;
 	border-radius: {RADIUS_SM}px;
 }}
 
 QComboBox::drop-down {{
-		width: 0px;
-		height: 0px;
-		padding: 0px;
-		margin: {ROW_SEPARATOR}px;
-		border-width: 0px;
-		border-style: none;
-		border-radius: {RADIUS_SM}px;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
+	width: 0px;
+	height: 0px;
+	padding: 0px;
+	margin: {ROW_SEPARATOR}px;
+	border-width: 0px;
+	border-style: none;
+	border-radius: {RADIUS_SM}px;
 }}
 QComboBox QListView::item {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
 	padding-left: {RADIUS_SM}px;
 }}
 QComboBox QListView::item:hover {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({TEXT_SELECTED});
 	background-color: rgba({BACKGROUND_SELECTED});
 }}
@@ -199,6 +223,8 @@ QComboBox:on {{
 
 
 QLineEdit {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
 	border-radius: {ROW_SEPARATOR}px;
@@ -210,6 +236,8 @@ QLineEdit:disabled {{
 }}
 
 .QTextEdit {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
 	border-radius: {ROW_SEPARATOR}px;
@@ -222,6 +250,8 @@ QLineEdit:disabled {{
 
 
 QScrollBar {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background: rgba({SEPARATOR});
 	border: none;
 	border-radius: 0px;
@@ -256,10 +286,14 @@ QScrollBar::sub-line {{
 
 QListWidget,
 QListView {{
-		background: rgba({SECONDARY_BACKGROUND});
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
+	background: rgba({SECONDARY_BACKGROUND});
 }}
 QListWidget::item,
 QListView::item {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	outline: 0;
 	color: rgba({TEXT});
   background: rgba({BACKGROUND});
@@ -294,6 +328,8 @@ QListView::indicator:checked {{
 
 
 QHeaderView {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({TEXT_SELECTED});
 	background-color: rgba({TEXT});
 	text-align: left;
@@ -301,6 +337,8 @@ QHeaderView {{
 	border-top: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
 }}
 QHeaderView::section {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({BACKGROUND});
 	color: rgba({TEXT_SELECTED});
 	border: none;
@@ -311,6 +349,8 @@ QHeaderView::section {{
 
 /* QTreeView */
 QTreeView {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
 }}
@@ -349,6 +389,8 @@ QTreeView:branch:open:has-children:has-siblings {{
 
 
 QLabel {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: transparent;
 }}
 QLabel:disabled {{
@@ -358,13 +400,13 @@ QLabel:disabled {{
 
 
 QMenu {{
-    background-color: rgba({SECONDARY_BACKGROUND});
-		font-family: "{PRIMARY_FONT}";
-		font-size: {MEDIUM_FONT_SIZE}px;
-		margin: 0px;
-		padding: 0px;
-		border: none;
-		menu-scrollable: 1;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {LARGE_FONT_SIZE}px;
+  background-color: rgba({SECONDARY_BACKGROUND});
+	margin: 0px;
+	padding: 0px;
+	border: none;
+	menu-scrollable: 1;
 }}
 QMenu::separator {{
   height: {ROW_SEPARATOR}px;
@@ -385,6 +427,8 @@ QMenu::indicator:selected {{
 	background-color: transparent;
 }}
 QMenu::item {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({TEXT});
 	padding: 0px {MARGIN}px 0px {MARGIN}px;
 	margin: 0px 0px 0px 0px;
@@ -408,10 +452,10 @@ QMenu::right-arrow {{
 
 
 QToolTip {{
-  background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
-	color: rgba({TEXT});
 	font-family: "{PRIMARY_FONT}";
 	font-size: {SMALL_FONT_SIZE}px;
+  background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
+	color: rgba({TEXT});
 	outline: none;
 	margin: {RADIUS_SM}px;
 	border: none;
@@ -420,26 +464,33 @@ QToolTip {{
 }}
 
 
-CheckBoxButton, DragIndicatorButton{{
+CheckBoxButton,
+DragIndicatorButton {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba(230,230,230,255);
 	margin: 0px 0px 0px 0px;
 	padding: 0px 0px 0px 0px;
 }}
-CheckBoxButton:disabled, DragIndicatorButton:disabled {{
+CheckBoxButton:disabled,
+DragIndicatorButton:disabled {{
 	background-color: rgba(0,0,0,0);
 }}
 
 
 ThumbnailButton {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	background-color: rgba({BACKGROUND});
 }}
 
 TodoEditors,
 TodoItemWidget,
 TodoItemEditor {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	alignment: center;
 	text-align: center;
-	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({SECONDARY_BACKGROUND});
 	background-color: transparent;
 }}
@@ -469,9 +520,9 @@ TodoEditorWidget QScrollBar::handle {{
 	background: rgba({SECONDARY_TEXT});
 	border: none;
 	border-radius: {RADIUS}px;
-	border: {ROW_SEPARATOR}px solid rgba(0,0,0,20);
+	border: none;
 	max-height: 250px;
-	min-height: 50px;
+	min-height: {MARGIN}px;
 }}
 
 TodoEditorWidget QScrollBar::add-page,
@@ -486,18 +537,18 @@ TodoEditorWidget QScrollBar::sub-line {{
 }}
 
 PreferencesWidget {{
-		margin: {RADIUS}px;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
+	margin: {RADIUS}px;
 }}
 PreferencesWidget::handle:horizontal  {{
 		border-right: {ROW_SEPARATOR}px solid rgba(0,0,0,150);
 }}
 
 SectionSwitcherWidget  {{
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
 	border: {ROW_SEPARATOR}px solid rgba(0,0,0,100);
-}}
-
-BaseListView {{
-  margin: {ROW_SEPARATOR}px;
 }}
 
 NameBase,
@@ -515,7 +566,9 @@ NameBase:!read-only:focus{{
 
 Bookmarks,
 TemplatesWidget {{
-		border: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}px;
+	border: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
 }}
 
 TemplateListWidget {{

@@ -44,7 +44,7 @@ class ComboBox(QtWidgets.QComboBox):
             painter.begin(self)
             common.draw_aliased_text(
                 painter,
-                common.font_db.secondary_font(),
+                common.font_db.secondary_font(common.SMALL_FONT_SIZE()),
                 self.rect(),
                 self._warning_string,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -166,10 +166,10 @@ class TemplateListWidget(QtWidgets.QListWidget):
             QtWidgets.QAbstractItemView.EditKeyPressed
         )
 
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
 
@@ -284,7 +284,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
 
             painter.setBrush(common.SEPARATOR)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setFont(common.font_db.secondary_font())
+            painter.setFont(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
             painter.setOpacity(0.3)
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
@@ -406,7 +406,7 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.setBrush(common.SECONDARY_BACKGROUND)
             painter.setPen(QtCore.Qt.NoPen)
 
-            painter.setFont(common.font_db.secondary_font())
+            painter.setFont(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
@@ -455,7 +455,6 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self._path = val
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.INDICATOR_WIDTH() * 3
         self.layout().setContentsMargins(o, o, o, o)
@@ -467,7 +466,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         row.layout().setSpacing(0)
 
         self.name_widget = common_ui.NameBase(parent=self)
-        self.name_widget.setFont(common.font_db.primary_font())
+        self.name_widget.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
         self.name_widget.setPlaceholderText(
             u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
@@ -633,14 +632,14 @@ class TemplatesWidget(QtWidgets.QGroupBox):
                 elif res == QtWidgets.QMessageBox.Yes:
                     QtCore.QFile.remove(destination)
 
-                res = QtCore.QFile.copy(source, destination)
 
             # If copied successfully, let's reload the ``TemplateListWidget``
             # contents.
+            res = QtCore.QFile.copy(source, destination)
             if res:
                 self.template_list_widget.load_templates()
             else:
-                common.Log.error('Could not copy the template')
+                common.Log.error(u'Could not copy the template')
                 common_ui.ErrorBox(
                     u'Error saving the template.',
                     u'Could not copy the template file, an unknown error occured.',
@@ -686,7 +685,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             else:
                 icon = folder_icon
             item = QtWidgets.QListWidgetItem(parent=self)
-            item.setData(QtCore.Qt.FontRole, common.font_db.secondary_font())
+            item.setData(QtCore.Qt.FontRole, common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
             item.setData(QtCore.Qt.DisplayRole, f)
             item.setData(QtCore.Qt.SizeHintRole, size)
             item.setData(QtCore.Qt.DecorationRole, icon)
@@ -820,8 +819,8 @@ class BookmarksWidget(QtWidgets.QListWidget):
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.MinimumExpanding,
         )
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setLayoutDirection(QtCore.Qt.RightToLeft)
         self.itemPressed.connect(self.toggle_state)
         self.installEventFilter(self)
@@ -832,7 +831,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
                 return False
             painter = QtGui.QPainter()
             painter.begin(self)
-            painter.setFont(common.font_db.secondary_font())
+            painter.setFont(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
             painter.setBrush(common.ADD)
             painter.setPen(common.TEXT_DISABLED)
             painter.drawText(
@@ -1311,7 +1310,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         k = self.key(server, job, root)
         if add_config_dir:
             if not QtCore.QDir(k).mkpath(u'.bookmark'):
-                print u'# Error: Could not add "{}/.bookmark"'.format(k)
+                s = u'Could not create "{}/.bookmark"'.format(k)
+                common.Log.error(s)
+                common_ui.ErrorBox(
+                    u'Error occured saving bookmark.',
+                    s,
+                    parent=self
+                ).open()
+                raise RuntimeError(s)
 
         d = self._get_saved_bookmarks()
         d[k] = {
@@ -1548,13 +1554,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.init_timer.start()
 
 
-class Bookmarks(QtWidgets.QScrollArea):
+class ManageBookmarks(QtWidgets.QScrollArea):
+    """The main widget to manage servers, jobs and bookmarks.
+
+    """
     def __init__(self, parent=None):
-        super(Bookmarks, self).__init__(parent=parent)
+        super(ManageBookmarks, self).__init__(parent=parent)
 
         self.setWindowTitle(u'Manage Bookmarks')
-        common.set_custom_stylesheet(self)
-
         widget = ManageBookmarksWidget(parent=self)
 
         @QtCore.Slot(QtWidgets.QWidget)
@@ -1587,6 +1594,6 @@ if __name__ == '__main__':
     import bookmarks.standalone as standalone
     app = standalone.StandaloneApp([])
     # widget = TemplateListWidget('job')
-    widget = Bookmarks()
+    widget = ManageBookmarks()
     widget.show()
     app.exec_()

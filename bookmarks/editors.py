@@ -79,10 +79,6 @@ class DescriptionEditorWidget(common_ui.NameBase):
         o = common.INDICATOR_WIDTH() * 2.0
         rect = description_rect.marginsAdded(QtCore.QMargins(0, o, 0, o))
         rect.moveCenter(rectangles[delegate.DataRect].center())
-        rect.setLeft(
-            rectangles[delegate.DataRect].left() + common.INDICATOR_WIDTH())
-        rect.setRight(
-            rectangles[delegate.DataRect].right() - common.INDICATOR_WIDTH())
         self.setGeometry(rect)
 
         # Set the text and select it
@@ -168,7 +164,6 @@ class FilterEditor(QtWidgets.QDialog):
         self.setFocusProxy(self.editor_widget)
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN() * 2
         self.layout().setContentsMargins(o, o, o, o)
@@ -283,7 +278,7 @@ class ThumbnailLabel(QtWidgets.QLabel):
             painter.setPen(common.TEXT)
             common.draw_aliased_text(
                 painter,
-                common.font_db.primary_font(),
+                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
                 self.rect(),
                 self._path.split(
                     u'/').pop().replace(u'thumb_', u'').split(u'_')[0],
@@ -307,13 +302,11 @@ class ThumbnailsWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
         self.columns = 5
-        common.set_custom_stylesheet(self)
-        self._create_UI()
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-
+        
         self.setWindowFlags(QtCore.Qt.Widget)
         self.setWindowTitle(u'Select thumbnail')
+
+        self._create_UI()
 
     def _create_UI(self):
         """Using scandir we will get all the installed thumbnail files from the rsc directory."""

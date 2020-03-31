@@ -49,7 +49,7 @@ class AssetModel(BaseModel):
 
     The model is multithreaded and loads file and thumbnail data using
     thread workers.
-
+    
     """
     ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT())
 

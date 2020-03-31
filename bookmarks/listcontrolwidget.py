@@ -418,7 +418,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
     def get_width(self):
         o = common.INDICATOR_WIDTH() * 3
-        width = QtGui.QFontMetrics(common.font_db.primary_font()).width(self.text()) + (o * 2)
+        width = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE())).width(self.text()) + (o * 2)
         return width
 
     @QtCore.Slot()
@@ -454,13 +454,13 @@ class PaintedTextButton(QtWidgets.QLabel):
             color = common.TEXT if hover else common.BACKGROUND
             painter.setBrush(color)
 
-        metrics = QtGui.QFontMetrics(common.font_db.primary_font())
+        metrics = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
         width = metrics.width(self.text())
 
         x = (self.width() / 2.0) - (width / 2.0)
         y = self.rect().center().y() + (metrics.ascent() * 0.5)
         path = QtGui.QPainterPath()
-        path.addText(x, y, common.font_db.primary_font(), self.text())
+        path.addText(x, y, common.font_db.primary_font(common.MEDIUM_FONT_SIZE()), self.text())
         painter.drawPath(path)
 
         rect.setHeight(common.ROW_SEPARATOR() * 2.0)
@@ -626,7 +626,7 @@ class FilesTabButton(PaintedTextButton):
 
             common.draw_aliased_text(
                 painter,
-                common.font_db.primary_font(),
+                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
                 self.rect(),
                 u'...',
                 QtCore.Qt.AlignCenter,

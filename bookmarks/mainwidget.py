@@ -55,7 +55,7 @@ class StatusBar(QtWidgets.QStatusBar):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        font = common.font_db.secondary_font()
+        font = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
         common.draw_aliased_text(
             painter,
             font,
@@ -375,8 +375,6 @@ class MainWidget(QtWidgets.QWidget):
         self.init_progress = u'Loading...'
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
-
         if self._frameless is True:
             o = common.INDICATOR_WIDTH()  # offset around the widget
         else:
@@ -875,7 +873,7 @@ class MainWidget(QtWidgets.QWidget):
             painter.drawRect(rect)
 
         if not self._initialized:
-            font = common.font_db.primary_font()
+            font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter
             color = QtGui.QColor(255, 255, 255, 80)

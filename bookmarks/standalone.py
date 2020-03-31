@@ -32,16 +32,18 @@ class StandaloneMainWidget(MainWidget):
         defines here. These properties work in conjunction with the mouse events
 
         """
-        super(StandaloneMainWidget, self).__init__(parent=parent)
+        super(StandaloneMainWidget, self).__init__(parent=None)
+
         k = u'preferences/frameless_window'
         self._frameless = settings.local_settings.value(k)
-
         if self._frameless is True:
             self.setWindowFlags(
                 QtCore.Qt.Window |
                 QtCore.Qt.FramelessWindowHint)
             self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
             self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
+        common.set_custom_stylesheet(self)
 
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
@@ -335,13 +337,18 @@ class StandaloneApp(QtWidgets.QApplication):
     MODEL_ID = u'{}App'.format(common.PRODUCT)
 
     def __init__(self, args):
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+
         super(StandaloneApp, self).__init__(args)
         import bookmarks
 
         self.setApplicationVersion(bookmarks.__version__)
         self.setApplicationName(common.PRODUCT)
         self.set_model_id()
+
         common.font_db = common.FontDatabase()
+
         pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.setWindowIcon(icon)

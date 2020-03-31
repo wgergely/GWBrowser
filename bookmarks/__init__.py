@@ -52,31 +52,29 @@ def exec_(debug=False):
     for info in get_info():
         sys.stdout.write(u'{}\n'.format(info))
 
-    bookmarks = importlib.import_module(
-        u'{}.standalone'.format(name))
-
     from PySide2 import QtWidgets, QtCore
+    # Set UI
     import bookmarks.common as common
-
     import bookmarks.settings as settings
-    ui_scale = settings.local_settings.value('ui_scale')
-    ui_scale = ui_scale if ui_scale else 1.0
+    ui_scale = settings.local_settings.value(u'preferences/ui_scale')
+    ui_scale = ui_scale if ui_scale else common.UI_SCALE
 
+    common.UI_SCALE = float(ui_scale)
+    common.STANDALONE = True
+
+    import bookmarks.standalone as standalone
     if QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication.instance()
     else:
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-        app = bookmarks.StandaloneApp([])
+        app = standalone.StandaloneApp([])
 
-    if debug:
-        common.DEBUG_ON = True
-        logview = common.LogView()
-        logview.show()
-
-    widget = bookmarks.StandaloneMainWidget()
+        if debug:
+            common.DEBUG_ON = True
+            logview = common.LogView()
+            logview.show()
 
     import bookmarks.mainwidget as mainwidget
+    standalone.StandaloneMainWidget()
     mainwidget.show_window()
 
     app.exec_()

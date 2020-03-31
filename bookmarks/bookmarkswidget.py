@@ -349,7 +349,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         import bookmarks.managebookmarks as managebookmarks
 
         self._background_icon = u'bookmark'
-        self.manage_bookmarks = managebookmarks.Bookmarks(parent=self)
+        self.manage_bookmarks = managebookmarks.ManageBookmarks(parent=self)
         self.manage_bookmarks.hide()
 
         @QtCore.Slot(unicode)

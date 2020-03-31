@@ -36,7 +36,6 @@ class AddAssetWidget(QtWidgets.QDialog):
         ).exec_()
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)

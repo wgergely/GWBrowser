@@ -471,7 +471,6 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         self._create_UI()
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""``common.py`` defines common methods and settings used across the project.
+"""``py`` defines common methods and settings used across the project.
 
 File-sequences are recognised using regexes defined in the module.
 See :func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
@@ -93,10 +93,8 @@ any UI scaling set in the host DCC. In standalone mode the app factors in the
 current DPI scaling and scales the UI accordingly."""
 
 
-if get_platform() == 'mac':
+if get_platform() == u'mac':
     DPI = 96.0
-elif get_platform() == 'win':
-    DPI = 72.0
 else:
     DPI = 72.0
 
@@ -105,17 +103,17 @@ SMALL_FONT_SIZE = lambda: psize(11.0) #8.5pt@72dbpi
 MEDIUM_FONT_SIZE = lambda: psize(12.0) #9pt@72dpi
 LARGE_FONT_SIZE = lambda: psize(16.0) # 12pt@72dpi
 
-ROW_HEIGHT = lambda: psize(34.0)
-BOOKMARK_ROW_HEIGHT = lambda: psize(40.0)
-ASSET_ROW_HEIGHT = lambda: psize(64.0)
-ROW_SEPARATOR = lambda: psize(1.0)
+ROW_HEIGHT = lambda: int(psize(34.0))
+BOOKMARK_ROW_HEIGHT = lambda: int(psize(40.0))
+ASSET_ROW_HEIGHT = lambda: int(psize(64.0))
+ROW_SEPARATOR = lambda: int(psize(1.0))
 
-MARGIN = lambda: psize(18.0)
+MARGIN = lambda: int(psize(18.0))
 
-INDICATOR_WIDTH = lambda: psize(4.0)
+INDICATOR_WIDTH = lambda: int(psize(4.0))
 
-WIDTH = lambda: psize(640.0)
-HEIGHT = lambda: psize(480.0)
+WIDTH = lambda: int(psize(640.0))
+HEIGHT = lambda: int(psize(480.0))
 
 THUMBNAIL_IMAGE_SIZE = 512.0
 THUMBNAIL_FORMAT = u'png'
@@ -127,8 +125,7 @@ def psize(n):
     where development happened so we'll scale values on MacOSX.
 
     """
-    _n = (n * (DPI / 72.0)) * UI_SCALE
-    return _n
+    return (float(n) * (float(DPI) / 72.0)) * float(UI_SCALE)
 
 
 
@@ -407,7 +404,10 @@ class LogView(QtWidgets.QTextBrowser):
 
     def __init__(self, parent=None):
         super(LogView, self).__init__(parent=parent)
-        set_custom_stylesheet(self)
+
+        if parent is None:
+            set_custom_stylesheet(self)
+
         self.setMinimumWidth(WIDTH())
         self.setUndoRedoEnabled(False)
         self._cached = u''
@@ -848,11 +848,13 @@ class FontDatabase(QtGui.QFontDatabase):
             if not family:
                 raise RuntimeError(u'Failed to add required font to the application')
 
-    def primary_font(self, font_size=MEDIUM_FONT_SIZE()):
+    def primary_font(self, font_size):
+        """Returns the primary font used by the application"""
         k = u'bmRobotoBold' + unicode(font_size)
         if k in self._fonts:
             return self._fonts[k]
-        self._fonts[k] = self.font(u'bmRobotoBold', u'Regular', font_size)
+
+        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', font_size)
         self._fonts[k].setPixelSize(font_size)
 
         if self._fonts[k].family() != u'bmRobotoBold':
@@ -933,6 +935,8 @@ def move_widget_to_available_geo(widget):
 
 def set_custom_stylesheet(widget):
     """Applies the custom stylesheet to the given widget."""
+    import bookmarks.images as images
+
     path = os.path.normpath(
         os.path.abspath(
             os.path.join(
@@ -943,47 +947,47 @@ def set_custom_stylesheet(widget):
             )
         )
     )
-    import bookmarks.images as images
     with open(path, 'r') as f:
         f.seek(0)
         qss = f.read()
         qss = qss.encode(encoding='UTF-8', errors='strict')
 
-        try:
-            qss = qss.format(
-                PRIMARY_FONT=font_db.primary_font().family(),
-                SECONDARY_FONT=font_db.secondary_font().family(),
-                SMALL_FONT_SIZE=SMALL_FONT_SIZE(),
-                MEDIUM_FONT_SIZE=MEDIUM_FONT_SIZE(),
-                LARGE_FONT_SIZE=LARGE_FONT_SIZE(),
-                RADIUS=INDICATOR_WIDTH() * 1.5,
-                RADIUS_SM=INDICATOR_WIDTH(),
-                ROW_SEPARATOR=ROW_SEPARATOR(),
-                MARGIN=MARGIN(),
-                CONTEXT_MENU_HEIGHT=MARGIN() * 1.5,
-                CONTEXT_MENU_PADDING=MARGIN() * 0.333,
-                ROW_HEIGHT=ROW_HEIGHT(),
-                BACKGROUND=rgb(BACKGROUND),
-                BACKGROUND_SELECTED=rgb(BACKGROUND_SELECTED),
-                SECONDARY_BACKGROUND=rgb(SECONDARY_BACKGROUND),
-                TEXT=rgb(TEXT),
-                SECONDARY_TEXT=rgb(SECONDARY_TEXT),
-                TEXT_DISABLED=rgb(TEXT_DISABLED),
-                TEXT_SELECTED=rgb(TEXT_SELECTED),
-                ADD=rgb(ADD),
-                REMOVE=rgb(REMOVE),
-                SEPARATOR=rgb(SEPARATOR),
-                FAVOURITE=rgb(FAVOURITE),
-                BRANCH_CLOSED=images.ImageCache.get_rsc_pixmap(
-                    u'branch_closed', None, None, get_path=True),
-                BRANCH_OPEN=images.ImageCache.get_rsc_pixmap(
-                    u'branch_open', None, None, get_path=True)
-            )
-        except KeyError as err:
-            msg = u'Looks like there might be an error in the css file: {}'.format(
-                err)
-            raise KeyError(msg)
-        widget.setStyleSheet(qss)
+    try:
+        qss = qss.format(
+            PRIMARY_FONT=font_db.primary_font(MEDIUM_FONT_SIZE()).family(),
+            SECONDARY_FONT=font_db.secondary_font(SMALL_FONT_SIZE()).family(),
+            SMALL_FONT_SIZE=int(SMALL_FONT_SIZE()),
+            MEDIUM_FONT_SIZE=int(MEDIUM_FONT_SIZE()),
+            LARGE_FONT_SIZE=int(LARGE_FONT_SIZE()),
+            RADIUS=int(INDICATOR_WIDTH() * 1.5),
+            RADIUS_SM=int(INDICATOR_WIDTH()),
+            ROW_SEPARATOR=int(ROW_SEPARATOR()),
+            MARGIN=int(MARGIN()),
+            CONTEXT_MENU_HEIGHT=int(MARGIN() * 1.5),
+            CONTEXT_MENU_PADDING=int(MARGIN() * 0.333),
+            ROW_HEIGHT=int(ROW_HEIGHT()),
+            BACKGROUND=rgb(BACKGROUND),
+            BACKGROUND_SELECTED=rgb(BACKGROUND_SELECTED),
+            SECONDARY_BACKGROUND=rgb(SECONDARY_BACKGROUND),
+            TEXT=rgb(TEXT),
+            SECONDARY_TEXT=rgb(SECONDARY_TEXT),
+            TEXT_DISABLED=rgb(TEXT_DISABLED),
+            TEXT_SELECTED=rgb(TEXT_SELECTED),
+            ADD=rgb(ADD),
+            REMOVE=rgb(REMOVE),
+            SEPARATOR=rgb(SEPARATOR),
+            FAVOURITE=rgb(FAVOURITE),
+            BRANCH_CLOSED=images.ImageCache.get_rsc_pixmap(
+                u'branch_closed', None, None, get_path=True),
+            BRANCH_OPEN=images.ImageCache.get_rsc_pixmap(
+                u'branch_open', None, None, get_path=True)
+        )
+    except KeyError as err:
+        msg = u'Looks like there might be an error in the css file: {}'.format(
+            err)
+        Log.error(msg)
+        raise KeyError(msg)
+    widget.setStyleSheet(qss)
 
 
 def byte_to_string(num, suffix=u'B'):

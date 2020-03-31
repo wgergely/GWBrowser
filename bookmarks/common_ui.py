@@ -37,7 +37,6 @@ def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGH
         QtWidgets.QVBoxLayout(w)
     else:
         QtWidgets.QHBoxLayout(w)
-    common.set_custom_stylesheet(w)
     w.layout().setContentsMargins(0, 0, 0, 0)
     w.layout().setSpacing(common.INDICATOR_WIDTH())
     w.layout().setAlignment(QtCore.Qt.AlignCenter)
@@ -48,14 +47,14 @@ def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGH
     )
     if height:
         w.setFixedHeight(height)
+
     w.setAttribute(QtCore.Qt.WA_NoBackground)
     w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
     if label:
         l = PaintedLabel(label, size=common.SMALL_FONT_SIZE(),
                          color=common.SECONDARY_TEXT, parent=parent)
-        common.set_custom_stylesheet(l)
-        l.setFixedWidth(120)
+        l.setFixedWidth(common.MARGIN() * 6.6667)
         l.setDisabled(True)
         if padding:
             w.layout().addSpacing(padding)
@@ -69,7 +68,6 @@ def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGH
 
 def add_label(text, parent=None):
     label = QtWidgets.QLabel(text, parent=parent)
-    common.set_custom_stylesheet(label)
     label.setFixedHeight(common.ROW_HEIGHT())
     label.setSizePolicy(
         QtWidgets.QSizePolicy.Expanding,
@@ -81,7 +79,6 @@ def add_label(text, parent=None):
 
 def add_line_edit(label, parent=None):
     w = NameBase(transparent=True, parent=parent)
-    common.set_custom_stylesheet(w)
     w.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
     w.setPlaceholderText(label)
     parent.layout().addWidget(w, 1)
@@ -91,7 +88,6 @@ def add_line_edit(label, parent=None):
 def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
     row = add_row(label, padding=padding, height=None, parent=parent)
     label = QtWidgets.QLabel(text, parent=parent)
-    common.set_custom_stylesheet(label)
     label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
     label.setStyleSheet(
         u'color: rgba({}); font-size: {}px'.format(
@@ -152,7 +148,7 @@ class PaintedButton(QtWidgets.QPushButton):
         rect.moveCenter(center)
         common.draw_aliased_text(
             painter,
-            common.font_db.primary_font(),
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
             rect,
             self.text(),
             QtCore.Qt.AlignCenter,
@@ -231,6 +227,7 @@ class ClickableIconButton(QtWidgets.QLabel):
         self.setFixedSize(QtCore.QSize(size, size))
         self.setAlignment(QtCore.Qt.AlignCenter)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
         self.setAttribute(QtCore.Qt.WA_NoBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
@@ -299,18 +296,18 @@ class MessageBox(QtWidgets.QDialog):
     def __init__(self, short_text, long_text, parent=None):
         super(MessageBox, self).__init__(parent=parent)
 
-        self.setWindowTitle(u'[{}]: Error'.format(common.PRODUCT))
+        if parent is None:
+            common.set_custom_stylesheet(self)
 
         self.short_text_label = QtWidgets.QLabel(short_text, parent=self)
         self.short_text_label.setWordWrap(True)
         self.long_text_label = QtWidgets.QLabel(long_text, parent=self)
         self.long_text_label.setWordWrap(True)
 
-        common.set_custom_stylesheet(self)
-
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
         self.setWindowFlags(
             QtCore.Qt.Dialog |
             QtCore.Qt.FramelessWindowHint |
@@ -333,7 +330,7 @@ QWidget {{
 }}
             """.format(
             SIZE=common.LARGE_FONT_SIZE(),
-            FAMILY=common.font_db.primary_font().family(),
+            FAMILY=common.font_db.primary_font(common.MEDIUM_FONT_SIZE()).family(),
             TEXT=common.rgb(self.secondary_color.darker(150)),
             BG=common.rgb(self.secondary_color)))
 

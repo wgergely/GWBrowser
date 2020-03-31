@@ -22,8 +22,6 @@ def get_preference(name):
 class BaseSettingsWidget(QtWidgets.QWidget):
     def __init__(self, label, parent=None):
         super(BaseSettingsWidget, self).__init__(parent=parent)
-
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
@@ -169,12 +167,16 @@ warning dialog. Tick to disable (default is "off"):'
 class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):
+        self.check_updates = None
+        self.show_help = None
+        self.rv_path = None
+        self.frameless_window = None
+
+        if common.STANDALONE:
+            self.ui_scale = None
+
         super(ApplicationSettingsWidget, self).__init__(
             u'Settings', parent=parent)
-        self.show_help = None
-        self.check_updates = None
-        self.frameless_window = None
-        self.ui_scale = None
 
     def _create_UI(self):
         import bookmarks
@@ -291,8 +293,14 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             lambda x: settings.local_settings.setValue(get_preference(u'frameless_window'), x))
 
         if common.STANDALONE:
-            self.ui_scale.activated.connect(
-                lambda x: settings.local_settings.setValue(get_preference(u'ui_scale'), self.ui_scale.itemData(x)))
+
+            @QtCore.Slot(int)
+            def save_ui_scale(x):
+                v = self.ui_scale.itemData(x)
+                settings.local_settings.setValue(
+                    get_preference(u'ui_scale'), v)
+
+            self.ui_scale.activated.connect(save_ui_scale)
 
         self.rv_path.textChanged.connect(self.set_rv_path)
 
@@ -408,7 +416,6 @@ class PreferencesWidget(QtWidgets.QDialog):
         self._connect_signals()
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o * 0.5, o, o)

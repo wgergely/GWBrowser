@@ -345,7 +345,6 @@ class AlembicView(QtWidgets.QWidget):
             p=common.INDICATOR_WIDTH() * 2, s=common.ROW_SEPARATOR()))
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setSpacing(o)
@@ -400,14 +399,3 @@ class AlembicView(QtWidgets.QWidget):
 
     def showEvent(self, event):
         self._fit_screen_geometry()
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    import alembic
-
-    path = ur'\\gw-workstation\jobs\example_job\project_data\shots\sh0010\exports\abc\testmesh_geo_set\testmesh_geo_set_v001.abc'
-    app = standalone.StandaloneApp([])
-    widget = AlembicView(path)
-    widget.show()
-    app.exec_()

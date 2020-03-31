@@ -535,7 +535,6 @@ class SlackWidget(QtWidgets.QDialog):
         self._connect_signals()
 
     def _create_UI(self):
-        common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
@@ -655,7 +654,7 @@ class LoadingWidget(QtWidgets.QWidget):
 
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(common.TEXT)
-        painter.setFont(common.font_db.primary_font())
+        painter.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
 
         painter.drawText(
             rect,

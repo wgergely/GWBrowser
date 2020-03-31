@@ -132,7 +132,7 @@ class ProgressWidget(QtWidgets.QWidget):
         painter.drawRect(self.rect())
         common.draw_aliased_text(
             painter,
-            common.font_db.primary_font(),
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
             self.rect(),
             self._message,
             QtCore.Qt.AlignCenter,
@@ -1082,7 +1082,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         common.Log.debug('save_state()', self)
 
-
     @QtCore.Slot(QtCore.QModelIndex)
     def update(self, index):
         """This slot is used by all threads to repaint/update the given index
@@ -1731,7 +1730,7 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         if rectangles[delegate.ThumbnailRect].contains(cursor_position):
-            images.ImageCache.pick(index)
+            images.ImageCache.pick(index, parent=self)
             return
 
     def _get_status_string(self):
@@ -1797,7 +1796,7 @@ class BaseListWidget(QtWidgets.QListView):
         painter.setPen(QtCore.Qt.NoPen)
         font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
         painter.setFont(font)
-        painter.setBrush(QtGui.QColor(0,0,0,50))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 50))
         painter.setOpacity(0.3)
         painter.drawRoundedRect(rect, o, o)
         painter.setOpacity(1.0)
@@ -1948,6 +1947,7 @@ class BaseListWidget(QtWidgets.QListView):
 
     def showEvent(self, event):
         self.scheduleDelayedItemsLayout()
+
 
 class BaseInlineIconWidget(BaseListWidget):
     """Multi-toggle capable widget with clickable in-line icons."""
@@ -2251,8 +2251,6 @@ class BaseInlineIconWidget(BaseListWidget):
             common.Log.error(u'Invalid token')
             raise
 
-
-
     @QtCore.Slot()
     def start_requestinfo_timers(self):
         pass
@@ -2338,8 +2336,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.start_requestinfo_timers, cnx_type)
 
         # Slider - Pressed / Released
-        model.modelAboutToBeReset.connect(lambda: self.verticalScrollBar().blockSignals(True))
-        model.modelReset.connect(lambda: self.verticalScrollBar().blockSignals(False))
+        model.modelAboutToBeReset.connect(
+            lambda: self.verticalScrollBar().blockSignals(True))
+        model.modelReset.connect(
+            lambda: self.verticalScrollBar().blockSignals(False))
 
         self.verticalScrollBar().sliderPressed.connect(
             lambda: common.Log.debug('sliderPressed -> reset_thread_worker_queues', self.verticalScrollBar()))
@@ -2369,8 +2369,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             for thread in model.threads[k]:
                 model.modelAboutToBeReset.connect(
                     lambda: common.Log.debug('modelAboutToBeReset -> stopTimer', model))
-                model.modelAboutToBeReset.connect(partial(thread.stopTimer.emit))
-                model.modelAboutToBeReset.connect(partial(thread.worker.resetQueue.emit))
+                model.modelAboutToBeReset.connect(
+                    partial(thread.stopTimer.emit))
+                model.modelAboutToBeReset.connect(
+                    partial(thread.worker.resetQueue.emit))
 
                 model.modelReset.connect(
                     lambda: common.Log.debug('modelReset -> startTimer', model))
@@ -2415,7 +2417,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.request_visible_thumbnail_timer.start(
             self.request_visible_thumbnail_timer.interval())
 
-
     @QtCore.Slot()
     def stop_requestinfo_timers(self):
         """Fires the timer responsible for updating the visible model indexes on
@@ -2436,7 +2437,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         common.Log.debug('stop()', self.request_visible_thumbnail_timer)
         self.request_visible_thumbnail_timer.stop()
-
 
     @QtCore.Slot()
     def queue_model_data(self):
@@ -2562,7 +2562,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
                 if model.generate_thumbnails_enabled():
                     if tcount and info_loaded and not thumb_loaded:
-                        model.threads[common.ThumbnailThread][t % tcount].put(ref)
+                        model.threads[common.ThumbnailThread][t %
+                                                              tcount].put(ref)
                         t += 1
 
                 rect.moveTop(rect.top() + rect.height())
@@ -2582,6 +2583,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         super(ThreadedBaseWidget, self).showEvent(event)
         self.request_visible_fileinfo_load()
         self.request_visible_thumbnail_load()
+
 
 class StackedWidget(QtWidgets.QStackedWidget):
     """Stacked widget used to hold and toggle the list widgets containing the

@@ -188,9 +188,10 @@ def show():
             widget.setVisible(not state)
         return
 
-    # Initializing MayaMainWidget...
+    # Initializing MayaMainWidget
     try:
         widget = MayaMainWidget()
+        common.set_custom_stylesheet(widget)
         widget.show()
 
         sys.stdout.write(
@@ -215,7 +216,7 @@ def show():
             u'Could not show {}'.format(common.PRODUCT),
             u'{}'.format(err)
         ).open()
-        common.Log.error(u'Could not open the plugin window.')
+        common.Log.error(u'Could not open Bookmarks window.')
         raise
 
 
@@ -964,7 +965,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.drawRoundRect(self.rect(), 6, 6)
+        painter.drawRoundRect(self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
         super(MayaBrowserButton, self).paintEvent(event)
@@ -986,9 +987,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             return
 
         widget = self.ContextMenu(parent=self)
-        common.set_custom_stylesheet(widget)
         widget.move(self.mapToGlobal(self.rect().bottomLeft()))
-        widget.setFixedWidth(300)
         common.move_widget_to_available_geo(widget)
         widget.exec_()
 
@@ -1190,6 +1189,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         global __instance__
         __instance__ = self
         super(MayaMainWidget, self).__init__(parent=parent)
+
         self._workspacecontrol = None
         self._callbacks = []  # Maya api callbacks
         self.mainwidget = None
@@ -1249,7 +1249,6 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
-        common.set_custom_stylesheet(self)
 
         self.mainwidget = MainWidget(parent=self)
         self.layout().addWidget(self.mainwidget)
@@ -1492,7 +1491,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
         width = parent.viewport().geometry().width()
-        width = (width * 0.5) if width > 400 else width
+        width = (width * 0.5) if width > common.WIDTH() else width
         width = width - common.INDICATOR_WIDTH()
 
         widget = MayaMainWidgetContextMenu(index, parent=parent)
@@ -1500,7 +1499,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             rect = parent.visualRect(index)
             widget.move(
                 parent.viewport().mapToGlobal(rect.bottomLeft()).x(),
-                parent.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
+                parent.viewport().mapToGlobal(rect.bottomLeft()).y(),
             )
         else:
             widget.move(QtGui.QCursor().pos())
@@ -2173,10 +2172,10 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             u'dockable': True,
             u'allowedArea': None,
             u'retain': True,
-            u'width': 240,
-            u'height': 360
+            u'width': common.WIDTH() * 0.5,
+            u'height': common.HEIGHT() * 0.5
         }
         super(MayaMainWidget, self).show(**kwargs)
 
     def sizeHint(self):
-        return QtCore.QSize(240, 360)
+        return QtCore.QSize(common.WIDTH() * 0.5, common.HEIGHT() * 0.5)

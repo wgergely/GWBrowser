@@ -76,7 +76,7 @@ class DataKeyViewDelegate(BaseDelegate):
             color = common.TEXT if hover else common.BACKGROUND_SELECTED
         color = common.TEXT_SELECTED if selected else color
 
-        font = common.font_db.primary_font()
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         o = common.MARGIN()
         rect = QtCore.QRect(option.rect)
@@ -130,11 +130,11 @@ class DataKeyViewDelegate(BaseDelegate):
                 align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
 
             width = common.draw_aliased_text(
-                painter, common.font_db.secondary_font(), rect, u'    |    ', align, common.SEPARATOR)
+                painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), rect, u'    |    ', align, common.SEPARATOR)
             rect.setLeft(rect.left() + width)
 
             width = common.draw_aliased_text(
-                painter, common.font_db.secondary_font(), rect, text, align, color)
+                painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), rect, text, align, color)
             rect.setLeft(rect.left() + width)
 
     def sizeHint(self, option, index):
@@ -152,7 +152,6 @@ class DataKeyView(QtWidgets.QListView):
         self.altparent = altparent
         self._context_menu_active = False
 
-        common.set_custom_stylesheet(self)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding)

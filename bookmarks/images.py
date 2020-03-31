@@ -514,13 +514,12 @@ class ImageCache(QtCore.QObject):
 
     @classmethod
     @verify_index
-    def pick(cls, index, source=None):
+    def pick(cls, index, source=None, parent=None):
         """Opens a file-dialog to select an OpenImageIO compliant file.
 
         """
         if not source:
-            dialog = QtWidgets.QFileDialog()
-            common.set_custom_stylesheet(dialog)
+            dialog = QtWidgets.QFileDialog(parent=parent)
             dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
             dialog.setViewMode(QtWidgets.QFileDialog.List)
             dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
@@ -831,7 +830,7 @@ class Viewer(QtWidgets.QGraphicsView):
         o = common.MARGIN()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
-        font = common.font_db.primary_font()
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         metrics = QtGui.QFontMetrics(font)
         rect.setHeight(metrics.height())
 
@@ -859,7 +858,7 @@ class Viewer(QtWidgets.QGraphicsView):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in common.get_oiio_extensions():
-            metrics = QtGui.QFontMetrics(common.font_db.secondary_font())
+            metrics = QtGui.QFontMetrics(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)
@@ -869,7 +868,7 @@ class Viewer(QtWidgets.QGraphicsView):
             for n, text in enumerate(image_info):
                 if n > 2:
                     break
-                common.draw_aliased_text(painter, common.font_db.secondary_font(), QtCore.QRect(
+                common.draw_aliased_text(painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), QtCore.QRect(
                     rect), text, QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
                 rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
         painter.end()
@@ -946,8 +945,6 @@ class ImageViewer(QtWidgets.QWidget):
             common.Log.error(s)
             self.deleteLater()
             raise RuntimeError(s)
-
-        common.set_custom_stylesheet(self)
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)

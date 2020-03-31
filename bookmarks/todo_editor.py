@@ -275,14 +275,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font()
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         metrics = QtGui.QFontMetrics(font)
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font()
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         metrics = QtGui.QFontMetrics(font)
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
@@ -894,8 +894,6 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         self.layout().addWidget(self.scrollarea)
 
-        common.set_custom_stylesheet(self)
-
     def clear(self):
         for idx in reversed(xrange(len(list(self.todoeditors_widget.items)))):
             row = self.todoeditors_widget.items.pop(idx)
@@ -1241,15 +1239,3 @@ class TodoEditorWidget(QtWidgets.QDialog):
     def sizeHint(self):
         """Custom size."""
         return QtCore.QSize(common.WIDTH(), common.HEIGHT())
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    widget = TodoEditorWidget(QtCore.QModelIndex())
-    widget.add_item(
-        idx=0, text=u'!@#$%^&{Saját tyúkól készítése{;:::hello world!', checked=False)
-    widget.add_item(idx=0, text='file://test.com', checked=False)
-    widget.show()
-    # widget.collect_data()
-    app.exec_()
