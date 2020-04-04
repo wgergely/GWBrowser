@@ -189,6 +189,10 @@ class TestBookmarksWidget(unittest.TestCase):
     def setUpClass(cls):
         import uuid
         from PySide2 import QtCore
+
+        import bookmarks.common as common
+        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+
         tempdir = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
         _id = uuid.uuid4()
@@ -202,8 +206,6 @@ class TestBookmarksWidget(unittest.TestCase):
         cls.job = u'testroot_{id}'.format(id=_id)
         _dir.mkpath(u'./bookmark_a')
         ########################################
-        import bookmarks.common as common
-        common.PRODUCT = '{}_unittest'.format(common.PRODUCT)
 
         import bookmarks.settings as settings
         from bookmarks.settings import LocalSettings
@@ -242,13 +244,13 @@ class TestBookmarksWidget(unittest.TestCase):
 
     def test_open_managebookmarks(self):
         import bookmarks.managebookmarks as managebookmarks
-        w = managebookmarks.Bookmarks()
+        w = managebookmarks.ManageBookmarks()
         w.show()
 
     def test_managebookmarks_add_bookmark(self):
         import bookmarks.managebookmarks as managebookmarks
 
-        w = managebookmarks.Bookmarks()
+        w = managebookmarks.ManageBookmarks()
         w.show()
 
         val = u'INVALID_SERVER'
@@ -272,7 +274,7 @@ class TestBookmarksWidget(unittest.TestCase):
     def test_read_jobs(self):
         import bookmarks.managebookmarks as managebookmarks
 
-        w = managebookmarks.Bookmarks()
+        w = managebookmarks.ManageBookmarks()
         w.show()
 
         val = self.server
@@ -295,6 +297,10 @@ class TestModules(unittest.TestCase):
     def setUpClass(cls):
         import uuid
         from PySide2 import QtCore
+
+        import bookmarks.common as common
+        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+
         tempdir = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
         _id = uuid.uuid4()
@@ -502,6 +508,10 @@ class TestImages(unittest.TestCase):
     def setUpClass(cls):
         from PySide2 import QtWidgets
         import bookmarks.standalone as standalone
+
+        import bookmarks.common as common
+        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+
         app = QtWidgets.QApplication.instance()
         if not app:
             app = standalone.StandaloneApp([])
@@ -511,7 +521,7 @@ class TestImages(unittest.TestCase):
         import bookmarks.images as images
         import os
 
-        test_image = 'icon.png'
+        test_image = u'icon.png'
 
         p = os.path.normpath(images.__file__)
         p = os.path.abspath(p)
@@ -555,27 +565,104 @@ class TestImages(unittest.TestCase):
         self.assertNotEqual(image.isNull(), None)
         self.assertEqual(image.width(), height)
 
-    def test_get_color_average(self):
-        import bookmarks.images as images
-        from PySide2 import QtGui
-        color = images.ImageCache.get_color_average(self.source)
-        self.assertIsInstance(color, QtGui.QColor)
-
-
     def test_get_rsc_pixmap(self):
         import bookmarks.images as images
         from PySide2 import QtGui
 
         height = 32.0
-        pixmap = images.ImageCache.get_rsc_pixmap('icon', None, height)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, height)
         self.assertNotEqual(pixmap.isNull(), None)
         self.assertEqual(pixmap.width(), height)
 
-        pixmap = images.ImageCache.get_rsc_pixmap('BOGUSIMAGE', None, height)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'BOGUSIMAGE', None, height)
         self.assertEqual(pixmap.isNull(), True)
 
-        path = images.ImageCache.get_rsc_pixmap('icon', None, height, get_path=True)
-        self.assertEqual(path, self.source.replace('\\', '/'))
+        path = images.ImageCache.get_rsc_pixmap(u'icon', None, height, get_path=True)
+        self.assertEqual(path, self.source.replace(u'\\', u'/'))
+
+
+class TestAddFileWidget(unittest.TestCase):
+    app = None
+    root_dir = None
+    server = None
+    job = None
+
+    @classmethod
+    def setUpClass(cls):
+        import uuid
+        from PySide2 import QtCore
+        tempdir = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.TempLocation)
+        _id = uuid.uuid4()
+        cls.root_dir = u'{tempdir}/testroot_{id}'.format(
+            tempdir=tempdir,
+            id=_id
+        )
+        _dir = QtCore.QDir(cls.root_dir)
+        _dir.mkpath(u'.')
+        cls.server = tempdir
+        cls.job = u'testroot_{id}'.format(id=_id)
+        _dir.mkpath(u'./bookmark_a')
+        _dir.mkpath(u'./bookmark_a/asset_a')
+        _dir.mkpath(u'./bookmark_a/taskdir_a')
+
+        import bookmarks.common as common
+        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+
+        from PySide2 import QtWidgets
+        import bookmarks.standalone as standalone
+        if not QtWidgets.QApplication.instance():
+            cls.app = standalone.StandaloneApp([])
+        else:
+            cls.app = QtWidgets.QApplication.instance()
+
+    @classmethod
+    def tearDownClass(cls):
+        from PySide2 import QtCore
+        _dir = QtCore.QDir(cls.root_dir)
+        if _dir.exists():
+            _dir.removeRecursively()
+
+    def setUp(self):
+        import os
+        exists = os.path.exists(self.root_dir)
+        if not exists:
+            self.fail('Test directory does not exists')
+
+    def testImport(self):
+        import bookmarks.addfilewidget as addfilewidget
+
+    def testWidget(self):
+        import bookmarks.addfilewidget as addfilewidget
+
+        with self.assertRaises(ValueError):
+            w = addfilewidget.AddFileWidget(None)
+            w.deleteLater()
+
+        with self.assertRaises(ValueError):
+            w = addfilewidget.AddFileWidget(u'')
+            w.deleteLater()
+            w.deleteLater()
+
+        w = addfilewidget.AddFileWidget(u'ma')
+        w.deleteLater()
+
+        destination = u'{}/testfile.ma'.format(self.root_dir)
+        w = addfilewidget.AddFileWidget(None, file=destination)
+        destination = u'{}/testfile_v0001.ma'.format(self.root_dir)
+        self.assertEqual(w.get_file_path(), destination)
+
+        destination = u'{}/testfile_v0001.ma'.format(self.root_dir)
+        w = addfilewidget.AddFileWidget(None, file=destination)
+        self.assertEqual(w.get_file_path(), destination)
+
+        with open(destination, 'w') as f:
+            f.write(destination)
+
+        destination = u'{}/testfile_v0001.ma'.format(self.root_dir)
+        w = addfilewidget.AddFileWidget(None, file=destination)
+        destination = u'{}/testfile_v0002.ma'.format(self.root_dir)
+        self.assertEqual(w.get_file_path(), destination)
 
 
 if __name__ == '__main__':
@@ -585,9 +672,9 @@ if __name__ == '__main__':
         loader.loadTestsFromTestCase(TestSQLite),
         loader.loadTestsFromTestCase(TestImages),
         loader.loadTestsFromTestCase(TestLocalSettings),
+        loader.loadTestsFromTestCase(TestAddFileWidget),
         loader.loadTestsFromTestCase(TestBookmarksWidget),
         loader.loadTestsFromTestCase(TestModules),
     )
-
     suite = unittest.TestSuite(cases)
     unittest.TextTestRunner(verbosity=2, failfast=True).run(suite)
