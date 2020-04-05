@@ -26,7 +26,7 @@
 
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Create jobs and assets using custom folder templates
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/todo.png" height=20>Annotate items using thumbnails, TODOs, tags and descriptions
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/archived.png" height=20>Archive superflous items without touching the underlying files
+* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/archived.png" height=20>Archive superflous items without touching underlying files
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/active.png" height=20>Preview easily most image formats and Alembic archives
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Reveal files in Finder / Explorer
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Drag & Drop capable file-browser
@@ -44,7 +44,7 @@
 
   <p style="width:89%">
 
-  To can make your job pretty by adding thumbnails...
+  Make your jobs pretty by adding thumbnails...
 
   </p>
   <img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/adding_thumbnails_gif_8fps.gif" width="89%">
@@ -100,8 +100,7 @@
 Files are stored inside "task folders". These are the _scene_, _render_,
 _export_ folders placed in the root of an asset.
 When browsing, Bookmarks reads all files inside a selected task folder, including files in subdirectories.
-You can use the search filters and flags to find and save footage or scenes files
-you need to be working with.
+You can use the search flag and filters to locate items you need.
 
 ``` python
   # Parsing the whole task folder does come with a performance tradeoff as all
@@ -109,32 +108,25 @@ you need to be working with.
   # should not take too long, but a lot depends on network access, hard-drive
   # speeds, etc.
 ```
-</th>
-    </tr>
-    <tr>
-      <th colspan=2>
-        <img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/graph.jpg">
-      </th>
-    </tr>
-  </table>
-</center>
+  </th>
+</tr>
+</table>
+
+<img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/bookmark_graph.jpg" width="89%">
 
 
-***
 
 
-### Setup
+## Getting started
 
-`Right-Click` anywhere on the main window and select <img style="margin:4px 4px 4px 4px;"
-src="./bookmarks/rsc/bookmark.png" height=20>`Manage bookmarks`.<br>
-Here you can configure servers, create new jobs and bookmark folders.
+<p style="width:89%;text-align:justify;"> Right-click anywhere on the main window and select <img style="margin:4px 4px 4px 4px;"
+src="./bookmarks/rsc/bookmark.png" height=20>Manage bookmarks. Use the window to configure servers, create new jobs and add bookmark folders.
 
 To add a server, click the <img style="margin:4px 4px 4px 4px;"
-src="./bookmarks/rsc/CopyAction.png" height=20>icon by "Servers".<br>
+src="./bookmarks/rsc/CopyAction.png" height=20>icon next to "Servers".<br>
+</p>
 
-<center>
   <img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/managing_bookmarks_6fps.gif" width="89%">
-</center>
 
 
 ```
@@ -144,16 +136,17 @@ location but can be any folder accessible to your computer, eg.
 ```
 
 
-
+<p style="width:89%;text-align:justify;">
 Click <img style="margin:4px 4px 4px 4px;"
 src="./bookmarks/rsc/CopyAction.png" height=20> next to _Jobs_ to add new jobs.
-Templates are simple zip files. To add your own just drag and drop them where
-the templates are listed, or `right-click -> Add template...`
+As templates are simple zip files you can add your own by draggin any zip file where
+the templates are listed, or `right-click -> Add template...`</p>
 
+<p style="width:89%;text-align:justify;">
 If the job template already has bookmark folders they will be listed below.
 You click the name to add or remove if from Bookmarks. Otherwise, click <img style="margin:4px 4px 4px 4px;"
 src="./bookmarks/rsc/CopyAction.png" height=20> next to _Bookmarks_ to mark
-a folder as a bookmark.
+a folder as a bookmark.</p>
 
 
 * * *
@@ -174,3 +167,5 @@ to set the current Workspace.
 (c) Gergely Wootsch, 2020.<br>
 [Email Me](mailto:hello@gergely-wootsch.com)<br>
 [gergely-wootsch.com](http://gergely-wootsch.com)
+
+</center>
