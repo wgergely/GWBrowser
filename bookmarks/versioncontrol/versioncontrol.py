@@ -108,18 +108,16 @@ def check():
         common_ui.ErrorBox(
             u'Could not check version',
             u'Internet connection seems to be down.',
-            parent=self
-        ).exec_()
+        ).open()
         common.Log.error(u'Internet connection seems to be down.')
-        return
+        raise
     except socket.timeout:
         common_ui.ErrorBox(
             u'Could not check version',
             u'Connection has timed out.',
-            parent=self
-        ).exec_()
+        ).open()
         common.Log.error(u'Connection has timed out.')
-        return
+        raise
 
     try:
         r = urllib2.urlopen(URL, timeout=5)
@@ -128,45 +126,47 @@ def check():
         common_ui.ErrorBox(
             u'Could not check version',
             u'{}'.format(err)
-        ).exec_()
+        ).open()
         common.Log.error(u'Error checking the version.')
-        return
+        raise
     except socket.timeout as err:
         common_ui.ErrorBox(
             u'Could not check version',
             u'{}'.format(err)
-        ).exec_()
+        ).open()
         common.Log.error(u'Error checking the version.')
-        return
+        raise
     except RuntimeError as err:
         common_ui.ErrorBox(
             u'Could not check version',
             u'{}'.format(err)
-        ).exec_()
+        ).open()
         common.Log.error(u'Error checking the version.')
-        return
+        raise
 
     code = r.getcode()
     if not (200 <= code <= 300):
+        s = u'# Error {}. "{}" {}'.format(
+            code, URL, responses[code])
         common_ui.ErrorBox(
             u'Could not check version',
-            u'# Error {}. "{}" {}'.format(code, URL, responses[code])
-        ).exec_()
-        common.Log.error(u'# Error {}. "{}" {}'.format(
-            code, URL, responses[code]))
-        return
+            s
+        ).open()
+        common.Log.error(s)
+        raise RuntimeError(s)
 
     # Convert json to dict
     try:
         data = json.loads(data)
     except Exception as err:
+        s = u'# Error {}. "{}" {}'.format(
+            code, URL, responses[code])
         common_ui.ErrorBox(
-            u'Could not check version',
-            'Error occured loading the server response.\n{}'.format(err)
-        ).exec_()
-        common.Log.error(u'# Error {}. "{}" {}'.format(
-            code, URL, responses[code]))
-        return
+            u'Error occured loading the server response.\n{}'.format(err),
+            s
+        ).open()
+        common.Log.error(s)
+        raise
 
     tags = [(version.parse(f[u'tag_name']).release, f) for f in data]
 
@@ -180,7 +180,7 @@ def check():
         common_ui.OkBox(
             u'Already up-to-date!',
             u''
-        ).exec_()
+        ).open()
         return
 
     mbox = QtWidgets.QMessageBox()

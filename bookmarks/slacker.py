@@ -66,7 +66,7 @@ class Client(SlackClient):
                 response[u'error'])
             common.Log.error(s)
             if not silent:
-                common_ui.ErrorBox(u'Slack Token Error.', s).exec_()
+                common_ui.ErrorBox(u'Slack Token Error.', s).open()
             raise ValueError(s)
         self._response = response
 
@@ -77,7 +77,7 @@ class Client(SlackClient):
                 response[u'error'])
             common.Log.error(s)
             if not silent:
-                common_ui.ErrorBox(u'Slack Token Error.', s).exec_()
+                common_ui.ErrorBox(u'Slack Token Error.', s).open()
             raise ValueError(s)
 
         # Checking users scope
@@ -90,7 +90,7 @@ class Client(SlackClient):
                     s += '\nScope needed: "{}"'.format(response['needed'])
                 common.Log.error(s)
                 if not silent:
-                    common_ui.ErrorBox(u'Slack Token Error.', s).exec_()
+                    common_ui.ErrorBox(u'Slack Token Error.', s).open()
                 raise ValueError(s)
 
     def get_user_profiles(self, silent=False):
@@ -109,7 +109,7 @@ class Client(SlackClient):
                     s += '\nScope needed: "{}"'.format(response['needed'])
                 common.Log.error(s)
                 if not silent:
-                    common_ui.ErrorBox(u'Slack Token Error.', s).exec_()
+                    common_ui.ErrorBox(u'Slack Token Error.', s).open()
                 raise ValueError(s)
 
             _profiles = []
@@ -152,7 +152,7 @@ class Client(SlackClient):
                 s += '\nScope needed: "{}"'.format(response['needed'])
             common.Log.error(s)
             if not silent:
-                common_ui.ErrorBox(u'Slack Token Error.', s).exec_()
+                common_ui.ErrorBox(u'Slack Token Error.', s).open()
             raise ValueError(s)
 
         channels = []
@@ -456,7 +456,7 @@ class MessageWidget(QtWidgets.QSplitter):
         row = common_ui.add_row(u'', height=height, parent=bottom_widget)
         row.layout().setAlignment(QtCore.Qt.AlignBottom)
 
-        self.user_filter = common_ui.NameBase(parent=self)
+        self.user_filter = common_ui.LineEdit(parent=self)
         self.user_filter.setAlignment(
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
         self.user_filter.setPlaceholderText(u'Search...')

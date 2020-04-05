@@ -20,6 +20,7 @@ import collections
 import bookmarks.images as images
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.common as common
+import bookmarks.defaultpaths as defaultpaths
 import OpenImageIO
 
 
@@ -329,8 +330,8 @@ class InfoWorker(BaseWorker):
                 for entry in ref()[common.EntryRole]:
                     stat = entry.stat()
                     mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
-                    ref()[common.SortBySize] += stat.st_size
-                ref()[common.SortByLastModified] = mtime
+                    ref()[common.SortBySizeRole] += stat.st_size
+                ref()[common.SortByLastModifiedRole] = mtime
                 mtime = common.qlast_modified(mtime)
 
                 info_string = \
@@ -340,7 +341,7 @@ class InfoWorker(BaseWorker):
                     mtime.toString(u'yyyy') + u' ' + \
                     mtime.toString(u'hh') + u':' + \
                     mtime.toString(u'mm') + u';' + \
-                    common.byte_to_string(ref()[common.SortBySize])
+                    common.byte_to_string(ref()[common.SortBySizeRole])
                 ref()[common.FileDetailsRole] = info_string
 
         if not ref():
@@ -350,16 +351,16 @@ class InfoWorker(BaseWorker):
             if ref()[common.EntryRole]:
                 stat = ref()[common.EntryRole][0].stat()
                 mtime = stat.st_mtime
-                ref()[common.SortByLastModified] = mtime
+                ref()[common.SortByLastModifiedRole] = mtime
                 mtime = common.qlast_modified(mtime)
-                ref()[common.SortBySize] = stat.st_size
+                ref()[common.SortBySizeRole] = stat.st_size
                 info_string = \
                     mtime.toString(u'dd') + u'/' + \
                     mtime.toString(u'MM') + u'/' + \
                     mtime.toString(u'yyyy') + u' ' + \
                     mtime.toString(u'hh') + u':' + \
                     mtime.toString(u'mm') + u';' + \
-                    common.byte_to_string(ref()[common.SortBySize])
+                    common.byte_to_string(ref()[common.SortBySizeRole])
 
                 ref()[common.FileDetailsRole] = info_string
             ref()[common.ThumbnailPathRole] = db.thumbnail_path(
@@ -432,7 +433,7 @@ class ThumbnailWorker(BaseWorker):
             return None
 
         thumbnail_path = ref()[common.ThumbnailPathRole]
-        height = ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR()
+        height = ref()[QtCore.Qt.SizeHintRole].height()
         ext = ref()[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
@@ -443,17 +444,13 @@ class ThumbnailWorker(BaseWorker):
             if not image:
                 return None
 
-            color = images.ImageCache.get(
-                thumbnail_path, u'backgroundcolor')
-
             ref()[common.ThumbnailRole] = image
-            ref()[common.ThumbnailBackgroundRole] = color
             ref()[common.FileThumbnailLoaded] = True
             return ref
 
         # If the item doesn't have a saved thumbnail we will check if
         # OpenImageIO is able to make a thumbnail for it:
-        if ext.lower() not in common.oiio_formats:
+        if ext.lower() not in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
             return None
 
         ref()[common.FileThumbnailLoaded] = False
@@ -503,20 +500,13 @@ class ThumbnailWorker(BaseWorker):
                 ref()[common.ThumbnailPathRole],
                 ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR(),
                 overwrite=True)
-            color = images.ImageCache.get(
-                ref()[common.ThumbnailPathRole],
-                u'backgroundcolor',
-                overwrite=False)
             ref()[common.ThumbnailRole] = image
-            ref()[common.ThumbnailBackgroundRole] = color
             return True
         except:
             common.Log.error('Failed to process thumbnail')
             if not ref():
-                return
+                return False
             ref()[common.ThumbnailRole] = ref()[common.DefaultThumbnailRole]
-            ref()[common.ThumbnailBackgroundRole] = ref()[
-                common.DefaultThumbnailBackgroundRole]
             common.Log.error('Failed to generate thumbnail')
         finally:
             if ref():
@@ -525,11 +515,11 @@ class ThumbnailWorker(BaseWorker):
             cache.invalidate(dest, force=True)
 
 
-class DataKeyWorker(BaseWorker):
+class TaskFolderWorker(BaseWorker):
     @process
     @QtCore.Slot()
     def process_data(self, ref):
-        """"""
+        """Counts the number of items in the task folder up to 999."""
         if not ref() or self.interrupt:
             return None
 
