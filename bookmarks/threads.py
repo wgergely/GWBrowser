@@ -423,9 +423,17 @@ class ThumbnailWorker(BaseWorker):
         if ref()[common.FlagsRole] & common.MarkedAsArchived:
             return None
 
-        # The fileinfo thread has set the thumbnail path first
-        if not ref()[common.FileInfoLoaded]:
-            return None
+        # In theory a FileInfo thread should already have picked the item up
+        # Let's wait a little for the data to load, and cancel after...
+        n = 0
+        while not ref()[common.FileInfoLoaded]:
+            if n > 20:
+                return None
+            if not ref() or self.interrupt:
+                return None
+            time.sleep(0.1)
+            n += 1
+
         if ref()[common.FileThumbnailLoaded]:
             return None
 

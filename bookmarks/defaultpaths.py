@@ -299,6 +299,8 @@ def get_task_folder_extensions(task_folder):
          for v in TASK_FOLDERS.values() if v[u'value'] == task_folder),
         None
     )
+    if not flag:
+        return None
     return frozenset(get_extensions(flag))
 
 

@@ -2766,14 +2766,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                     continue
 
                 ref = weakref.ref(data[source_index.row()])
-
-                info_loaded = index.data(common.FileInfoLoaded)
                 thumb_loaded = index.data(common.FileThumbnailLoaded)
 
                 if model.generate_thumbnails_enabled():
-                    if tcount and info_loaded and not thumb_loaded:
-                        model.threads[common.ThumbnailThread][t %
-                                                              tcount].put(ref)
+                    if tcount and not thumb_loaded:
+                        model.threads[common.ThumbnailThread][t % tcount].put(ref)
                         t += 1
 
                 rect.moveTop(rect.top() + rect.height())

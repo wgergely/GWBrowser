@@ -1,25 +1,11 @@
-<center>
-  <img alt="Bookmarks: A simple file and asset manager for animation and CG productions." src="./bookmarks/rsc/icon.png" alt="Bookmarks" height="112">
-  <br>
-  <span style="font-size:28pt;margin:0px;">Bookmarks</span>
 
-  <p style="font-size:16pt;margin:0px;">A simple file and asset manager for animation and CG productions.</p>
 
-  <br>
+# ![alt text][logo] Bookmarks
 
-  <p>
-    <a href="http://gergely-wootsch.com">
-        <img src="https://img.shields.io/badge/Python-lightgrey.svg" alt="Python version">
-    </a>
-    <a href="http://gergely-wootsch.com">
-        <img src="https://img.shields.io/badge/Qt-5.6%2B-lightgrey.svg" alt="PySide2 / Qt5">
-    </a>
-    <a href="http://gergely-wootsch.com">
-        <img src="https://img.shields.io/badge/platform-windows%20%7C%20osx-lightgray.svg" alt="PySide2 / Qt5">
-    </a>
-  </p>
+### A simple file and asset manager for animation and CG productions.
 
-</center>
+![alt text](https://img.shields.io/badge/Python-2.7-lightgrey.svg "Python 2.7") ![alt text](https://img.shields.io/badge/Qt-5.6%2B-lightgrey.svg "Qt 5.6+") ![alt text](https://img.shields.io/badge/platform-windows%20%7C%20osx-lightgray.svg "Windows & Mac OS X")
+
 
 
 ## Features
@@ -32,75 +18,29 @@
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Drag & Drop capable file-browser
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/rv.png" height=20>Push footage to **Shotgun RV** from within Bookmarks
 * <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/slack_color.png" height=20>Send file paths and messages directly with **Slack**
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>Maya plugin
+* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>Dedicated Maya plugin
 
 
-<center>
 
-  <p style="width:89%;text-align:justify;">Bookmarks gives an overview of your shots, the files inside them and any
-  custom notes, thumbnails and descriptions you or your team added. You
-  can use Bookmarks to create new jobs, add assets to them, or browse existing
-  content.</p>
+Bookmarks provides an overview of your shots, the files inside them and any custom notes, thumbnails and descriptions you or your team added. You can use Bookmarks to create new jobs, add assets to them, or browse existing content.
 
-  <p style="width:89%">
 
-  Make your jobs pretty by adding thumbnails...
+#####  Adding thumbnails and descriptions is easy
 
-  </p>
-  <img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/adding_thumbnails_gif_8fps.gif" width="89%">
+![alt text](./bookmarks/rsc/docs/adding_thumbnails_gif_8fps.gif "Adding thumbnails is easy") ![alt text](./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif "And so is adding descriptions")
 
-  <br>
-  <p style="width:89%">
 
-  ...and a short descriptions.
+## Content Structure
 
-  </p>
-  <img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif" width="89%">
 
-  <p style="width:89%">
+Content is organised into three separate sections: `Bookmarks`, `Assets` & `Files`.
 
-  Content is organised into three main tabs, like so:
 
-  </p>
-
-  <table style="width:89%">
-    <tr>
-      <th style="text-align:justify;font-weight:100;font-size:10pt;" width="10%">
-        Bookmarks
-      </th>
-      <th style="text-align:justify;font-weight:100;font-size:10pt;" width="90%">
-
-  Arbitary folders inside your job folder and the main container of
-  CG content.
-
-  They have their own _**framerate**_, _**resolution**_, _**default frame range**_,
-  and _**Slack Tokens**_ that DCCs can use to set up new scenes.
-      </th>
-    </tr>
-    <tr>
-      <th style="text-align:justify;font-weight:100;font-size:10pt;" width="10%">
-        Assets
-      </th>
-      <th style="text-align:justify;font-weight:100;font-size:10pt;" width="90%">
-  A container of **task folders**,
-  eg. a folder with _scene_, _render_, _export_ folders. Think of them as
-  Maya or Houdini like workspaces.
-
-  You can use your own templates as the templates are plain zip archives containing folder/files.
-  Any folder can be an asset, and any folder containing an "asset
-  identifier" file (eg. `workspace.mel`, but this can be customised to be any file)
-  will be recognised as such automatically.
-      </th>
-    </tr>
-    <tr>
-      <th style="text-align:justify;font-weight:100;font-size:10pt;" width="10%">
-        Files
-      </th>
-      <th style="text-align:justify;font-weight:100;font-size:10pt;" width="90%">
-Files are stored inside "task folders". These are the _scene_, _render_,
-_export_ folders placed in the root of an asset.
-When browsing, Bookmarks reads all files inside a selected task folder, including files in subdirectories.
-You can use the search flag and filters to locate items you need.
+| Overview  | ![alt text](./bookmarks/rsc/docs/bookmark_graph.jpg "Content structure")  |
+|---|---|
+| Bookmarks | A folders inside your job and the main container for CG content. Each bookmark have their own _framerate_, _resolution_, _default frame-range_, and _Slack Tokens_.|
+| Assets  | Maya or Houdini workspace-like folder structures. Each contains a series of **task folders** (eg. _scene_, _render_, etc. folders). Any folder can be an asset, and any folder containing an "asset identifier" file (eg. `workspace.mel`) will be recognised as an asset automatically. |
+| Files  | Files are stored inside task folders. When browsing, Bookmarks reads all files inside a selected task folder, including files in subdirectories. You can use the provided search and filter tools to locate and save items.  |
 
 ``` python
   # Parsing the whole task folder does come with a performance tradeoff as all
@@ -108,11 +48,6 @@ You can use the search flag and filters to locate items you need.
   # should not take too long, but a lot depends on network access, hard-drive
   # speeds, etc.
 ```
-  </th>
-</tr>
-</table>
-
-<img alt="Bookmark Tabs" src="./bookmarks/rsc/docs/bookmark_graph.jpg" width="89%">
 
 
 
@@ -158,14 +93,11 @@ to set the current Workspace.
 
 
 
-<!-- <p align="center">
- <img src="./bookmarks/rsc/draganddrop.gif" alt="Maya"/>
-</p> -->
-
 ### Credits and Acknowledgments
 
 (c) Gergely Wootsch, 2020.<br>
 [Email Me](mailto:hello@gergely-wootsch.com)<br>
 [gergely-wootsch.com](http://gergely-wootsch.com)
 
-</center>
+
+[logo]: ./bookmarks/rsc/logo_s.png "Bookmarks: A simple file and asset manager for animation and CG productions"

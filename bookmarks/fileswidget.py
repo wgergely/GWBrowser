@@ -188,7 +188,7 @@ class FilesModel(BaseModel):
             filepath = entry.path.lower().replace(u'\\', u'/')
             ext = filename.split(u'.')[-1]
 
-            if ext not in task_folder_extensions:
+            if task_folder_extensions and ext not in task_folder_extensions:
                 continue
 
             # Progress bar

@@ -298,8 +298,6 @@ class GenerateThumbnailsButton(BaseControlButton):
         """The state of the auto-thumbnails"""
         if not self.current_widget():
             return
-        if self.current_index() < 2:
-            return False
         model = self.current_widget().model().sourceModel()
         return model.generate_thumbnails_enabled()
 
@@ -313,14 +311,6 @@ class GenerateThumbnailsButton(BaseControlButton):
         model.set_generate_thumbnails_enabled(
             not model.generate_thumbnails_enabled())
         self.update()
-
-    def update(self):
-        """Will only show for favourite and file items."""
-        super(GenerateThumbnailsButton, self).update()
-        if self.current_index() >= 2:
-            self.show()
-        else:
-            self.hide()
 
 
 class CollapseSequenceMenu(BaseContextMenu):
@@ -418,7 +408,8 @@ class PaintedTextButton(QtWidgets.QLabel):
 
     def get_width(self):
         o = common.INDICATOR_WIDTH() * 3
-        width = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE())).width(self.text()) + (o * 2)
+        width = QtGui.QFontMetrics(common.font_db.primary_font(
+            common.MEDIUM_FONT_SIZE())).width(self.text()) + (o * 2)
         return width
 
     @QtCore.Slot()
@@ -455,8 +446,8 @@ class PaintedTextButton(QtWidgets.QLabel):
             color = common.TEXT if hover else common.BACKGROUND
             painter.setBrush(color)
 
-
-        metrics = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+        metrics = QtGui.QFontMetrics(
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
 
         if (metrics.width(self.text()) + (common.MARGIN() * 0.5)) < self.rect().width():
             text = metrics.elidedText(
@@ -469,10 +460,12 @@ class PaintedTextButton(QtWidgets.QLabel):
             x = (self.width() / 2.0) - (width / 2.0)
             y = self.rect().center().y() + (metrics.ascent() * 0.5)
             path = QtGui.QPainterPath()
-            path.addText(x, y, common.font_db.primary_font(common.MEDIUM_FONT_SIZE()), text)
+            path.addText(x, y, common.font_db.primary_font(
+                common.MEDIUM_FONT_SIZE()), text)
             painter.drawPath(path)
         else:
-            pixmap = images.ImageCache.get_rsc_pixmap(self.icon, color, common.MARGIN())
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                self.icon, color, common.MARGIN())
             # _rect = QtCore.QRect(self.rect())
             _rect = pixmap.rect()
             _rect.moveCenter(self.rect().center())
@@ -545,7 +538,8 @@ class QuickAssetsContextMenu(BaseContextMenu):
         for idx, item in items:
             active = False
             if active_index.isValid():
-                active = active_index.data(QtCore.Qt.DisplayRole).lower() == item[QtCore.Qt.DisplayRole].lower()
+                active = active_index.data(QtCore.Qt.DisplayRole).lower(
+                ) == item[QtCore.Qt.DisplayRole].lower()
             if item[common.FlagsRole] & common.MarkedAsArchived:
                 continue
             source_index = widget.model().sourceModel().index(idx, 0)
@@ -591,6 +585,7 @@ class FilesTabButton(PaintedTextButton):
     """The buttons responsible for swtiching the the FilesWidget and showing
     the switch to change the data-key."""
     icon = u'files'
+
     def __init__(self, parent=None):
         super(FilesTabButton, self).__init__(
             u'Select task folder...',
@@ -617,11 +612,13 @@ class FilesTabButton(PaintedTextButton):
     def text(self):
         if not self.stacked_widget():
             return self.default_label
-        task_folder = self.stacked_widget().widget(2).model().sourceModel().task_folder()
+        task_folder = self.stacked_widget().widget(
+            2).model().sourceModel().task_folder()
         if task_folder:
             task_folder = task_folder.upper()
             if len(task_folder) > 25:
-                task_folder = u'{}...{}'.format(task_folder[0:10], task_folder[-12:])
+                task_folder = u'{}...{}'.format(
+                    task_folder[0:10], task_folder[-12:])
         else:
             task_folder = self.default_label
         task_folder = task_folder + u'  ▼'
@@ -731,7 +728,8 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.drawRoundedRect(
+            self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'slack', common.ADD, self.rect().height() - (common.INDICATOR_WIDTH() * 1.5))
@@ -899,7 +897,8 @@ class ListControlWidget(QtWidgets.QWidget):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
 
-        pixmap = images.ImageCache.get_rsc_pixmap(u'gradient', None, self.height())
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'gradient', None, self.height())
         t = QtGui.QTransform()
         t.rotate(90)
         pixmap = pixmap.transformed(t)
