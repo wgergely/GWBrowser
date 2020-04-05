@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-"""The module for defining the AddAssetWidget widget.
-The widget is used to add a new asset (eg. a shot) to a bookmark.
+"""Defines the widget used to add a new asset (eg. a shot) to a bookmark.
+
+See `managebookmarks.TemplatesWidget` for more information, the main widget
+responsible for listing, saving and expanding zip template files.
 
 """
 from PySide2 import QtWidgets, QtCore, QtGui
@@ -12,8 +14,18 @@ import bookmarks.images as images
 
 
 class AddAssetWidget(QtWidgets.QDialog):
+    """Widget used to create a new asset in a specified folder.
+
+    Args:
+        path (unicode): Destination path for the new assets.
+
+    """
+
     def __init__(self, path, parent=None):
         super(AddAssetWidget, self).__init__(parent=parent)
+        if not parent:
+            common.set_custom_stylesheet(self)
+
         self.templates_widget = None
         self._create_UI()
         self.templates_widget.set_path(path)
@@ -29,11 +41,12 @@ class AddAssetWidget(QtWidgets.QDialog):
 
     @QtCore.Slot(unicode)
     def popup(self, v):
+        """Slot to show the popup window."""
         common_ui.OkBox(
             u'Successully created "{}"'.format(v),
             u'',
             parent=self
-        ).exec_()
+        ).open()
 
     def _create_UI(self):
         QtWidgets.QVBoxLayout(self)
@@ -67,6 +80,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.layout().addStretch(1)
 
     def paintEvent(self, event):
+        """Paint a custom rounded background."""
         painter = QtGui.QPainter()
         painter.begin(self)
         o = common.INDICATOR_WIDTH()
@@ -77,10 +91,12 @@ class AddAssetWidget(QtWidgets.QDialog):
         painter.setBrush(common.BACKGROUND)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.drawRoundedRect(
+            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def sizeHint(self):
+        """Custom size hint"""
         return QtCore.QSize(common.WIDTH(), common.HEIGHT())
 
 
