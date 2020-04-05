@@ -13,6 +13,8 @@ building ALembic and OpenImageIO.
 """
 
 import os
+import errno
+import time
 import shutil
 import zipfile
 from distutils.dir_util import copy_tree
@@ -232,13 +234,27 @@ def get_dependencies():
 
 def make_folders():
     if not os.path.isdir(PACKAGE_ROOT):
-        os.mkdir(PACKAGE_ROOT)
+        os.makedirs(PACKAGE_ROOT)
 
     root = PACKAGE_ROOT + os.path.sep + u'bookmarks'
     if not os.path.isdir(root):
-        os.mkdir(root)
+        os.makedirs(root)
     else:
-        shutil.rmtree(root)
+        while True:
+            shutil.rmtree(root, ignore_errors=True)
+            try:
+                # Try to recreate
+                os.makedirs(root)
+            except OSError as e:
+                # If problem is that directory still exists, wait a bit and try again
+                if e.winerror == 183:
+                    time.sleep(0.01)
+                    continue
+                # Otherwise, unrecognized error, let it propagate
+                raise
+            else:
+                # Successfully created empty dir, exit loop
+                break
 
     if not os.path.isdir(root + os.path.sep + u'bin'):
         os.mkdir(root + os.path.sep + u'bin')
