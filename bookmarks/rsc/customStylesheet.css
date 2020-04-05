@@ -327,22 +327,16 @@ QListView::indicator:checked {{
 }}
 
 
-QHeaderView {{
-	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}px;
-	color: rgba({TEXT_SELECTED});
-	background-color: rgba({TEXT});
-	text-align: left;
-	border-bottom: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
-	border-top: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
-}}
 QHeaderView::section {{
 	font-family: "{PRIMARY_FONT}";
 	font-size: {MEDIUM_FONT_SIZE}px;
-	background-color: rgba({BACKGROUND});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	alignment: center;
+	text-align: center;
 	color: rgba({TEXT_SELECTED});
 	border: none;
 	border-left: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
+	border-bottom: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
 	border-radius: 0px;
 }}
 
@@ -401,7 +395,7 @@ QLabel:disabled {{
 
 QMenu {{
 	font-family: "{PRIMARY_FONT}";
-	font-size: {LARGE_FONT_SIZE}px;
+	font-size: {MEDIUM_FONT_SIZE}px;
   background-color: rgba({SECONDARY_BACKGROUND});
 	margin: 0px;
 	padding: 0px;
@@ -489,23 +483,22 @@ TodoItemWidget,
 TodoItemEditor {{
 	font-family: "{PRIMARY_FONT}";
 	font-size: {MEDIUM_FONT_SIZE}px;
-	alignment: center;
-	text-align: center;
 	color: rgba({SECONDARY_BACKGROUND});
 	background-color: transparent;
+	border-radius: {RADIUS}px;
+	border: {ROW_SEPARATOR}px solid transparent;
 }}
 TodoEditors:disabled,
 TodoItemWidget:disabled,
 TodoItemEditor:disabled {{
-	color: rgba({TEXT_DISABLED});
+	color: rgba({ADD});
 }}
 TodoItemEditor:focus {{
-	border-top: {ROW_SEPARATOR}px solid rgba(255,255,255,20) ;
-	border-bottom: {ROW_SEPARATOR}px solid rgba(0,0,0,20) ;
+	border: {ROW_SEPARATOR}px solid rgba(0,0,0,20) ;
 }}
 
 TodoEditorWidget QScrollBar {{
-	background: rgba({TEXT});
+	background: transparent;
 	border: none;
 	border-radius: 0px;
 	width:{RADIUS}px;
@@ -551,7 +544,7 @@ SectionSwitcherWidget  {{
 	border: {ROW_SEPARATOR}px solid rgba(0,0,0,100);
 }}
 
-NameBase,
+LineEdit,
 NameModeWidget {{
     background-color: rgba(0,0,0,0);
     font-family: "{PRIMARY_FONT}";
@@ -560,7 +553,7 @@ NameModeWidget {{
     border-radius: 0px;
     color: rgba({TEXT});
 }}
-NameBase:!read-only:focus{{
+LineEdit:!read-only:focus{{
     border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
 }}
 
@@ -573,4 +566,11 @@ TemplatesWidget {{
 
 TemplateListWidget {{
 	padding: {RADIUS};
+}}
+
+SelectFolderView,
+BaseListView {{
+	background-color: rgba({SECONDARY_BACKGROUND});
+	margin: {RADIUS}px;
+	border-radius: {RADIUS}px;
 }}
