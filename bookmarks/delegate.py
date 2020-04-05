@@ -51,6 +51,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def __init__(self, parent=None):
         super(BaseDelegate, self).__init__(parent=parent)
+        self._clickable_rectangles = {}
 
     def paint(self, painter, option, index):
         raise NotImplementedError(
@@ -115,6 +116,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             """Returns a rectangle with a separator."""
             r = QtCore.QRect(rectangle)
             return r.adjusted(0, 0, 0, -common.ROW_SEPARATOR())
+            # return r
 
         background_rect = rect()
         background_rect.setLeft(common.INDICATOR_WIDTH())
@@ -123,7 +125,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         indicator_rect.setWidth(common.INDICATOR_WIDTH())
 
         thumbnail_rect = rect()
-        thumbnail_rect.setWidth(rectangle.height())
+        thumbnail_rect.setWidth(thumbnail_rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH())
 
         # Inline icons rect
@@ -166,13 +168,27 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             DataRect: data_rect
         }
 
-    def paint_name(self, *args):
-        raise NotImplementedError(
-            '`paint_name()` is abstract and needs to be overriden in the subclass!')
+    def get_clickable_rectangles(self, index, rectangles):
+        """Clickable rectangles are used by the the QListView to identify
+        interactive regions.
 
-    def get_text_segments(self, index):
-        raise NotImplementedError(
-            '`get_text_segments()` is abstract and needs to be overriden in the subclass!')
+        For instance, folder names are clickable and used to toggle filters.
+        Since the size of the rectangle depends on how the delegate is handling
+        painting, we're using the delegate calculate and cache these rectangles.
+
+        We're using the rectangles in the QListView's mouse events to responds
+        to user clicks.
+
+        The actual rectangle is calculated and saved when a relavant paint
+        method is called.
+
+        """
+        if index.row() in self._clickable_rectangles:
+            return self._clickable_rectangles[index.row()]
+        return []
+
+    def paint_name(self, *args):
+        pass
 
     @paintmethod
     def paint_description_editor_background(self, *args, **kwargs):
@@ -199,29 +215,35 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if image is None:
             return
 
-        rect = QtCore.QRect(rectangles[ThumbnailRect])
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
         # Background
         color = common.THUMBNAIL_BACKGROUND
         painter.setBrush(color)
-        painter.drawRect(rect)
+        painter.drawRect(rectangles[ThumbnailRect])
 
-        o = 1.0 if selected else 0.85
+        o = 1.0 if selected or active or hover else 0.9
         painter.setOpacity(o)
 
-        # Image
-        w = min((rect.width(), image.width()))
-        h = min((rect.height(), image.height()))
+        # Let's make sure the image is fully fitted in the thumbnail rectangle
+        # even if the image's size doesn't match the size of the rectangle
+        s = float(rectangles[ThumbnailRect].height())
+        longest_edge = float(max((image.width(), image.height())))
+        ratio = s / longest_edge
+        w = image.width() * ratio
+        h = image.height() * ratio
+        if index.row() != (self.parent().model().rowCount() - 1):
+            h = h + common.ROW_SEPARATOR()
 
         _rect = QtCore.QRect(0, 0, w, h)
-        _rect.moveCenter(rect.center())
+        _rect.moveCenter(rectangles[ThumbnailRect].center())
         painter.drawPixmap(_rect, image, image.rect())
 
     def paint_thumbnail_drop_indicator(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         drop = self.parent()._thumbnail_drop
         if drop[1] and drop[0] == index.row():
-            painter.setOpacity(0.6)
+            painter.setOpacity(0.9)
             painter.setBrush(common.SEPARATOR)
             painter.drawRect(option.rect)
 
@@ -261,12 +283,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = QtCore.QRect(rectangles[BackgroundRect])
 
-        # Setting the opacity of the separator
-        if index.row() != (self.parent().model().rowCount() - 1):
-            painter.setOpacity(0.6667)
-            color = common.SEPARATOR if archived else common.BACKGROUND
-            painter.setBrush(color)
-            painter.drawRect(rect)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         color = common.BACKGROUND_SELECTED if selected else common.BACKGROUND
         painter.setBrush(color)
@@ -274,21 +291,31 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setOpacity(1.0)
         painter.drawRect(rect)
 
+        # Setting the opacity of the separator
+        if index.row() != (self.parent().model().rowCount() - 1):
+            painter.setOpacity(0.5)
+            painter.setBrush(color)
+            _rect = QtCore.QRect(rect)
+            _rect.setBottom(_rect.bottom() + common.INDICATOR_WIDTH())
+            _rect.setTop(_rect.bottom() - common.INDICATOR_WIDTH())
+            _rect.setLeft(common.INDICATOR_WIDTH() + option.rect.height() - common.ROW_SEPARATOR())
+            painter.drawRect(_rect)
+
         # Active indicator
         if active:
             rect.setLeft(option.rect.left() +
                          common.INDICATOR_WIDTH() + option.rect.height())
-            painter.setOpacity(0.7)
-            painter.setBrush(common.FAVOURITE)
-            painter.drawRect(rect)
-            painter.setOpacity(1.0)
-            pen = QtGui.QPen(common.FAVOURITE)
+            painter.setOpacity(0.5)
+            painter.setBrush(common.ADD)
+            painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+            painter.setOpacity(0.8)
+            pen = QtGui.QPen(common.ADD)
             pen.setWidth(common.ROW_SEPARATOR() * 2)
             painter.setPen(pen)
             painter.setBrush(QtCore.Qt.NoBrush)
             o = common.ROW_SEPARATOR()
             rect = rect.marginsRemoved(QtCore.QMargins(o, o, o * 1.5, o * 1.5))
-            painter.drawRect(rect)
+            painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
 
         # Hover indicator
         if hover:
@@ -298,7 +325,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_inline_icons(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-
         c = self.parent().inline_icons_count()
         if c:
             o = (common.MARGIN() + (common.INDICATOR_WIDTH() * 2)) * \
@@ -442,24 +468,32 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_file_shadow(self, *args):
         """Paints a drop-shadow"""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        rect = QtCore.QRect(rectangles[DataRect])
-        rect.setLeft(rect.right() - (common.MARGIN() * 0.5))
-        rect.setWidth(common.MARGIN())
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'gradient', None, rect.height())
-        painter.setOpacity(1.0)
-        painter.drawPixmap(rect, pixmap, pixmap.rect())
 
-        rect = QtCore.QRect(rectangles[ThumbnailRect])
+        rect = QtCore.QRect(rectangles[DataRect])
+        thumb_rect = QtCore.QRect(rectangles[ThumbnailRect])
+
+        if index.row() != (self.parent().model().rowCount() - 1):
+            thumb_rect.setHeight(thumb_rect.height() + common.ROW_SEPARATOR())
+            rect.setHeight(rect.height() + common.ROW_SEPARATOR())
+
+        if not self.parent().buttons_hidden():
+            rect.setLeft(rect.right() - (common.MARGIN() * 0.5))
+            rect.setWidth(common.MARGIN())
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                u'gradient', None, rect.height())
+            painter.setOpacity(1.0)
+            painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        rect = QtCore.QRect(thumb_rect)
         rect.setWidth(common.MARGIN())
-        rect.moveRight(rectangles[ThumbnailRect].right())
+        rect.moveRight(thumb_rect.right())
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'gradient3', None, rect.height())
         painter.setOpacity(0.5)
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
         rect.setWidth(common.MARGIN() * 0.5)
-        rect.moveRight(rectangles[ThumbnailRect].right())
+        rect.moveRight(thumb_rect.right())
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'gradient3', None, rect.height())
         painter.setOpacity(0.5)
@@ -474,9 +508,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 200)))
             painter.drawRect(rect)
 
-    def sizeHint(self, option, index):
-        return QtCore.QSize(1, common.ROW_HEIGHT())
-
 
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
@@ -487,7 +518,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
             painter, option, index, antialiasing=False)
         self.paint_background(*args)
         self.paint_thumbnail(*args)
-        # self.paint_thumbnail_shadow(*args)
+        self.paint_thumbnail_shadow(*args)
         self.paint_name(*args)
         self.paint_archived(*args)
         self.paint_inline_icons(*args)
@@ -500,53 +531,33 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """We don't have editable descriptions for bookmark items."""
         return QtCore.QRect()
 
-    def get_text_segments(self, index):
-        """Returns the `BookmarksWidget` text segments associated with
-        custom colors.
-
-        Returns a tuple of text and colour information to be used to mimick
-        rich-text like colouring of individual text elements.
-
-        """
-        text = index.data(QtCore.Qt.DisplayRole)
-        text = text.strip().strip(u'/').strip(u'\\')
-        if not text:
-            return {}
-
-        d = {}
-        v = text.split(u'|')
-        for i, s in enumerate(v):
-
-            if i == 0:
-                c = common.FAVOURITE.darker(250)
-            else:
-                c = common.TEXT
-
-            _v = s.split(u'/')
-            for _i, _s in enumerate(_v):
-                _s = _s.upper().strip()
-                d[len(d)] = (_s, c)
-                if _i < (len(_v) - 1):
-                    d[len(d)] = (u' / ', common.FAVOURITE.darker(250))
-            if i < (len(v) - 1):
-                d[len(d)] = (u'  |  ', common.FAVOURITE.darker(250))
-        return d
-
     @paintmethod
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        self._clickable_rectangles[index.row()] = []
+
+        # standin for the descirption rectangle
+        self._clickable_rectangles[index.row()].append((QtCore.QRect(), u''))
+
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
-        painter.setOpacity(0.8)
+
+        _datarect = QtCore.QRect(rectangles[DataRect])
+        if not self.parent().buttons_hidden():
+            rectangles[DataRect].setRight(rectangles[DataRect].right() - common.MARGIN())
+
         if hover or selected or active:
             painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.66)
 
-        text_segments = self.get_text_segments(index)
+        text_segments = index.data(common.TextSegmentRole)
         text = u''.join([text_segments[f][0] for f in text_segments])
 
         rect = rectangles[DataRect]
         rect.setLeft(rect.left() + common.MARGIN())
 
+        # First let's paint the background rectangle
         o = common.INDICATOR_WIDTH()
 
         text_width = metrics.width(text)
@@ -555,21 +566,31 @@ class BookmarksWidgetDelegate(BaseDelegate):
         center = r.center()
         r.setHeight(metrics.height())
         r.moveCenter(center)
-
-        r = r.marginsAdded(QtCore.QMargins(o * 2, o, o * 2, o))
+        r = r.marginsAdded(QtCore.QMargins(o * 3, o, o * 3, o))
         if (r.right() + o) > rect.right():
             r.setRight(rect.right() - o)
-        color = common.FAVOURITE.darker(
-            150) if active else common.FAVOURITE.darker(120)
-        painter.setBrush(color)
 
-        color = common.FAVOURITE.darker(
-            230) if active else common.FAVOURITE.darker(200)
-        pen = QtGui.QPen(color)
+        color = common.ADD.darker(120) if active else common.FAVOURITE.darker(120)
+        color = common.ADD.darker(150) if r.contains(cursor_position) else color
+        f_subpath = u'"/' + index.data(common.ParentPathRole)[1] + u'/"'
+
+        filter_text = self.parent().model().filter_text()
+        if filter_text:
+            if f_subpath.lower() in filter_text.lower():
+                color = common.ADD.darker(120)
+
+        painter.setBrush(color)
+        pen = QtGui.QPen(color.darker(220))
         pen.setWidth(common.ROW_SEPARATOR())
         painter.setPen(pen)
+
         painter.drawRoundedRect(
             r, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+
+        # Let's save the rectangle as a clickable rect
+        self._clickable_rectangles[index.row()].append(
+            (r, index.data(common.ParentPathRole)[1])
+        )
 
         offset = 0
         painter.setPen(QtCore.Qt.NoPen)
@@ -603,6 +624,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
             offset += width
 
+        if self.parent().buttons_hidden():
+            return
+            
         rect.setLeft(_r.right())
         font = common.font_db.secondary_font(
             font_size=common.SMALL_FONT_SIZE())
@@ -611,46 +635,46 @@ class BookmarksWidgetDelegate(BaseDelegate):
         o = common.MARGIN()
 
         if hover or selected or active:
-            if not selected:
-                painter.setOpacity(0.5)
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.75)
 
-            rect = rect.marginsRemoved(
-                QtCore.QMargins(o, common.INDICATOR_WIDTH(), o * 1.5, common.INDICATOR_WIDTH()))
-            metrics = QtGui.QFontMetrics(font)
+        rect = rect.marginsRemoved(
+            QtCore.QMargins(o, common.INDICATOR_WIDTH(), o * 0.5, common.INDICATOR_WIDTH()))
+        metrics = QtGui.QFontMetrics(font)
 
-            lines = index.data(common.DescriptionRole).split(u'\n')
+        lines = index.data(common.DescriptionRole).split(u'\n')
 
-            for n, text in enumerate(lines):
-                text = metrics.elidedText(
-                    text,
-                    QtCore.Qt.ElideLeft,
-                    rect.width()
-                )
-                if n == 0:
-                    color = common.TEXT
-                    if len(lines) > 1:
-                        text = text + u'\n' if lines[1] else text
-                else:
-                    color = common.SECONDARY_TEXT
-                    text = u'\n' + text
-                if active:
-                    color = common.FAVOURITE.darker(220)
+        for n, text in enumerate(lines):
+            text = metrics.elidedText(
+                text,
+                QtCore.Qt.ElideLeft,
+                rect.width()
+            )
+            if n == 0:
+                color = common.TEXT
+                if len(lines) > 1:
+                    text = text + u'\n' if lines[1] else text
+            else:
+                text = u'\n' + text
+            color = common.TEXT
+            # if selected or active:
+            #     color = common.TEXT
 
-                if selected:
-                    color = common.TEXT
+            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+            rect.setHeight(metrics.height())
 
-                align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-                rect.setHeight(metrics.height())
+            rect.moveTop(option.rect.center().y() -
+                         (metrics.ascent() * 0.5))
+            if len(text.split(u'\n')) > 1:
+                rect.moveTop(rect.top() - (metrics.lineSpacing() * 0.5))
 
-                rect.moveTop(option.rect.center().y() -
-                             (metrics.ascent() * 0.5))
-                if len(text.split(u'\n')) > 1:
-                    rect.moveTop(rect.top() - (metrics.lineSpacing() * 0.5))
+            for t in text.split(u'\n'):
+                common.draw_aliased_text(
+                    painter, font, rect, t, align, color)
+                rect.moveTop(rect.top() + metrics.lineSpacing())
 
-                for t in text.split(u'\n'):
-                    common.draw_aliased_text(
-                        painter, font, rect, t, align, color)
-                    rect.moveTop(rect.top() + metrics.lineSpacing())
+        rectangles[DataRect] = _datarect
 
     def sizeHint(self, option, index):
         return self.parent().model().sourceModel().ROW_SIZE
@@ -713,6 +737,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
         rect = QtCore.QRect(rectangles[DataRect])
+        rect.setRight(rect.right() - common.MARGIN())
         rect.setLeft(rect.left() + common.MARGIN())
 
         # Name
@@ -799,7 +824,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def __init__(self, parent=None):
         super(FilesWidgetDelegate, self).__init__(parent=parent)
-        self._clickable_rectangles = {}
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
@@ -836,17 +860,12 @@ class FilesWidgetDelegate(BaseDelegate):
         """The description rectangle of a file item."""
         if self.parent().buttons_hidden():
             return self.get_simple_description_rectangle(rectangles, index)
+
         clickable = self.get_clickable_rectangles(index, rectangles)
         if not clickable:
             return QtCore.QRect()
-        return clickable[0][0]
 
-    def get_clickable_rectangles(self, index, rectangles):
-        """The clickable rectangles are cached when the item is painted.
-        """
-        if index.row() in self._clickable_rectangles:
-            return self._clickable_rectangles[index.row()]
-        return []
+        return clickable[0][0]
 
     @paintmethod
     def paint_name(self, *args):
@@ -992,7 +1011,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 pen.setWidth(common.ROW_SEPARATOR())
                 painter.setPen(pen)
                 o = common.INDICATOR_WIDTH() * 0.5
-                painter.drawRoundedRect(QtCore.QRectF(r), o, o)
+                painter.drawRoundedRect(QtCore.QRect(r), o, o)
+
+                # Save the rectangle as a clickable region to be used by
+                # the list widget's mouse events
                 self._clickable_rectangles[index.row()].append((r, text))
 
                 if filter_text:
