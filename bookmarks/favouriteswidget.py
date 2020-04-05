@@ -65,10 +65,13 @@ class FavouritesModel(FilesModel):
                     d.append(entry)
                     continue
                 _k = common.proxy_path(path)
-                if k == _k:
+                if k.lower() == _k.lower():
                     d.append(entry)
         for entry in d:
             yield entry
+
+    def task_folder(self):
+        return u'.'
 
 
 class DropIndicatorWidget(QtWidgets.QWidget):
@@ -134,8 +137,8 @@ class FavouritesWidget(FilesWidget):
     def toggle_item_flag(self, index, flag, state=None):
         super(FavouritesWidget, self).toggle_item_flag(
             index, common.MarkedAsFavourite, state=False)
-        super(FavouritesWidget, self).toggle_item_flag(
-            index, common.MarkedAsArchived, state=True)
+        # super(FavouritesWidget, self).toggle_item_flag(
+        #     index, common.MarkedAsArchived, state=True)
 
     def dragEnterEvent(self, event):
         if event.source() == self:
@@ -187,9 +190,11 @@ class FavouritesWidget(FilesWidget):
 
 if __name__ == '__main__':
     common.DEBUG_ON = True
-    a = QtWidgets.QApplication([])
+    import bookmarks.standalone as standalone
+    a = standalone.StandaloneApp([])
     l = common.LogView()
     l.show()
     w = FavouritesWidget()
+    w.model().sourceModel().modelDataResetRequested.emit()
     w.show()
     a.exec_()

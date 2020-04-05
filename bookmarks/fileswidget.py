@@ -597,7 +597,7 @@ class FilesWidget(ThreadedBaseWidget):
     @QtCore.Slot(unicode)
     def new_file_added(self, task_folder, file_path):
         """Slot to be called when a new file has been added and
-        we want to show it the list.
+        we want to show.
 
         """
         if not task_folder:
