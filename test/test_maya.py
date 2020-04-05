@@ -1,6 +1,6 @@
 #!mayapy
 # -*- coding: utf-8 -*-
-"""Make sure the $MAYA_ROOT/bin directory is in the path before running the test."""
+"""Make sure the $MAYA_ROOT/bin directory is in $PATH before running the test."""
 
 import unittest
 
@@ -20,10 +20,10 @@ class TestMaya(unittest.TestCase):
         p = os.path.normpath(p)
         sys.path.insert(0, p)
 
-        k = 'BOOKMARKS_ROOT'
+        k = u'BOOKMARKS_ROOT'
         if k not in os.environ:
             raise EnvironmentError(
-                'Is Bookmarks installed? Could not find BOOKMARKS_ROOT environment variable')
+                u'Is Bookmarks installed? Could not find BOOKMARKS_ROOT environment variable')
 
         shared = os.environ[k] + os.path.sep + 'shared'
         sys.path.insert(1, shared)

@@ -263,13 +263,13 @@ class TestBookmarksWidget(unittest.TestCase):
         w.widget().server_editor.add_server_lineeditor.setText(self.server)
         w.widget().server_editor.add_server_button.clicked.emit()
         v = w.widget().get_saved_servers()
-        self.assertEqual(v, [val.replace('\\', '/').lower(), ])
+        self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
         val = self.server.replace(u'/', u'\\')
         w.widget().server_editor.add_server_lineeditor.setText(self.server)
         w.widget().server_editor.add_server_button.clicked.emit()
         v = w.widget().get_saved_servers()
-        self.assertEqual(v, [val.replace('\\', '/').lower(), ])
+        self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
     def test_read_jobs(self):
         import bookmarks.managebookmarks as managebookmarks
@@ -375,9 +375,9 @@ class TestModules(unittest.TestCase):
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.show()
 
-    def test_datakeywidget(self):
-        import bookmarks.datakeywidget as datakeywidget
-        widget = datakeywidget.DataKeyView()
+    def test_taskfolderwidget(self):
+        import bookmarks.taskfolderwidget as taskfolderwidget
+        widget = taskfolderwidget.TaskFolderWidget()
         widget.model().modelDataResetRequested.emit()
         widget.show()
 
@@ -416,7 +416,7 @@ class TestModules(unittest.TestCase):
         widget.model().sourceModel().parent_path = (
             self.server, self.job, 'bookmark_a', u'asset_a')
         widget.model().sourceModel().modelDataResetRequested.emit()
-        widget.model().sourceModel().dataKeyChanged.emit('taskdir_a')
+        widget.model().sourceModel().taskFolderChanged.emit('taskdir_a')
         widget.show()
 
     def test_todo_editor(self):
@@ -669,8 +669,8 @@ if __name__ == '__main__':
     loader = unittest.TestLoader()
     cases = (
         loader.loadTestsFromTestCase(TestImports),
-        loader.loadTestsFromTestCase(TestSQLite),
         loader.loadTestsFromTestCase(TestImages),
+        loader.loadTestsFromTestCase(TestSQLite),
         loader.loadTestsFromTestCase(TestLocalSettings),
         loader.loadTestsFromTestCase(TestAddFileWidget),
         loader.loadTestsFromTestCase(TestBookmarksWidget),
