@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""``py`` defines common methods and settings used across the project.
+"""Common methods and variables used across the project.
 
-File-sequences are recognised using regexes defined in the module.
-See :func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
-:func:`.get_sequence_startpath`,  :func:`.get_ranges`.
+File sequences are recognised using regexes defined in this module. See
+:func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
+:func:`.get_sequence_startpath`,  :func:`.get_ranges` for more information.
 
 """
 
@@ -21,7 +21,7 @@ import OpenImageIO
 import bookmarks._scandir as _scandir
 
 DEBUG_ON = False
-STANDALONE = True # Standalone
+STANDALONE = True  # Standalone
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks-about'
 
@@ -36,36 +36,87 @@ selections will be syncronised across DCCs and desktop instances."""
 MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
 MarkedAsActive = 0b100000000000
-"""Item flags."""
+"""Custom Item flags."""
 
 InfoThread = 0
 BackgroundInfoThread = 1
 ThumbnailThread = 2
 """Thread types."""
 
-ExportsFolder = u'exports'
-DataFolder = u'data'
-ReferenceFolder = u'references'
-RendersFolder = u'renders'
-ScenesFolder = u'scenes'
-CompsFolder = u'comps'
-ScriptsFolder = u'scripts'
-TexturesFolder = u'textures'
-"""Predefined folder names."""
 
-ASSET_FOLDERS = {
-    ExportsFolder: u'User exported animation, object and simulation cache files',
-    CompsFolder: u'Final comp renders',
-    DataFolder: u'System exported caches files',
-    ReferenceFolder: u'Files used for research, reference',
-    RendersFolder: u'Images rendered by the scene files',
-    ScenesFolder: u'Project files for all 2D and 3D scenes',
-    ScriptsFolder: u'Technical dependencies',
-    TexturesFolder: u'Textures used by the 2D/3D projects',
-    u'misc': u'',
-}
-"""Folder descriptions."""
+def get_oiio_namefilters():
+    """Gets all accepted formats from the oiio build as a namefilter list.
+    Use the return value on the QFileDialog.setNameFilters() method.
 
+    """
+    extension_list = OpenImageIO.get_string_attribute("extension_list")
+    namefilters = []
+    arr = []
+    for exts in extension_list.split(u';'):
+        exts = exts.split(u':')
+        _exts = exts[1].split(u',')
+        e = [u'*.{}'.format(f) for f in _exts]
+        namefilter = u'{} files ({})'.format(exts[0].upper(), u' '.join(e))
+        namefilters.append(namefilter)
+        for _e in _exts:
+            arr.append(_e)
+
+    allfiles = [u'*.{}'.format(f) for f in arr]
+    allfiles = u' '.join(allfiles)
+    allfiles = u'All files ({})'.format(allfiles)
+    namefilters.insert(0, allfiles)
+    return u';;'.join(namefilters)
+
+
+# Extending the
+FlagsRole = QtCore.Qt.UserRole + 1
+ParentPathRole = FlagsRole + 1
+DescriptionRole = ParentPathRole + 1
+TodoCountRole = DescriptionRole + 1
+FileDetailsRole = TodoCountRole + 1
+SequenceRole = FileDetailsRole + 1  # SRE Match object
+FramesRole = SequenceRole + 1  # List of frame names
+FileInfoLoaded = FramesRole + 1
+FileThumbnailLoaded = FileInfoLoaded + 1
+StartpathRole = FileThumbnailLoaded + 1
+EndpathRole = StartpathRole + 1
+ThumbnailRole = EndpathRole + 1
+ThumbnailPathRole = ThumbnailRole + 1
+DefaultThumbnailRole = ThumbnailPathRole + 1
+TypeRole = DefaultThumbnailRole + 1
+EntryRole = TypeRole + 1
+IdRole = EntryRole + 1
+AssetCountRole = IdRole + 1
+SortByNameRole = AssetCountRole + 1
+SortByLastModifiedRole = SortByNameRole + 1
+SortBySizeRole = SortByLastModifiedRole + 1
+TextSegmentRole = SortBySizeRole + 1
+
+FileItem = 1100
+SequenceItem = 1200
+
+SORT_WITH_BASENAME = False
+
+
+ValidFilenameRegex = re.compile(
+    ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
+    flags=re.IGNORECASE | re.UNICODE)
+IsSequenceRegex = re.compile(
+    ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
+SequenceStartRegex = re.compile(
+    ur'^(.*)\[([0-9]+).*\](.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
+SequenceEndRegex = re.compile(
+    ur'^(.*)\[.*?([0-9]+)\](.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
+GetSequenceRegex = re.compile(
+    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
+    flags=re.IGNORECASE | re.UNICODE)
+
+WindowsPath = 0
+UnixPath = 1
+SlackPath = 2
+MacOSPath = 3
 
 
 def get_platform():
@@ -99,21 +150,38 @@ else:
     DPI = 72.0
 
 
-SMALL_FONT_SIZE = lambda: psize(11.0) #8.5pt@72dbpi
-MEDIUM_FONT_SIZE = lambda: psize(12.0) #9pt@72dpi
-LARGE_FONT_SIZE = lambda: psize(16.0) # 12pt@72dpi
+def SMALL_FONT_SIZE(): return int(psize(11.0))  # 8.5pt@72dbpi
 
-ROW_HEIGHT = lambda: int(psize(34.0))
-BOOKMARK_ROW_HEIGHT = lambda: int(psize(40.0))
-ASSET_ROW_HEIGHT = lambda: int(psize(64.0))
-ROW_SEPARATOR = lambda: int(psize(1.0))
 
-MARGIN = lambda: int(psize(18.0))
+def MEDIUM_FONT_SIZE(): return int(psize(12.0))  # 9pt@72dpi
 
-INDICATOR_WIDTH = lambda: int(psize(4.0))
 
-WIDTH = lambda: int(psize(640.0))
-HEIGHT = lambda: int(psize(480.0))
+def LARGE_FONT_SIZE(): return int(psize(16.0))  # 12pt@72dpi
+
+
+def ROW_HEIGHT(): return int(psize(34.0))
+
+
+def BOOKMARK_ROW_HEIGHT(): return int(psize(40.0))
+
+
+def ASSET_ROW_HEIGHT(): return int(psize(64.0))
+
+
+def ROW_SEPARATOR(): return int(psize(1.0))
+
+
+def MARGIN(): return int(psize(18.0))
+
+
+def INDICATOR_WIDTH(): return int(psize(4.0))
+
+
+def WIDTH(): return int(psize(640.0))
+
+
+def HEIGHT(): return int(psize(480.0))
+
 
 THUMBNAIL_IMAGE_SIZE = 512.0
 THUMBNAIL_FORMAT = u'png'
@@ -126,7 +194,6 @@ def psize(n):
 
     """
     return (float(n) * (float(DPI) / 72.0)) * float(UI_SCALE)
-
 
 
 def proxy_path(v):
@@ -165,300 +232,9 @@ def proxy_path(v):
     return v
 
 
-class DataDict(dict):
-    """Subclassed dict type for weakref compatibility."""
-    pass
-
-
-class Log:
-    stdout = cStringIO.StringIO()
-
-    HEADER = u'\033[95m'
-    OKBLUE = u'\033[94m'
-    OKGREEN = u'\033[92m'
-    WARNING = u'\033[93m'
-    FAIL = u'\033[91m'
-    ENDC = u'\033[0m'
-    BOLD = u'\033[1m'
-    UNDERLINE = u'\033[4m'
-
-    @classmethod
-    def success(cls, s):
-        if not DEBUG_ON:
-            return
-        t = u'{color}{ts} [Ok]:  {default}{message}'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            color=cls.OKGREEN,
-            default=cls.ENDC,
-            message=s
-        )
-        print >> cls.stdout, t
-
-    @classmethod
-    def debug(cls, s, source=u''):
-        if not DEBUG_ON:
-            return
-        t = u'{color}{ts} [Debug]:{default}    {source}.{message}'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            color=cls.OKBLUE,
-            default=cls.ENDC,
-            message=s,
-            source=source.__class__.__name__
-        )
-        print >> cls.stdout, t
-
-    @classmethod
-    def info(cls, s):
-        if not DEBUG_ON:
-            return
-        t = u'{color}{ts} [Info]:{default}    {message}'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            color=cls.OKBLUE,
-            default=cls.ENDC,
-            message=s
-        )
-        print >> cls.stdout, t
-
-    @classmethod
-    def error(cls, s):
-        t = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}\n'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            fail=cls.FAIL,
-            underline=cls.UNDERLINE,
-            default=cls.ENDC,
-            message=s,
-            traceback=u'\n\033[91m'.join(
-                traceback.format_exc().strip(u'\n').split(u'\n'))
-        )
-        print >> cls.stdout, t
-
 
 def k(s):
     return getattr(Log, s).replace(u'[', u'\\[')
-
-
-class LogViewHighlighter(QtGui.QSyntaxHighlighter):
-    """Class responsible for highlighting urls"""
-    HEADER = 0b000000001
-    OKBLUE = 0b000000010
-    OKGREEN = 0b000000100
-    WARNING = 0b000001000
-    FAIL = 0b000010000
-    FAIL_SUB = 0b000100000
-    ENDC = 0b001000000
-    BOLD = 0b010000000
-    UNDERLINE = 0b100000000
-
-    HIGHLIGHT_RULES = {
-        u'OKBLUE': {
-            u're': re.compile(
-                u'{}(.+?)(?:{})(.+)'.format(k('OKBLUE'), k('ENDC')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': OKBLUE
-        },
-        u'OKGREEN': {
-            u're': re.compile(
-                u'{}(.+?)(?:{})(.+)'.format(k('OKGREEN'), k('ENDC')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': OKGREEN
-        },
-        u'FAIL': {
-            u're': re.compile(
-                u'{}{}(.+?)(?:{})(.+)'.format(
-                    k('FAIL'), k('UNDERLINE'), k('ENDC')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': FAIL
-        },
-        u'FAIL_SUB': {
-            u're': re.compile(
-                u'{}(.*)'.format(k('FAIL')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': FAIL_SUB
-        },
-    }
-
-    def highlightBlock(self, text):
-        font = QtGui.QFont('Monospace')
-        font.setStyleHint(QtGui.QFont.Monospace)
-        font.setPixelSize(1)
-
-        char_format = QtGui.QTextCharFormat()
-        char_format.setFont(font)
-        char_format.setForeground(QtGui.QColor(0, 0, 0, 0))
-
-        block_format = QtGui.QTextBlockFormat()
-        block_format.setLineHeight(
-            120, QtGui.QTextBlockFormat.ProportionalHeight)
-        self.setFormat(0, len(text), char_format)
-
-        _font = char_format.font()
-        _foreground = char_format.foreground()
-        _weight = char_format.fontWeight()
-        _psize = char_format.font().pixelSize()
-
-        flag = 0
-
-        position = self.currentBlock().position()
-        cursor = QtGui.QTextCursor(self.currentBlock())
-        cursor.mergeBlockFormat(block_format)
-        cursor = QtGui.QTextCursor(self.document())
-
-        for case in self.HIGHLIGHT_RULES.itervalues():
-            if case[u'flag'] == self.OKGREEN:
-                it = case[u're'].finditer(text)
-                for match in it:
-                    flag = flag | case['flag']
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-
-                    char_format.setForeground(QtGui.QColor(80, 230, 80, 255))
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
-
-                    self.setFormat(match.start(2), len(
-                        match.group(2)), char_format)
-                    cursor = self.document().find(match.group(2), position)
-                    cursor.mergeCharFormat(char_format)
-
-            if case[u'flag'] == self.OKBLUE:
-                it = case[u're'].finditer(text)
-                for match in it:
-                    flag = flag | case['flag']
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-                    char_format.setForeground(QtGui.QColor(80, 80, 200, 255))
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
-
-                    self.setFormat(match.start(2), len(
-                        match.group(2)), char_format)
-                    cursor = self.document().find(match.group(2), position)
-                    cursor.mergeCharFormat(char_format)
-
-            if case[u'flag'] == self.FAIL:
-                match = case[u're'].match(text)
-                if match:
-                    flag = flag | case['flag']
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
-                    char_format.setFontUnderline(True)
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
-
-                    self.setFormat(match.start(2), len(
-                        match.group(2)), char_format)
-                    cursor = self.document().find(match.group(2), position)
-                    cursor.mergeCharFormat(char_format)
-
-            if case[u'flag'] == self.FAIL_SUB:
-                # continue
-                it = case[u're'].finditer(text)
-                for match in it:
-                    if flag & self.FAIL:
-                        continue
-                    char_format.setFontUnderline(False)
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-            char_format.setFont(_font)
-            char_format.setForeground(_foreground)
-            char_format.setFontWeight(_weight)
-
-
-class LogView(QtWidgets.QTextBrowser):
-
-    format_regex = u'({h})|({b})|({g})|({w})|({f})|({e})|({o})|({u})'
-    format_regex = format_regex.format(
-        h=Log.HEADER,
-        b=Log.OKBLUE,
-        g=Log.OKGREEN,
-        w=Log.WARNING,
-        f=Log.FAIL,
-        e=Log.ENDC,
-        o=Log.BOLD,
-        u=Log.UNDERLINE
-    )
-    format_regex = re.compile(format_regex.replace(u'[', '\\['))
-
-    def __init__(self, parent=None):
-        super(LogView, self).__init__(parent=parent)
-
-        if parent is None:
-            set_custom_stylesheet(self)
-
-        self.setMinimumWidth(WIDTH())
-        self.setUndoRedoEnabled(False)
-        self._cached = u''
-        self.highlighter = LogViewHighlighter(self.document())
-        self.timer = QtCore.QTimer(parent=self)
-        self.timer.setSingleShot(False)
-        self.timer.setInterval(666)
-        self.timer.timeout.connect(self.load_log)
-        self.timer.start()
-        self.setStyleSheet(
-            """
-* {{
-    padding: {m}px;
-    border-radius: {p}px;
-    font-size: {p}px;
-    background-color: rgba({c});
-}}
-""".format(
-        m=MARGIN(),
-        p=SMALL_FONT_SIZE(),
-        c=rgb(SEPARATOR)
-    ))
-
-    def showEvent(self, event):
-        self.timer.start()
-
-    def hideEvent(self, event):
-        self.timer.stop()
-
-    def load_log(self):
-        app = QtWidgets.QApplication.instance()
-        if app.mouseButtons() != QtCore.Qt.NoButton:
-            return
-
-        self.document().blockSignals(True)
-        v = Log.stdout.getvalue()
-        if self._cached == v:
-            return
-
-        self._cached = v
-        self.setText(v[-30000:])
-        self.highlighter.rehighlight()
-        v = self.format_regex.sub(u'', self.document().toHtml())
-        self.setHtml(v)
-        self.document().blockSignals(False)
-
-        m = self.verticalScrollBar().maximum()
-        self.verticalScrollBar().setValue(m)
-
-    def sizeHint(self):
-        return QtCore.QSize(WIDTH(), HEIGHT())
 
 
 def rgb(color):
@@ -553,7 +329,7 @@ def export_favourites():
         common_ui.ErrorBox(
             u'Could not save the favourites.',
             u'{}'.format(e)
-        ).exec_()
+        ).open()
         Log.error(u'Exporting favourites failed.')
         raise
 
@@ -581,12 +357,14 @@ def import_favourites(source=None):
             namelist = [f.lower() for f in namelist]
 
             if u'favourites' not in namelist:
-                mbox = QtWidgets.QMessageBox()
-                mbox.setWindowTitle(u'Invalid ".favourites" file')
-                mbox.setText(u'This file does not seem to be valid, sorry!')
-                mbox.setInformativeText(
-                    u'The favourites list is missing from the archive.')
-                return mbox.exec_()
+                import bookmarks.common_ui as common_ui
+                s = u'The favourites list is missing from the archive.'
+                common_ui.ErrorBox(
+                    u'Invalid ".favourites" file',
+                    s,
+                ).open()
+                Log.error(s)
+                raise RuntimeError(s)
 
             with zip.open(u'favourites') as f:
                 favourites = f.readlines()
@@ -617,7 +395,7 @@ def import_favourites(source=None):
         common_ui.ErrorBox(
             u'Could not import the favourites.',
             u'{}'.format(e)
-        ).exec_()
+        ).open()
         Log.error(u'Import favourites failed.')
         raise
 
@@ -657,231 +435,6 @@ REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 THUMBNAIL_BACKGROUND = SEPARATOR
 
-
-def get_oiio_extensions():
-    """Returns a list of extension OpenImageIO is capable of reading."""
-    extensions = []
-    for f in OpenImageIO.get_string_attribute(u'extension_list').split(u';'):
-        extensions = extensions + f.split(u':')[-1].split(u',')
-    return frozenset(extensions)
-
-
-def get_oiio_namefilters(as_array=False):
-    """Gets all accepted formats from the oiio build as a namefilter list.
-    Use the return value on the QFileDialog.setNameFilters() method.
-
-    """
-    extension_list = OpenImageIO.get_string_attribute("extension_list")
-    namefilters = []
-    arr = []
-    for exts in extension_list.split(u';'):
-        exts = exts.split(u':')
-        _exts = exts[1].split(u',')
-        e = [u'*.{}'.format(f) for f in _exts]
-        namefilter = u'{} files ({})'.format(exts[0].upper(), u' '.join(e))
-        namefilters.append(namefilter)
-        for _e in _exts:
-            arr.append(_e)
-    if as_array:
-        return arr
-
-    allfiles = [u'*.{}'.format(f) for f in arr]
-    allfiles = u' '.join(allfiles)
-    allfiles = u'All files ({})'.format(allfiles)
-    namefilters.insert(0, allfiles)
-    return u';;'.join(namefilters)
-
-
-creative_cloud_formats = [
-    u'aep',
-    u'ai',
-    u'eps',
-    u'fla',
-    u'ppj',
-    u'prproj',
-    u'psb',
-    u'psd',
-    u'psq',
-    u'xfl',
-]
-exports_formats = [
-    u'abc',  # Alembic
-    u'ass',  # Arnold
-    u'bgeo',  # Houdini
-    u'fbx',
-    u'geo',  # Houdini
-    u'obj',
-    u'rs',  # Redshift cache file
-    u'sim',  # Houdini
-    u'sc',  # Houdini
-    u'vdb',  # OpenVDB cache file
-    u'ifd',  # Houdini
-]
-scene_formats = [
-    u'c4d',
-    u'hud',
-    u'hip',
-    u'ma',
-    u'mb',
-    u'nk',
-    u'nk~',
-    u'mocha',
-    u'rv',
-    u'autosave'
-]
-misc_formats = [
-    u'pdf',
-    u'zip',
-    u'm4v',
-    u'm4a',
-    u'mov',
-    u'mp4',
-]
-oiio_formats = get_oiio_namefilters(as_array=True)
-all_formats = frozenset(
-    scene_formats +
-    oiio_formats +
-    exports_formats +
-    creative_cloud_formats +
-    misc_formats
-)
-
-NameFilters = {
-    ExportsFolder: all_formats,
-    ScenesFolder: all_formats,
-    CompsFolder: oiio_formats,
-    RendersFolder: oiio_formats,
-    TexturesFolder: all_formats,
-}
-"""A list of expected file - formats associated with the location."""
-
-# Extending the
-FlagsRole = 1024
-"""Role used to store the path of the item."""
-ParentPathRole = 1026
-"""Role used to store the paths the item is associated with."""
-DescriptionRole = 1027
-"""Role used to store the description of the item."""
-TodoCountRole = 1028
-"""Asset role used to store the number of todos."""
-FileDetailsRole = 1029
-"""Special role used to save the information string of a file."""
-SequenceRole = 1030  # SRE Match object
-FramesRole = 1031  # List of frame names
-FileInfoLoaded = 1032
-FileThumbnailLoaded = 1033
-StartpathRole = 1034
-EndpathRole = 1035
-ThumbnailRole = 1036
-ThumbnailPathRole = 1037
-ThumbnailBackgroundRole = 1038
-DefaultThumbnailRole = 1039
-DefaultThumbnailBackgroundRole = 1040
-TypeRole = 1041
-EntryRole = 1042
-IdRole = 1043
-AssetCountRole = 1043
-
-SortByName = 2048
-SortByLastModified = 2049
-SortBySize = 2050
-
-FileItem = 1100
-SequenceItem = 1200
-
-SORT_WITH_BASENAME = False
-
-
-ValidFilenameRegex = re.compile(
-    ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
-    flags=re.IGNORECASE | re.UNICODE)
-IsSequenceRegex = re.compile(
-    ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
-SequenceStartRegex = re.compile(
-    ur'^(.*)\[([0-9]+).*\](.*)$',
-    flags=re.IGNORECASE | re.UNICODE)
-SequenceEndRegex = re.compile(
-    ur'^(.*)\[.*?([0-9]+)\](.*)$',
-    flags=re.IGNORECASE | re.UNICODE)
-GetSequenceRegex = re.compile(
-    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
-    flags=re.IGNORECASE | re.UNICODE)
-
-WindowsPath = 0
-UnixPath = 1
-SlackPath = 2
-MacOSPath = 3
-
-
-
-
-class FontDatabase(QtGui.QFontDatabase):
-
-    def __init__(self, parent=None):
-        if not QtWidgets.QApplication.instance():
-            raise RuntimeError('FontDatabase must be created after a QApplication was initiated.')
-        super(FontDatabase, self).__init__(parent=parent)
-
-        self._fonts = {}
-        self.add_custom_fonts()
-
-    def add_custom_fonts(self):
-        """Adds our custom fonts to the QApplication.
-        """
-        if u'bmRobotoMedium' in self.families():
-            return
-
-        p = u'{}/../rsc/fonts'.format(__file__)
-        p = os.path.normpath(os.path.abspath(p))
-
-        if not os.path.isdir(p):
-            raise OSError('{} could not be found'.format(p))
-
-        import bookmarks._scandir as scandir
-        for entry in _scandir.scandir(p):
-            if not entry.name.endswith(u'ttf'):
-                continue
-            idx = self.addApplicationFont(entry.path)
-            if idx < 0:
-                raise RuntimeError(u'Failed to add required font to the application')
-            family = self.applicationFontFamilies(idx)
-            if not family:
-                raise RuntimeError(u'Failed to add required font to the application')
-
-    def primary_font(self, font_size):
-        """Returns the primary font used by the application"""
-        k = u'bmRobotoBold' + unicode(font_size)
-        if k in self._fonts:
-            return self._fonts[k]
-
-        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', font_size)
-        self._fonts[k].setPixelSize(font_size)
-
-        if self._fonts[k].family() != u'bmRobotoBold':
-            raise RuntimeError(u'Failed to add required font to the application')
-        return self._fonts[k]
-
-    def secondary_font(self, font_size=SMALL_FONT_SIZE()):
-        k = u'bmRobotoMedium' + unicode(font_size)
-        if k in self._fonts:
-            return self._fonts[k]
-
-        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', font_size)
-        self._fonts[k].setPixelSize(font_size)
-
-        if self._fonts[k].family() != u'bmRobotoMedium':
-            raise RuntimeError(u'Failed to add required font to the application')
-        return self._fonts[k]
-
-    def header_font(self, font_size=MEDIUM_FONT_SIZE() * 1.5):
-        k = u'bmRobotoBlack' + unicode(float(font_size))
-        if k in self._fonts:
-            return self._fonts[k]
-
-        self._fonts[k] = self.font(u'bmRobotoBlack', u'Black', font_size)
-        if self._fonts[k].family() != u'bmRobotoBlack':
-            raise RuntimeError(u'Failed to add required font to the application')
-        return self._fonts[k]
 
 
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
@@ -1408,8 +961,8 @@ def push_to_rv(path):
         common_ui.ErrorBox(
             u'Shotgun RV not yet set.',
             u'Set the RV executable path to Push to RV.'
-        ).exec_()
-        Log.error('RV not set')
+        ).open()
+        Log.error(u'RV not set')
         return
 
     rv_info = QtCore.QFileInfo(rv_path)
@@ -1417,8 +970,8 @@ def push_to_rv(path):
         common_ui.ErrorBox(
             u'Invalid Shotgun RV path set.',
             u'Make sure the currently set RV path is valid and try again!'
-        ).exec_()
-        Log.error('Invalid RV path set')
+        ).open()
+        Log.error(u'Invalid RV path set')
         return
 
     if get_platform() == u'win':
@@ -1429,6 +982,375 @@ def push_to_rv(path):
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
+
+
+
+class FontDatabase(QtGui.QFontDatabase):
+
+    def __init__(self, parent=None):
+        if not QtWidgets.QApplication.instance():
+            raise RuntimeError(
+                'FontDatabase must be created after a QApplication was initiated.')
+        super(FontDatabase, self).__init__(parent=parent)
+
+        self._fonts = {}
+        self.add_custom_fonts()
+
+    def add_custom_fonts(self):
+        """Adds our custom fonts to the QApplication.
+        """
+        if u'bmRobotoMedium' in self.families():
+            return
+
+        p = u'{}/../rsc/fonts'.format(__file__)
+        p = os.path.normpath(os.path.abspath(p))
+
+        if not os.path.isdir(p):
+            raise OSError('{} could not be found'.format(p))
+
+        import bookmarks._scandir as scandir
+        for entry in _scandir.scandir(p):
+            if not entry.name.endswith(u'ttf'):
+                continue
+            idx = self.addApplicationFont(entry.path)
+            if idx < 0:
+                raise RuntimeError(
+                    u'Failed to add required font to the application')
+            family = self.applicationFontFamilies(idx)
+            if not family:
+                raise RuntimeError(
+                    u'Failed to add required font to the application')
+
+    def primary_font(self, font_size):
+        """Returns the primary font used by the application"""
+        k = u'bmRobotoBold' + unicode(font_size)
+        if k in self._fonts:
+            return self._fonts[k]
+
+        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', font_size)
+        self._fonts[k].setPixelSize(font_size)
+
+        if self._fonts[k].family() != u'bmRobotoBold':
+            raise RuntimeError(
+                u'Failed to add required font to the application')
+        return self._fonts[k]
+
+    def secondary_font(self, font_size=SMALL_FONT_SIZE()):
+        k = u'bmRobotoMedium' + unicode(font_size)
+        if k in self._fonts:
+            return self._fonts[k]
+
+        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', font_size)
+        self._fonts[k].setPixelSize(font_size)
+
+        if self._fonts[k].family() != u'bmRobotoMedium':
+            raise RuntimeError(
+                u'Failed to add required font to the application')
+        return self._fonts[k]
+
+    def header_font(self, font_size=MEDIUM_FONT_SIZE() * 1.5):
+        k = u'bmRobotoBlack' + unicode(float(font_size))
+        if k in self._fonts:
+            return self._fonts[k]
+
+        self._fonts[k] = self.font(u'bmRobotoBlack', u'Black', font_size)
+        if self._fonts[k].family() != u'bmRobotoBlack':
+            raise RuntimeError(
+                u'Failed to add required font to the application')
+        return self._fonts[k]
+
+
+class DataDict(dict):
+    """Subclassed dict type for weakref compatibility."""
+    pass
+
+
+class Log:
+    stdout = cStringIO.StringIO()
+
+    HEADER = u'\033[95m'
+    OKBLUE = u'\033[94m'
+    OKGREEN = u'\033[92m'
+    WARNING = u'\033[93m'
+    FAIL = u'\033[91m'
+    ENDC = u'\033[0m'
+    BOLD = u'\033[1m'
+    UNDERLINE = u'\033[4m'
+
+    @classmethod
+    def success(cls, s):
+        if not DEBUG_ON:
+            return
+        t = u'{color}{ts} [Ok]:  {default}{message}'.format(
+            ts=time.strftime(u'%H:%M:%S'),
+            color=cls.OKGREEN,
+            default=cls.ENDC,
+            message=s
+        )
+        print >> cls.stdout, t
+
+    @classmethod
+    def debug(cls, s, source=u''):
+        if not DEBUG_ON:
+            return
+        t = u'{color}{ts} [Debug]:{default}    {source}.{message}'.format(
+            ts=time.strftime(u'%H:%M:%S'),
+            color=cls.OKBLUE,
+            default=cls.ENDC,
+            message=s,
+            source=source.__class__.__name__
+        )
+        print >> cls.stdout, t
+
+    @classmethod
+    def info(cls, s):
+        if not DEBUG_ON:
+            return
+        t = u'{color}{ts} [Info]:{default}    {message}'.format(
+            ts=time.strftime(u'%H:%M:%S'),
+            color=cls.OKBLUE,
+            default=cls.ENDC,
+            message=s
+        )
+        print >> cls.stdout, t
+
+    @classmethod
+    def error(cls, s):
+        t = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}\n'.format(
+            ts=time.strftime(u'%H:%M:%S'),
+            fail=cls.FAIL,
+            underline=cls.UNDERLINE,
+            default=cls.ENDC,
+            message=s,
+            traceback=u'\n\033[91m'.join(
+                traceback.format_exc().strip(u'\n').split(u'\n'))
+        )
+        print >> cls.stdout, t
+
+
+class LogViewHighlighter(QtGui.QSyntaxHighlighter):
+    """Class responsible for highlighting urls"""
+    HEADER = 0b000000001
+    OKBLUE = 0b000000010
+    OKGREEN = 0b000000100
+    WARNING = 0b000001000
+    FAIL = 0b000010000
+    FAIL_SUB = 0b000100000
+    ENDC = 0b001000000
+    BOLD = 0b010000000
+    UNDERLINE = 0b100000000
+
+    HIGHLIGHT_RULES = {
+        u'OKBLUE': {
+            u're': re.compile(
+                u'{}(.+?)(?:{})(.+)'.format(k('OKBLUE'), k('ENDC')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': OKBLUE
+        },
+        u'OKGREEN': {
+            u're': re.compile(
+                u'{}(.+?)(?:{})(.+)'.format(k('OKGREEN'), k('ENDC')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': OKGREEN
+        },
+        u'FAIL': {
+            u're': re.compile(
+                u'{}{}(.+?)(?:{})(.+)'.format(
+                    k('FAIL'), k('UNDERLINE'), k('ENDC')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': FAIL
+        },
+        u'FAIL_SUB': {
+            u're': re.compile(
+                u'{}(.*)'.format(k('FAIL')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': FAIL_SUB
+        },
+    }
+
+    def highlightBlock(self, text):
+        font = QtGui.QFont('Monospace')
+        font.setStyleHint(QtGui.QFont.Monospace)
+        font.setPixelSize(1)
+
+        char_format = QtGui.QTextCharFormat()
+        char_format.setFont(font)
+        char_format.setForeground(QtGui.QColor(0, 0, 0, 0))
+
+        block_format = QtGui.QTextBlockFormat()
+        block_format.setLineHeight(
+            120, QtGui.QTextBlockFormat.ProportionalHeight)
+        self.setFormat(0, len(text), char_format)
+
+        _font = char_format.font()
+        _foreground = char_format.foreground()
+        _weight = char_format.fontWeight()
+        _psize = char_format.font().pixelSize()
+
+        flag = 0
+
+        position = self.currentBlock().position()
+        cursor = QtGui.QTextCursor(self.currentBlock())
+        cursor.mergeBlockFormat(block_format)
+        cursor = QtGui.QTextCursor(self.document())
+
+        for case in self.HIGHLIGHT_RULES.itervalues():
+            if case[u'flag'] == self.OKGREEN:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    flag = flag | case['flag']
+                    font.setPixelSize(MEDIUM_FONT_SIZE())
+                    char_format.setFont(font)
+
+                    char_format.setForeground(QtGui.QColor(80, 230, 80, 255))
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
+
+                    self.setFormat(match.start(2), len(
+                        match.group(2)), char_format)
+                    cursor = self.document().find(match.group(2), position)
+                    cursor.mergeCharFormat(char_format)
+
+            if case[u'flag'] == self.OKBLUE:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    flag = flag | case['flag']
+                    font.setPixelSize(MEDIUM_FONT_SIZE())
+                    char_format.setFont(font)
+                    char_format.setForeground(QtGui.QColor(80, 80, 200, 255))
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
+
+                    self.setFormat(match.start(2), len(
+                        match.group(2)), char_format)
+                    cursor = self.document().find(match.group(2), position)
+                    cursor.mergeCharFormat(char_format)
+
+            if case[u'flag'] == self.FAIL:
+                match = case[u're'].match(text)
+                if match:
+                    flag = flag | case['flag']
+                    font.setPixelSize(MEDIUM_FONT_SIZE())
+                    char_format.setFont(font)
+                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
+                    char_format.setFontUnderline(True)
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
+
+                    self.setFormat(match.start(2), len(
+                        match.group(2)), char_format)
+                    cursor = self.document().find(match.group(2), position)
+                    cursor.mergeCharFormat(char_format)
+
+            if case[u'flag'] == self.FAIL_SUB:
+                # continue
+                it = case[u're'].finditer(text)
+                for match in it:
+                    if flag & self.FAIL:
+                        continue
+                    char_format.setFontUnderline(False)
+                    font.setPixelSize(MEDIUM_FONT_SIZE())
+                    char_format.setFont(font)
+                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+            char_format.setFont(_font)
+            char_format.setForeground(_foreground)
+            char_format.setFontWeight(_weight)
+
+
+class LogView(QtWidgets.QTextBrowser):
+
+    format_regex = u'({h})|({b})|({g})|({w})|({f})|({e})|({o})|({u})'
+    format_regex = format_regex.format(
+        h=Log.HEADER,
+        b=Log.OKBLUE,
+        g=Log.OKGREEN,
+        w=Log.WARNING,
+        f=Log.FAIL,
+        e=Log.ENDC,
+        o=Log.BOLD,
+        u=Log.UNDERLINE
+    )
+    format_regex = re.compile(format_regex.replace(u'[', '\\['))
+
+    def __init__(self, parent=None):
+        super(LogView, self).__init__(parent=parent)
+
+        if parent is None:
+            set_custom_stylesheet(self)
+
+        self.setMinimumWidth(WIDTH())
+        self.setUndoRedoEnabled(False)
+        self._cached = u''
+        self.highlighter = LogViewHighlighter(self.document())
+        self.timer = QtCore.QTimer(parent=self)
+        self.timer.setSingleShot(False)
+        self.timer.setInterval(666)
+        self.timer.timeout.connect(self.load_log)
+        self.timer.start()
+        self.setStyleSheet(
+            """
+* {{
+    padding: {m}px;
+    border-radius: {p}px;
+    font-size: {p}px;
+    background-color: rgba({c});
+}}
+""".format(
+                m=MARGIN(),
+                p=SMALL_FONT_SIZE(),
+                c=rgb(SEPARATOR)
+            ))
+
+    def showEvent(self, event):
+        self.timer.start()
+
+    def hideEvent(self, event):
+        self.timer.stop()
+
+    def load_log(self):
+        app = QtWidgets.QApplication.instance()
+        if app.mouseButtons() != QtCore.Qt.NoButton:
+            return
+
+        self.document().blockSignals(True)
+        v = Log.stdout.getvalue()
+        if self._cached == v:
+            return
+
+        self._cached = v
+        self.setText(v[-30000:])
+        self.highlighter.rehighlight()
+        v = self.format_regex.sub(u'', self.document().toHtml())
+        self.setHtml(v)
+        self.document().blockSignals(False)
+
+        m = self.verticalScrollBar().maximum()
+        self.verticalScrollBar().setValue(m)
+
+    def sizeHint(self):
+        return QtCore.QSize(WIDTH(), HEIGHT())
+
 
 
 font_db = None
