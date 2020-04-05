@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Contains the popup-widget associated with the FilesWidget tab. It is responsible
-for letting the user pick a folder to get files from.
+"""The widget used to change the `FilesModel`'s' `task folder`.
 
-Data keys are subfolders inside the root of the asset folder. They are usually are
-associated with a task or data-type eg, ``render``, ``comp``, ``textures``.
+Data keys are subfolders inside the root of the asset folder. They are usually
+are associated with a task or data-type eg, ``render``, ``comp``, ``textures``
+folder.
 
-To describe the function of each folder we can define the folder and a description
-in the common module.
+See the `defaultpaths` module for task folder descriptions.
 
 """
 import weakref
@@ -23,17 +22,18 @@ from bookmarks.delegate import BaseDelegate
 import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.threads as threads
+import bookmarks.defaultpaths as defaultpaths
 
 
-class DataKeyContextMenu(BaseContextMenu):
-    """The context menu associated with the DataKeyView."""
+class TaskFolderContextMenu(BaseContextMenu):
+    """The context menu associated with the TaskFolderWidget."""
 
     def __init__(self, index, parent=None):
-        super(DataKeyContextMenu, self).__init__(index, parent=parent)
+        super(TaskFolderContextMenu, self).__init__(index, parent=parent)
         self.add_reveal_item_menu()
 
 
-class DataKeyViewDelegate(BaseDelegate):
+class TaskFolderWidgetDelegate(BaseDelegate):
     """The delegate used to paint the available subfolders inside the asset folder."""
 
     def paint(self, painter, option, index):
@@ -50,6 +50,7 @@ class DataKeyViewDelegate(BaseDelegate):
     def paint_background(self, *args):
         """Paints the background."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(common.SEPARATOR)
         painter.drawRect(option.rect)
@@ -57,8 +58,7 @@ class DataKeyViewDelegate(BaseDelegate):
         center = rect.center()
         rect.setHeight(rect.height() - common.ROW_SEPARATOR())
         rect.moveCenter(center)
-        background = QtGui.QColor(common.BACKGROUND)
-        background.setAlpha(150)
+        background = common.SECONDARY_BACKGROUND
         color = common.BACKGROUND_SELECTED if selected or hover else background
         painter.setBrush(color)
         painter.drawRect(rect)
@@ -85,15 +85,12 @@ class DataKeyViewDelegate(BaseDelegate):
             _rect = QtCore.QRect(option.rect)
             _rect.setSize(pixmap.size())
             _rect.moveCenter(option.rect.center())
-            _rect.moveLeft(option.rect.left() + ((o + common.INDICATOR_WIDTH()) * 0.5))
+            _rect.moveLeft(option.rect.left() +
+                           ((o + common.INDICATOR_WIDTH()) * 0.5))
             painter.drawPixmap(_rect, pixmap, pixmap.rect())
             rect = rect.marginsRemoved(QtCore.QMargins(o * 2, 0, o, 0))
         else:
             rect = rect.marginsRemoved(QtCore.QMargins(o, 0, o, 0))
-        # rect.setLeft(common.MARGIN())
-        # rect.setRight(rect.right() - common.MARGIN())
-
-
 
         text = index.data(QtCore.Qt.DisplayRole).upper()
         width = 0
@@ -138,17 +135,124 @@ class DataKeyViewDelegate(BaseDelegate):
             rect.setLeft(rect.left() + width)
 
     def sizeHint(self, option, index):
-        """Returns the size of the DataKeyViewDelegate items."""
+        """Returns the size of the TaskFolderWidgetDelegate items."""
         height = index.data(QtCore.Qt.SizeHintRole).height()
         return QtCore.QSize(1, height)
 
 
-class DataKeyView(QtWidgets.QListView):
+class TaskFolderModel(BaseModel):
+    """This model holds all the necessary data needed to display items to
+    select for selecting the asset subfolders and/or bookmarks and assets.
+
+    The model keeps track of the selections internally and is updated
+    via the signals and slots."""
+    ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
+
+    def __init__(self, parent=None):
+        self._parent = parent
+        super(TaskFolderModel, self).__init__(parent=parent)
+        self.modelDataResetRequested.connect(self.__resetdata__)
+
+    def initialise_threads(self):
+        """Starts and connects the threads."""
+        @QtCore.Slot(QtCore.QThread)
+        def thread_started(thread):
+            """Signals the model an item has been updated."""
+            thread.worker.dataReady.connect(
+                self.updateRow, QtCore.Qt.QueuedConnection)
+            thread.startTimer.emit()
+
+        info_worker = threads.TaskFolderWorker()
+        info_thread = threads.BaseThread(info_worker, interval=250)
+        self.threads[common.InfoThread].append(info_thread)
+        info_thread.started.connect(partial(thread_started, info_thread))
+        info_thread.start()
+
+    @property
+    def parent_path(self):
+        """We will use the currently active asset as the parent."""
+        if self.view.parent():
+            view = self.view.parent().parent().parent().fileswidget
+            return view.model().sourceModel().parent_path
+        return None
+
+    @parent_path.setter
+    def parent_path(self, val):
+        pass
+
+    def data_type(self):
+        return common.FileItem
+
+    def sort_data(self):
+        """This model is always alphabetical."""
+        pass
+
+    @initdata
+    def __initdata__(self):
+        """Bookmarks and assets are static. But files will be any number of """
+        task_folder = self.task_folder()
+        self.INTERNAL_MODEL_DATA[task_folder] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
+
+        flags = (
+            QtCore.Qt.ItemIsSelectable |
+            QtCore.Qt.ItemIsEnabled |
+            QtCore.Qt.ItemIsDropEnabled |
+            QtCore.Qt.ItemIsEditable
+        )
+        data = self.model_data()
+
+        if not self.parent_path:
+            return
+
+        # Thumbnail image
+        default_thumbnail = images.ImageCache.get_rsc_pixmap(
+            u'folder_sm',
+            common.SECONDARY_TEXT,
+            self.ROW_SIZE.height())
+        default_thumbnail = default_thumbnail.toImage()
+
+        parent_path = u'/'.join(self.parent_path)
+        entries = sorted(
+            ([f for f in _scandir.scandir(parent_path)]), key=lambda x: x.name)
+
+        print defaultpaths.get_description('dsad')
+        for entry in entries:
+            if entry.name.startswith(u'.'):
+                continue
+            if not entry.is_dir():
+                continue
+            idx = len(data)
+            data[idx] = common.DataDict({
+                QtCore.Qt.DisplayRole: entry.name,
+                QtCore.Qt.EditRole: entry.name,
+                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
+                QtCore.Qt.ToolTipRole: u'',
+                QtCore.Qt.ToolTipRole: defaultpaths.get_description(entry.name),
+                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
+                #
+                common.DefaultThumbnailRole: default_thumbnail,
+                common.ThumbnailRole: default_thumbnail,
+                #
+                common.FlagsRole: flags,
+                common.ParentPathRole: self.parent_path,
+                #
+                common.FileInfoLoaded: False,
+                common.FileThumbnailLoaded: True,
+                common.TodoCountRole: 0,
+            })
+            thread = self.threads[common.InfoThread][0]
+            thread.put(weakref.ref(data))
+
+
+class TaskFolderWidget(QtWidgets.QListView):
     """The view responsonsible for displaying the available data-keys."""
-    ContextMenu = DataKeyContextMenu
+    ContextMenu = TaskFolderContextMenu
 
     def __init__(self, parent=None, altparent=None):
-        super(DataKeyView, self).__init__(parent=parent)
+        super(TaskFolderWidget, self).__init__(parent=parent)
         self.altparent = altparent
         self._context_menu_active = False
 
@@ -181,10 +285,10 @@ class DataKeyView(QtWidgets.QListView):
             browser_widget = self.parent().parent().parent()
             browser_widget.stackedwidget.widget(2).resized.connect(set_width)
 
-        model = DataKeyModel()
+        model = TaskFolderModel()
         model.view = self
         self.setModel(model)
-        self.setItemDelegate(DataKeyViewDelegate(parent=self))
+        self.setItemDelegate(TaskFolderWidgetDelegate(parent=self))
         self.installEventFilter(self)
 
     def sizeHint(self):
@@ -198,14 +302,14 @@ class DataKeyView(QtWidgets.QListView):
         return 0
 
     def hideEvent(self, event):
-        """DataKeyView hide event."""
+        """TaskFolderWidget hide event."""
         if self.parent():
             self.parent().verticalScrollBar().setHidden(False)
             self.parent().removeEventFilter(self)
             self.altparent.files_button.update()
 
     def showEvent(self, event):
-        """DataKeyView show event."""
+        """TaskFolderWidget show event."""
         if self.parent():
             self.parent().verticalScrollBar().setHidden(True)
             self.parent().installEventFilter(self)
@@ -234,7 +338,7 @@ class DataKeyView(QtWidgets.QListView):
         elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
             self.hide()
             return
-        super(DataKeyView, self).keyPressEvent(event)
+        super(TaskFolderWidget, self).keyPressEvent(event)
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
@@ -272,116 +376,4 @@ class DataKeyView(QtWidgets.QListView):
         if not index.isValid():
             self.hide()
             return
-        super(DataKeyView, self).mousePressEvent(event)
-
-
-class DataKeyModel(BaseModel):
-    """This model holds all the necessary data needed to display items to
-    select for selecting the asset subfolders and/or bookmarks and assets.
-
-    The model keeps track of the selections internally and is updated
-    via the signals and slots."""
-    ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
-
-    def __init__(self, parent=None):
-        self._parent = parent
-        super(DataKeyModel, self).__init__(parent=parent)
-        self.modelDataResetRequested.connect(self.__resetdata__)
-
-    def initialise_threads(self):
-        """Starts and connects the threads."""
-        @QtCore.Slot(QtCore.QThread)
-        def thread_started(thread):
-            """Signals the model an item has been updated."""
-            thread.worker.dataReady.connect(
-                self.updateRow, QtCore.Qt.QueuedConnection)
-            thread.startTimer.emit()
-
-        info_worker = threads.DataKeyWorker()
-        info_thread = threads.BaseThread(info_worker, interval=250)
-        self.threads[common.InfoThread].append(info_thread)
-        info_thread.started.connect(partial(thread_started, info_thread))
-        info_thread.start()
-
-    @property
-    def parent_path(self):
-        """We will use the currently active asset as the parent."""
-        if self.view.parent():
-            view = self.view.parent().parent().parent().fileswidget
-            return view.model().sourceModel().parent_path
-        return None
-
-    @parent_path.setter
-    def parent_path(self, val):
-        pass
-
-    def data_key(self):
-        return u'default'
-
-    def data_type(self):
-        return common.FileItem
-
-    def sort_data(self):
-        """This model is always alphabetical."""
-        pass
-
-    @initdata
-    def __initdata__(self):
-        """Bookmarks and assets are static. But files will be any number of """
-        dkey = self.data_key()
-        self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
-            common.FileItem: common.DataDict(),
-            common.SequenceItem: common.DataDict()
-        })
-
-        flags = (
-            QtCore.Qt.ItemIsSelectable |
-            QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsDropEnabled |
-            QtCore.Qt.ItemIsEditable
-        )
-        data = self.model_data()
-
-        if not self.parent_path:
-            return
-
-        # Thumbnail image
-        default_thumbnail = images.ImageCache.get_rsc_pixmap(
-            u'folder_sm',
-            common.SECONDARY_TEXT,
-            self.ROW_SIZE.height())
-        default_thumbnail = default_thumbnail.toImage()
-
-        parent_path = u'/'.join(self.parent_path)
-        entries = sorted(
-            ([f for f in _scandir.scandir(parent_path)]), key=lambda x: x.name)
-
-        for entry in entries:
-            if entry.name.startswith(u'.'):
-                continue
-            if not entry.is_dir():
-                continue
-
-            idx = len(data)
-            data[idx] = common.DataDict({
-                QtCore.Qt.DisplayRole: entry.name,
-                QtCore.Qt.EditRole: entry.name,
-                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
-                QtCore.Qt.ToolTipRole: u'',
-                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
-                #
-                common.DefaultThumbnailRole: default_thumbnail,
-                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
-                common.ThumbnailRole: default_thumbnail,
-                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
-                #
-                common.FlagsRole: flags,
-                common.ParentPathRole: self.parent_path,
-                #
-                common.FileInfoLoaded: False,
-                common.FileThumbnailLoaded: True,
-                common.TodoCountRole: 0,
-            })
-            thread = self.threads[common.InfoThread][0]
-            thread.put(weakref.ref(data))
-            # thread.worker.dataRequested.emit()
+        super(TaskFolderWidget, self).mousePressEvent(event)
