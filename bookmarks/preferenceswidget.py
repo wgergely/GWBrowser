@@ -1,18 +1,23 @@
 """Preferences"""
-
+import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.common as common
+import bookmarks.defaultpaths as defaultpaths
 import bookmarks.common_ui as common_ui
+import bookmarks.images as images
 
 
-def get_sections(): return (
-    {'name': u'Application', 'description': u'Common Preferences',
-        'cls': ApplicationSettingsWidget},
-    {'name': u'Maya', 'description': u'Maya Settings', 'cls': MayaSettingsWidget},
-)
+def get_sections():
+    return (
+        {u'name': u'General', u'description': u'General Settings',
+            'cls': ApplicationSettingsWidget},
+        {u'name': u'Default Paths', u'description': u'Saver Settings',
+            u'cls': SaverSettingsWidget},
+        {u'name': u'Maya Plugin', u'description': u'Maya Plugin Settings',
+            u'cls': MayaSettingsWidget},
+    )
 
 
 def get_preference(name):
@@ -22,11 +27,14 @@ def get_preference(name):
 class BaseSettingsWidget(QtWidgets.QWidget):
     def __init__(self, label, parent=None):
         super(BaseSettingsWidget, self).__init__(parent=parent)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum,
+            QtWidgets.QSizePolicy.Maximum,
+        )
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
         self._create_UI()
         self._init_values()
@@ -48,6 +56,13 @@ class MayaSettingsWidget(BaseSettingsWidget):
             u'Maya Settings', parent=parent)
 
     def _create_UI(self):
+        label = common_ui.PaintedLabel(
+            u'Maya Plugin Preferences',
+            size=common.LARGE_FONT_SIZE(),
+            parent=self,
+        )
+        self.layout().addWidget(label)
+
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(u'Sync instances', parent=grp)
         self.sync_active_button = QtWidgets.QCheckBox(
@@ -114,8 +129,8 @@ warning dialog. Tick to disable (default is "off"):'
         Tick above if you want to disable Maya Workspace Syncing \
         (default is "off"):'.format(common.PRODUCT)
         common_ui.add_description(label, parent=grp)
-        ######################################################
-        self.layout().addStretch(10)
+
+        self.layout().addStretch(1)
 
     def _connect_signals(self):
         self.sync_active_button.toggled.connect(
@@ -180,35 +195,74 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def _create_UI(self):
         import bookmarks
-        grp = common_ui.get_group(parent=self)
-        row = common_ui.add_row(u'Version', parent=grp, height=None)
-        label = QtWidgets.QLabel()
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'icon_bw', None, common.MARGIN())
-        label.setPixmap(pixmap)
 
-        self.check_updates = common_ui.PaintedButton(u'Update', parent=row)
-        self.show_help = common_ui.PaintedButton(u'Documentation', parent=row)
-        row.layout().addWidget(label)
-        common_ui.add_label(u'v{}'.format(bookmarks.__version__), parent=row)
+        label = common_ui.PaintedLabel(
+            u'General Preferences',
+            size=common.LARGE_FONT_SIZE(),
+            parent=self
+        )
+        self.layout().addWidget(label)
+        grp = common_ui.get_group(parent=self)
+
+        row = common_ui.add_row(u'Frameless window', parent=grp)
+        self.frameless_window = QtWidgets.QCheckBox(
+            u'Use frameless window', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.frameless_window)
+        label = common_ui.PaintedLabel(
+            u'(Restart required)',
+            size=common.SMALL_FONT_SIZE(),
+            color=common.TEXT_DISABLED
+        )
+        row.layout().addWidget(label, 0)
+
+        if common.STANDALONE:
+            row = common_ui.add_row(u'Scale interface', parent=grp)
+            self.ui_scale = QtWidgets.QComboBox(parent=self)
+            self.ui_scale.setFixedHeight(common.ROW_HEIGHT() * 0.66)
+
+            for s in (u'100%', u'125%', u'150%', u'175%', u'200%'):
+                self.ui_scale.addItem(s)
+                idx = self.ui_scale.count() - 1
+                data = int(s.strip(u'%')) * 0.01
+                self.ui_scale.setItemData(idx, data, role=QtCore.Qt.UserRole)
+                data = QtCore.QSize(1, common.ROW_HEIGHT() * 0.66)
+                self.ui_scale.setItemData(
+                    idx, data, role=QtCore.Qt.SizeHintRole)
+
+            row.layout().addWidget(self.ui_scale, 1)
+            label = common_ui.PaintedLabel(
+                u'(Restart required)',
+                size=common.SMALL_FONT_SIZE(),
+                color=common.TEXT_DISABLED
+            )
+            row.layout().addWidget(label, 0)
+
+        ##############################
+        row = common_ui.add_row(u'Update', parent=grp)
+        self.check_updates = common_ui.PaintedButton(u'Check for Updates', parent=row)
+        self.show_help = common_ui.PaintedButton(u'Help', parent=row)
         row.layout().addWidget(self.check_updates)
         row.layout().addWidget(self.show_help)
+        row.layout().addStretch(1.0)
         #######################################################
-        grp = common_ui.get_group(parent=self)
-        row = common_ui.add_row(None, parent=grp)
+        row = common_ui.add_row(None, parent=self)
 
-        pixmap = images.ImageCache.get_rsc_pixmap(u'rv', None, common.ROW_HEIGHT())
-        icon = QtWidgets.QLabel(parent=self)
-        icon.setPixmap(pixmap)
-        label = common_ui.PaintedLabel(u'Shotgun RV Integration', parent=row)
-        row.layout().addWidget(icon)
+        label = common_ui.PaintedLabel(
+            u'Shotgun RV',
+            size=common.LARGE_FONT_SIZE(),
+            parent=row
+        )
         row.layout().addWidget(label)
         row.layout().addStretch(1)
+
+        grp = common_ui.get_group(parent=self)
 
         row = common_ui.add_row(u'Path to RV', parent=grp)
         self.rv_path = common_ui.add_line_edit(
             u'eg. c:/rv/bin/rv.exe', parent=row)
         row.layout().addWidget(self.rv_path, 1)
+
         button = common_ui.PaintedButton(u'Pick')
         button.clicked.connect(self.pick_rv)
         row.layout().addWidget(button)
@@ -216,72 +270,87 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         button.clicked.connect(lambda: common.reveal(self.rv_path.text()))
         row.layout().addWidget(button)
 
-        grp = common_ui.get_group(parent=self)
-        row = common_ui.add_row(u'Frameless window', parent=grp)
-        self.frameless_window = QtWidgets.QCheckBox(
-            u'Use frameless window', parent=self)
-        row.layout().addStretch(1)
-        row.layout().addWidget(self.frameless_window)
-        label = common_ui.PaintedLabel(u'(Restart required)')
-        row.layout().addWidget(label, 0)
-
-        if common.STANDALONE:
-            row = common_ui.add_row(u'Scale Interface', parent=grp)
-            self.ui_scale = QtWidgets.QComboBox(parent=self)
-            self.ui_scale.addItem(u'100%', userData=1.0)
-            self.ui_scale.addItem(u'125%', userData=1.25)
-            self.ui_scale.addItem(u'150%', userData=1.5)
-            self.ui_scale.addItem(u'175%', userData=1.75)
-            self.ui_scale.addItem(u'200%', userData=2.0)
-            row.layout().addWidget(self.ui_scale, 1)
-            label = common_ui.PaintedLabel(u'(Restart required)')
-            row.layout().addWidget(label, 0)
+        text = \
+            u'You can use {} to push footage to Shotgun RV \
+(<span style="color:rgba({});">CTRL+P)</span>. Select the RV executable for this to work.'.format(
+                common.PRODUCT, common.rgb(common.ADD))
+        common_ui.add_description(text, label=u'Hint', parent=grp)
 
         #######################################################
-        grp = common_ui.get_group(parent=self)
-        o = common.MARGIN()
-        grp.layout().setContentsMargins(o, o, o, o)
 
         label = common_ui.PaintedLabel(
             u'Shortcuts', size=common.LARGE_FONT_SIZE(), parent=self)
-        grp.layout().addWidget(label)
-        grp.layout().addSpacing(o)
+        self.layout().addWidget(label)
+
+        grp = common_ui.get_group(parent=self)
+
         label = QtWidgets.QLabel(parent=self)
-        label.setText(
-            """
-<span style="color:rgba({f});">Ctrl + C</span> Copy local path<br>
-<span style="color:rgba({f});">Ctrl + Shift + C</span> Copy Unix path<br>
-<span style="color:rgba({f});">Ctrl + R</span> Reload<br>
-<span style="color:rgba({f});">Ctrl + F</span> Search/Filter<br>
-<span style="color:rgba({f});">Ctrl + O</span> Show in File Explorer<br>
-<span style="color:rgba({f});">Ctrl + S</span> Set/unset favourite<br>
-<span style="color:rgba({f});">Ctrl + A</span> Archive/unarchive select<br>
-<span style="color:rgba({f});">Ctrl + T</span> Show Notes & Comments<br>
-<span style="color:rgba({f});">Ctrl + H</span> Show simple(r) file-list<br>
-<span style="color:rgba({f});">Ctrl + M</span> Stop/Start generating thumbnails<br>
-
-<span style="color:rgba({f});">Ctrl + Shift + A</span> Show/Hide archived items<br>
-<span style="color:rgba({f});">Ctrl + Shift + F</span> Show/Hide non-favourites<br>
-
-<span style="color:rgba({f});">Shift + Tab</span> Edit next description<br>
-<span style="color:rgba({f});">Shift + Backtab</span> Edit previous description<br>
-<span style="color:rgba({f});">Enter</span> Activate item<br>
-
-<span style="color:rgba({f});">Alt + Left</span> Show previous panel<br>
-<span style="color:rgba({f});">Alt + Right</span> Show next common_ui.PaintedLabel<br>
-
-<span style="color:rgba({f});">Space</span> Preview thumbnail<br>
-
-<span style="color:rgba({f});">Ctrl + 1</span> Show Bookmarks tab0<br>
-<span style="color:rgba({f});">Ctrl + 2</span> Show Assets tab<br>
-<span style="color:rgba({f});">Ctrl + 3</span> Show Files tab<br>
-<span style="color:rgba({f});">Ctrl + 4</span> Show Favourites tab<br>
-""".format(f=common.rgb(common.ADD))
+        s = u'<table width="100%">'
+        def r(): return unicode(
+            '<tr>\
+    <td align="center" style="background-color:rgba(0,0,0,80);padding:{pad}px;">\
+        <span style="color:rgba({ADD});">{shortcut}</span>\
+    </td>\
+    <td align="left" style="background-color:rgba(0,0,0,30);padding:{pad}px;">\
+        <span style="color:rgba({TEXT});">{description}</span>\
+    </td>\
+</tr>'
         )
+        for shortcut, description in (
+            (u'Ctrl+N', u'Open new {} instance'.format(common.PRODUCT)),
+            (u'Enter', u'Activate item'),
+            (u'Space', u'Preview thumbnail'),
+            (u'Arrow Up/Down', u'Navigate list'),
+            (u'Ctrl+R', u'Reload'),
+            (u'Ctrl+F', u'Edit filter'),
+            (u'Ctrl+O', u'Reveal in file manager'),
+            (u'Ctrl+C', u'Copy path'),
+            (u'Ctrl+Shift+C', u'Copy path (alt)'),
+            (u'Ctrl+S', u'Save/remove favourite'),
+            (u'Ctrl+A', u'Archive/enable'),
+            (u'Ctrl+T', u'Show Notes & Todos'),
+            (u'Ctrl+H', u'Hide buttons'),
+            (u'Ctrl+M', u'Toggle thumbnail loading'),
+            (u'Ctrl+Shift+A', u'Show/Hide archived items'),
+            (u'Ctrl+Shift+F', u'Show favourites only/Show all'),
+            (u'Tab', u'Edit item description'),
+            (u'Shift+Tab', u'Edit item description'),
+            (u'Alt+Left', u'Show previous tab'),
+            (u'Alt+Right', u'Show next tab'),
+            (u'Ctrl+1', u'Show bookmarks'),
+            (u'Ctrl+2', u'Show assets'),
+            (u'Ctrl+3', u'Show files'),
+            (u'Ctrl+4', u'Show favourites'),
+            (u'Ctrl+Plus', u'Increase row height'),
+            (u'Ctrl+Minus', u'Decrease row height'),
+            (u'Ctrl+0', u'Reset row height'),
+        ):
+            s += r().format(
+                shortcut=shortcut,
+                description=description,
+                pad=int(common.INDICATOR_WIDTH() * 1.5),
+                ADD=common.rgb(common.ADD),
+                TEXT=common.rgb(common.SECONDARY_TEXT),
+            )
+        s += u'</table>'
+        label.setText(s)
         label.setWordWrap(True)
         grp.layout().addWidget(label)
 
-        self.layout().addStretch(10)
+        label = common_ui.PaintedLabel(
+            u'About {}'.format(common.PRODUCT),
+            size=common.LARGE_FONT_SIZE(),
+            parent=grp
+        )
+        self.layout().addWidget(label)
+        grp = common_ui.get_group(parent=self)
+        o = common.MARGIN()
+        grp.layout().setContentsMargins(o,o,o,o)
+        # row = common_ui.add_row(u'Version', parent=grp, height=None)
+        s = u'\n'.join(bookmarks.get_info())
+        common_ui.add_description(s, label=None, parent=grp)
+
+        self.layout().addStretch(1)
 
     def _connect_signals(self):
         import bookmarks.versioncontrol.versioncontrol as vc
@@ -326,9 +395,6 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         if file_info.exists():
             self.rv_path.setStyleSheet(
                 u'color: rgba({})'.format(common.rgb(common.ADD)))
-        else:
-            self.rv_path.setStyleSheet(
-                u'color: rgba({})'.format(common.rgb(common.REMOVE)))
 
     @QtCore.Slot()
     def pick_rv(self):
@@ -363,13 +429,217 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
                 u'color: rgba({})'.format(common.rgb(common.REMOVE)))
 
 
+class SaverSettingsWidget(BaseSettingsWidget):
+
+    def __init__(self, parent=None):
+        self.check_updates = None
+        self.show_help = None
+        self.rv_path = None
+        self.frameless_window = None
+
+        if common.STANDALONE:
+            self.ui_scale = None
+
+        super(SaverSettingsWidget, self).__init__(
+            u'Settings', parent=parent)
+
+    def _create_UI(self):
+        @QtCore.Slot()
+        def text_changed(*args):
+            defaultpaths.save_value(*args)
+
+        def add_section(label, description, data):
+            """Utility method for creating the layout needed to edit default paths."""
+            height = common.ROW_HEIGHT() * 0.8
+            o = common.MARGIN()
+
+            grp = common_ui.get_group(parent=self)
+            grp.layout().setContentsMargins(o, o, o, o)
+            grp.layout().setSpacing(0)
+
+            label = common_ui.PaintedLabel(
+                label,
+                size=common.LARGE_FONT_SIZE(),
+                parent=self
+            )
+            grp.layout().addWidget(label)
+            grp.layout().addSpacing(o)
+
+            if description:
+                common_ui.add_description(description, label=None, parent=grp)
+                grp.layout().addSpacing(o)
+
+            scroll_area = QtWidgets.QScrollArea(parent=self)
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setMaximumHeight(common.HEIGHT() * 0.66)
+            scroll_area.setAttribute(QtCore.Qt.WA_NoBackground)
+            scroll_area.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+            grp.layout().addWidget(scroll_area)
+
+            _row = common_ui.add_row(None, vertical=True, padding=None, height=None, parent=grp)
+            _row.layout().setContentsMargins(0, 0, 0, 0)
+            _row.layout().setSpacing(0)
+            scroll_area.setWidget(_row)
+
+            for k, v in sorted(data.items()):
+                label = u'<span style="color:rgba({ADD});">{k}</span> - {v}:'.format(
+                    ADD=common.rgb(common.ADD),
+                    k=k.upper(),
+                    v=v[u'description']
+                )
+                row = common_ui.add_row(
+                    None, padding=None, height=height, parent=_row)
+                common_ui.add_description(label, label=u'', parent=row)
+                row = common_ui.add_row(
+                    None, padding=None, height=height, parent=_row)
+                line_edit = common_ui.add_line_edit(v[u'default'], parent=row)
+                line_edit.setAlignment(QtCore.Qt.AlignLeft)
+                line_edit.setText(v[u'value'])
+                line_edit.textChanged.connect(
+                    functools.partial(text_changed, data, k))
+
+        def add_name_template():
+            height = common.ROW_HEIGHT() * 0.8
+            o = common.MARGIN()
+
+            grp = common_ui.get_group(parent=self)
+            grp.layout().setContentsMargins(o, o, o, o)
+            grp.layout().setSpacing(0)
+
+            label = common_ui.PaintedLabel(
+                u'Name template',
+                size=common.LARGE_FONT_SIZE(),
+                parent=grp
+            )
+            grp.layout().addWidget(label)
+            grp.layout().addSpacing(o)
+
+            label = u'<span style="color:rgba({ADD});">File name pattern</span> - {v}:'.format(
+                ADD=common.rgb(common.ADD),
+                v=u'The template used to generate new file names'
+            )
+            row = common_ui.add_row(
+                None, padding=None, height=height, parent=grp)
+            common_ui.add_description(label, label=u'', parent=row)
+            row = common_ui.add_row(
+                None, padding=None, height=height, parent=grp)
+            line_edit = common_ui.add_line_edit(defaultpaths.FILE_NAME_PATTERN, parent=row)
+            line_edit.textChanged.connect(
+                functools.partial(text_changed, defaultpaths.FILE_NAME_PATTERN, u'defaultpaths/filenamepattern'))
+            line_edit.setAlignment(QtCore.Qt.AlignLeft)
+            line_edit.setText(defaultpaths.FILE_NAME_PATTERN)
+
+            s = \
+u'Available tokens<br><br>\
+<span style="color:rgba({ADD});">{{folder}}</span>  -  The destination folder<br>\
+<span style="color:rgba({ADD});">{{prefix}}</span>  -  Prefix defined by the bookmark<br>\
+<span style="color:rgba({ADD});">{{asset}}</span>   -  Asset name<br>\
+<span style="color:rgba({ADD});">{{mode}}</span>    -  Selected mode (see below)<br>\
+<span style="color:rgba({ADD});">{{user}}</span>    -  Name of the current user<br>\
+<span style="color:rgba({ADD});">{{version}}</span> -  Version number<br>\
+<span style="color:rgba({ADD});">{{ext}}</span>     -  File extension'.format(
+                ADD=common.rgb(common.ADD),
+                v=u'The template used to generate new file names'
+            )
+            grp.layout().addSpacing(o)
+            common_ui.add_description(s, label='', parent=grp)
+
+        def add_extensions():
+            height = common.ROW_HEIGHT() * 0.8
+            o = common.MARGIN()
+
+            grp = common_ui.get_group(parent=self)
+            grp.layout().setContentsMargins(o, o, o, o)
+            grp.layout().setSpacing(0)
+
+            description = \
+    u'Edit the list of valid extensions. Use \
+    <span style="color:rgba({ADD});">*</span> to allow all files.'.format(
+                p=common.PRODUCT,
+                ADD=common.rgb(common.ADD))
+
+            label = common_ui.PaintedLabel(
+                u'Default extension filters',
+                size=common.LARGE_FONT_SIZE(),
+                parent=self
+            )
+            grp.layout().addWidget(label)
+            grp.layout().addSpacing(o)
+
+            if description:
+                common_ui.add_description(description, label=None, parent=grp)
+                grp.layout().addSpacing(o)
+
+            scroll_area = QtWidgets.QScrollArea(parent=self)
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setMaximumHeight(common.HEIGHT() * 0.66)
+            scroll_area.setAttribute(QtCore.Qt.WA_NoBackground)
+            scroll_area.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+            grp.layout().addWidget(scroll_area)
+
+            _row = common_ui.add_row(None, vertical=True, padding=None, height=None, parent=grp)
+            _row.layout().setContentsMargins(0, 0, 0, 0)
+            _row.layout().setSpacing(0)
+            scroll_area.setWidget(_row)
+
+            for k, v in sorted(defaultpaths.FORMAT_FILTERS.items(), key=lambda x: x[0]):
+                label = u'<span style="color:rgba({ADD});">{k}</span> - {v}:'.format(
+                    ADD=common.rgb(common.ADD),
+                    k=v[u'name'],
+                    v=v[u'description']
+                )
+                row = common_ui.add_row(
+                    None, padding=None, height=height, parent=_row)
+                common_ui.add_description(label, label=u'', parent=row)
+                row = common_ui.add_row(
+                    None, padding=None, height=height, parent=_row)
+                line_edit = common_ui.add_line_edit(v[u'default'], parent=row)
+                line_edit.textChanged.connect(
+                    functools.partial(text_changed, defaultpaths.FORMAT_FILTERS, k))
+                line_edit.setAlignment(QtCore.Qt.AlignLeft)
+                line_edit.setText(v[u'value'])
+
+        description = \
+u'A <span style="color:rgba({ADD});">task folder</span> is any folder \
+located in the root of the asset. The folders usually correspond to different \
+stages of the asset\'s production cycle and used to categorise CG content.'.format(
+            p=common.PRODUCT,
+            ADD=common.rgb(common.ADD))
+        add_section(u'Default task folder names', description, defaultpaths.TASK_FOLDERS)
+
+        description = \
+u'Edit the default mode names. When saving files {p} can suggest paths \
+depending on the selected <span style="color:rgba({ADD});">mode</span>.\
+<br><br>See below for the available modes - by default each located in the \
+<span style="color:rgba({ADD});">scene</span> task folder \
+(paths are relative to the asset\'s root folder).'.format(
+            p=common.PRODUCT,
+            ADD=common.rgb(common.ADD))
+        add_section(u'Default scene paths', description, defaultpaths.SCENE_FOLDERS)
+
+        description = \
+u'Customize the export folder used by DCCs when exporting caches.'.format(
+            p=common.PRODUCT,
+            ADD=common.rgb(common.ADD))
+        add_section(u'Default export paths', description, defaultpaths.EXPORT_FOLDERS)
+
+        add_name_template()
+        add_extensions()
+
+    def _connect_signals(self):
+        pass
+
+    def _init_values(self):
+        pass
+
+
 class SectionSwitcherWidget(QtWidgets.QListWidget):
     """Widget responsible for selecting the preferences sections."""
 
     def __init__(self, parent=None):
         super(SectionSwitcherWidget, self).__init__(parent=parent)
         self._connect_signals()
-        self.setMaximumWidth(130)
+        self.setMaximumWidth(common.MARGIN() * 7.5)
 
     def _connect_signals(self):
         self.selectionModel().currentChanged.connect(self.save_settings)
@@ -403,6 +673,8 @@ class PreferencesWidget(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super(PreferencesWidget, self).__init__(parent=parent)
+        if not parent:
+            common.set_custom_stylesheet(self)
         self.sections_list_widget = None
         self.sections_stack_widget = None
         self.setWindowTitle(u'Preferences')
@@ -428,7 +700,7 @@ class PreferencesWidget(QtWidgets.QDialog):
             common.ROW_HEIGHT() * 0.6
         )
         label = common_ui.PaintedLabel(
-            'Preferences', size=common.LARGE_FONT_SIZE())
+            u'Preferences', size=common.LARGE_FONT_SIZE())
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
         row.layout().addWidget(self.hide_button, 0)
@@ -443,7 +715,6 @@ class PreferencesWidget(QtWidgets.QDialog):
 
         scroll_area = QtWidgets.QScrollArea(parent=self)
         scroll_area.setWidgetResizable(True)
-        scroll_area.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         splitter.addWidget(scroll_area)
 
         self.sections_stack_widget = SectionsStackWidget(parent=self)
@@ -484,13 +755,13 @@ class PreferencesWidget(QtWidgets.QDialog):
         painter.setPen(pen)
         o = common.MARGIN() * 0.4
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.drawRoundedRect(
+            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def showEvent(self, event):
         if self.parent():
-            self.resize(self.parent().rect().size())
+            self.resize(self.parent().viewport().rect().size())
 
 
 if __name__ == '__main__':
