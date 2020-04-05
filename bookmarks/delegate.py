@@ -626,7 +626,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         if self.parent().buttons_hidden():
             return
-            
+
         rect.setLeft(_r.right())
         font = common.font_db.secondary_font(
             font_size=common.SMALL_FONT_SIZE())
@@ -1387,13 +1387,7 @@ class FilesWidgetDelegate(BaseDelegate):
         if index != self.parent().drag_source_index:
             return
         painter.setBrush(common.SEPARATOR)
-        painter.drawRect(
-            option.rect.marginsRemoved(
-                QtCore.QMargins(
-                    common.INDICATOR_WIDTH(), 0,
-                    0, common.ROW_SEPARATOR())
-            )
-        )
+        painter.drawRect(option.rect)
 
         painter.setPen(common.BACKGROUND)
         font = common.font_db.secondary_font(common.SMALL_FONT_SIZE())

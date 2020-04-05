@@ -21,6 +21,7 @@ import OpenImageIO
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.common as common
+import bookmarks.defaultpaths as defaultpaths
 
 
 oiio_cache = OpenImageIO.ImageCache(shared=True)
@@ -829,7 +830,7 @@ class Viewer(QtWidgets.QGraphicsView):
 
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
-        if ext.lower() in common.get_oiio_extensions():
+        if ext.lower() in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
             metrics = QtGui.QFontMetrics(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
 
             path = index.data(QtCore.Qt.StatusTipRole)

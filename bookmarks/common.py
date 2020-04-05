@@ -958,9 +958,9 @@ def push_to_rv(path):
 
     rv_path = get_preference(u'rv_path')
     if not rv_path:
-        common_ui.ErrorBox(
-            u'Shotgun RV not yet set.',
-            u'Set the RV executable path to Push to RV.'
+        common_ui.MessageBox(
+            u'Shotgun RV not found.',
+            u'To push footage to RV, set RV\'s path in Preferences.'
         ).open()
         Log.error(u'RV not set')
         return
@@ -1088,6 +1088,7 @@ class Log:
             message=s
         )
         print >> cls.stdout, t
+        print t
 
     @classmethod
     def debug(cls, s, source=u''):
@@ -1101,6 +1102,7 @@ class Log:
             source=source.__class__.__name__
         )
         print >> cls.stdout, t
+        print t
 
     @classmethod
     def info(cls, s):
@@ -1113,6 +1115,7 @@ class Log:
             message=s
         )
         print >> cls.stdout, t
+        print t
 
     @classmethod
     def error(cls, s):
@@ -1126,6 +1129,7 @@ class Log:
                 traceback.format_exc().strip(u'\n').split(u'\n'))
         )
         print >> cls.stdout, t
+        print t
 
 
 class LogViewHighlighter(QtGui.QSyntaxHighlighter):

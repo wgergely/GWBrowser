@@ -435,14 +435,24 @@ class FilesModel(BaseModel):
             val = entries[0].lower()
             self._task_folder = val
             settings.local_settings.setValue(k, val)
-
         except:
-            common.Log.error('Could not set data key')
+            common.Log.error(u'Could not set data key')
         finally:
             if not self.model_data():
                 self.__initdata__()
             else:
                 self.sort_data()
+
+    def data_type(self):
+        """Current key to the data dictionary."""
+        task_folder = self.task_folder()
+        if task_folder not in self._datatype:
+            cls = self.__class__.__name__
+            key = u'widget/{}/{}/datatype'.format(cls, task_folder)
+            val = settings.local_settings.value(key)
+            val = val if val else common.SequenceItem
+            self._datatype[task_folder] = val
+        return self._datatype[task_folder]
 
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are

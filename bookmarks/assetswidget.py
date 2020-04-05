@@ -185,18 +185,7 @@ class AssetModel(BaseModel):
         # Explicitly emit signal to notify the other dependent model
         self.activeChanged.emit(self.active_index())
 
-    def task_folder(self):
-        """Data keys are only implemented on the FilesModel but need to return a
-        value for compatibility other functions.
-
-        """
-        return u'.'
-
     def data_type(self):
-        """Data keys are only implemented on the FilesModel but need to return a
-        value for compatibility other functions.
-
-        """
         return common.FileItem
 
 

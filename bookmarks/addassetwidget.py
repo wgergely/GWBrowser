@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Defines the widget used to add a new asset (eg. a shot) to a bookmark.
+"""The widget used to add a new asset (eg. a shot) to a bookmark.
 
 See `managebookmarks.TemplatesWidget` for more information, the main widget
 responsible for listing, saving and expanding zip template files.
@@ -11,6 +11,8 @@ import bookmarks.managebookmarks as managebookmarks
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
+import bookmarks.preferenceswidget as preferenceswidget
+
 
 
 class AddAssetWidget(QtWidgets.QDialog):
@@ -77,6 +79,30 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.templates_widget = managebookmarks.TemplatesWidget(
             u'asset', parent=self)
         self.layout().addWidget(self.templates_widget, 1)
+
+        s = u'Independent of the template, basic <span style="color:rgba({ADD});">mode</span> and \
+<span style="color:rgba({ADD});">task</span> are defined in \
+<span style="color:rgba({H});">Preferences -> Default Paths</span>. \
+Ideally, both the template and the preferences should define the same folders.'.format(
+            ADD=common.rgb(common.ADD),
+            H=common.rgb(common.TEXT_SELECTED),
+        )
+        common_ui.add_description(s, label='hint', parent=self)
+
+        # scroll_area = QtWidgets.QScrollArea(parent=self)
+        # scroll_area.setWidgetResizable(True)
+        # self.layout().addWidget(scroll_area)
+        # w = preferenceswidget.SaverSettingsWidget(parent=self)
+        # w.setSizePolicy(
+        #     QtWidgets.QSizePolicy.Minimum,
+        #     QtWidgets.QSizePolicy.Maximum,
+        # )
+        # scroll_area.setSizePolicy(
+        #     QtWidgets.QSizePolicy.Minimum,
+        #     QtWidgets.QSizePolicy.Maximum,
+        # )
+        # w.setEnabled(False)
+        # scroll_area.setWidget(w)
         self.layout().addStretch(1)
 
     def paintEvent(self, event):
@@ -90,7 +116,6 @@ class AddAssetWidget(QtWidgets.QDialog):
         painter.setPen(pen)
         painter.setBrush(common.BACKGROUND)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setOpacity(0.9)
         painter.drawRoundedRect(
             rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()

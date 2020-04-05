@@ -828,14 +828,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
     def data_type(self):
         """Current key to the data dictionary."""
-        task_folder = self.task_folder()
-        if task_folder not in self._datatype:
-            cls = self.__class__.__name__
-            key = u'widget/{}/{}/datatype'.format(cls, task_folder)
-            val = settings.local_settings.value(key)
-            val = val if val else common.SequenceItem
-            self._datatype[task_folder] = val
-        return self._datatype[task_folder]
+        return common.FileItem
 
     @QtCore.Slot(int)
     def set_data_type(self, val):

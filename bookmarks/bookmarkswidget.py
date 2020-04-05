@@ -284,20 +284,6 @@ class BookmarksModel(baselistwidget.BaseModel):
         )
         data[common.DescriptionRole] = desc
 
-    def task_folder(self):
-        """Data keys are only implemented on the FilesModel but need to return a
-        value for compatibility other functions.
-
-        """
-        return u'.'
-
-    def data_type(self):
-        """Data keys are only implemented on the FilesModel but need to return a
-        value for compatibility other functions.
-
-        """
-        return common.FileItem
-
     def get_text_segments(self, text):
         """Returns a tuple of text and colour information to be used to mimick
         rich-text like colouring of individual text elements.

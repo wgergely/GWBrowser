@@ -611,7 +611,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'separator.'] = {}
         ext = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix().lower()
-        valid = ext in [f.lower() for f in common.get_oiio_extensions()]
+        valid = defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter)
 
         model = self.parent().model().sourceModel()
         if exists and model.generate_thumbnails_enabled() and valid:

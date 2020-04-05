@@ -305,7 +305,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
-                u'Templates\n(right-click or drag and drop to import)',
+                u'Select template\n(right-click or drag and drop to import)',
                 boundingRect=self.rect(),
             )
             painter.end()
@@ -424,7 +424,7 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
         return QtCore.QSize(common.WIDTH() * 0.15, common.WIDTH() * 0.2)
 
 
-class TemplatesWidget(QtWidgets.QGroupBox):
+class TemplatesWidget(QtWidgets.QWidget):
     templateCreated = QtCore.Signal(unicode)
 
     def __init__(self, mode, parent=None):
@@ -460,8 +460,9 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
+        grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(None, height=common.ROW_HEIGHT() * 0.8,
-                                padding=None, parent=self)
+                                padding=None, parent=grp)
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
 
@@ -484,7 +485,8 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         row.layout().addWidget(self.add_button, 0)
 
         # Template Header
-        row = common_ui.add_row(None, height=None, padding=None, parent=self)
+        grp = common_ui.get_group(parent=self)
+        row = common_ui.add_row(None, height=None, padding=None, parent=grp)
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
         splitter = QtWidgets.QSplitter(parent=self)
@@ -1049,10 +1051,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         )
         row.layout().addWidget(self.hide_button, 0)
 
-        grp = QtWidgets.QGroupBox(parent=self)
-        QtWidgets.QVBoxLayout(grp)
-        self.layout().addWidget(grp, 0)
-
+        grp = common_ui.get_group(parent=self)
         label = QtWidgets.QLabel(parent=self)
 
         o = common.MEDIUM_FONT_SIZE()
@@ -1082,30 +1081,28 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         grp.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
 
         # Label
-        row = QtWidgets.QGroupBox(parent=self)
-        QtWidgets.QVBoxLayout(row)
-        grp.layout().addWidget(row, 0)
+        _grp = common_ui.get_group(parent=grp)
 
         self.edit_servers_button = common_ui.ClickableIconButton(
             u'CopyAction',
             (common.SEPARATOR, common.SEPARATOR),
             common.MARGIN() * 1.2,
             description=u'Show the job in the explorer',
-            parent=row
+            parent=self
         )
         self.reveal_server_button = common_ui.ClickableIconButton(
             u'active',
             (common.SEPARATOR, common.SEPARATOR),
             common.MARGIN() * 1.2,
             description=u'Show the job in the explorer',
-            parent=row
+            parent=self
         )
         self.server_combobox = ComboBox(
             u'No servers',
             parent=self)
 
         _row = common_ui.add_row(
-            None, padding=0, height=common.ROW_HEIGHT() * 0.8, parent=row)
+            None, padding=0, height=common.ROW_HEIGHT() * 0.8, parent=_grp)
         label = common_ui.PaintedLabel(
             u'Servers:', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
         label.setFixedWidth(common.MARGIN() * 4.5)
@@ -1114,15 +1111,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row.layout().addWidget(label)
         _row.layout().addWidget(self.server_combobox, 1)
         _row.layout().addWidget(self.reveal_server_button, 0)
+
         # Server Editor row
         self.server_editor = ServerEditor(parent=self)
         self.server_editor.setHidden(True)
-        row.layout().addWidget(self.server_editor)
+        _grp.layout().addWidget(self.server_editor)
 
         # Select Job row
-        row = QtWidgets.QGroupBox(parent=self)
-        QtWidgets.QVBoxLayout(row)
-        grp.layout().addWidget(row, 0)
+        _grp = common_ui.get_group(parent=grp)
 
         self.job_combobox = ComboBox(
             u'No jobs',
@@ -1132,18 +1128,18 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             (common.SEPARATOR, common.SEPARATOR),
             common.MARGIN() * 1.2,
             description=u'Add a new job to the current server',
-            parent=row
+            parent=self
         )
         self.reveal_job_button = common_ui.ClickableIconButton(
             u'active',
             (common.SEPARATOR, common.SEPARATOR),
             common.MARGIN() * 1.2,
             description=u'Show the job in the explorer',
-            parent=row
+            parent=self
         )
 
         _row = common_ui.add_row(
-            None, padding=0, height=common.ROW_HEIGHT() * 0.8, parent=row)
+            None, padding=0, height=common.ROW_HEIGHT() * 0.8, parent=_grp)
         label = common_ui.PaintedLabel(
             u'Jobs:', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
         label.setFixedWidth(common.MARGIN() * 4.5)
@@ -1156,7 +1152,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.templates_widget = TemplatesWidget(u'job', parent=self)
         self.templates_widget.adjustSize()
         self.templates_widget.setHidden(True)
-        row.layout().addWidget(self.templates_widget)
+        _grp.layout().addWidget(self.templates_widget)
 
         # Bookmarks
         self.add_bookmark_button = common_ui.ClickableIconButton(
@@ -1167,14 +1163,13 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             parent=row
         )
 
-        row = QtWidgets.QGroupBox(parent=self)
+
+        row = common_ui.get_group(parent=grp)
         row.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.Maximum,
 
         )
-        QtWidgets.QVBoxLayout(row)
-        grp.layout().addWidget(row, 0)
 
         _row = common_ui.add_row(
             None, padding=0, height=None, parent=row)
@@ -1562,6 +1557,8 @@ class ManageBookmarks(QtWidgets.QScrollArea):
     """
     def __init__(self, parent=None):
         super(ManageBookmarks, self).__init__(parent=parent)
+        if not self.parent():
+            common.set_custom_stylesheet(self)
 
         self.setWindowTitle(u'Manage Bookmarks')
         widget = ManageBookmarksWidget(parent=self)

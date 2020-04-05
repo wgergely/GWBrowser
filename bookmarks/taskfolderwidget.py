@@ -115,7 +115,7 @@ class TaskFolderWidgetDelegate(BaseDelegate):
             items.append((u'n/a', color))
 
         if index.data(QtCore.Qt.ToolTipRole):
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+            color = common.TEXT_SELECTED if selected else common.TEXT
             color = common.TEXT_SELECTED if hover else color
             items.append((index.data(QtCore.Qt.ToolTipRole), color))
 
@@ -131,7 +131,13 @@ class TaskFolderWidgetDelegate(BaseDelegate):
             rect.setLeft(rect.left() + width)
 
             width = common.draw_aliased_text(
-                painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), rect, text, align, color)
+                painter,
+                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
+                rect,
+                text,
+                align,
+                color
+            )
             rect.setLeft(rect.left() + width)
 
     def sizeHint(self, option, index):
