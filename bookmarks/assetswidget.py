@@ -22,6 +22,7 @@ class AssetsWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(AssetsWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_show_addasset_menu()
         if index.isValid():
             self.add_mode_toggles_menu()
         self.add_separator()
@@ -49,13 +50,17 @@ class AssetModel(BaseModel):
 
     The model is multithreaded and loads file and thumbnail data using
     thread workers.
-    
+
     """
-    ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT())
+    DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT())
+    val = settings.local_settings.value(u'widget/assetmodel/rowheight')
+    val = val if val else DEFAULT_ROW_SIZE.height()
+    val = DEFAULT_ROW_SIZE.height() if (val < DEFAULT_ROW_SIZE.height()) else val
+    ROW_SIZE = QtCore.QSize(1, val)
 
-    def __init__(self, parent=None):
-        super(AssetModel, self).__init__(parent=parent)
-
+    def __init__(self, has_threads=True, parent=None):
+        super(AssetModel, self).__init__(
+            has_threads=has_threads, parent=parent)
 
     @initdata
     def __initdata__(self):
@@ -79,15 +84,14 @@ class AssetModel(BaseModel):
         if not all(self.parent_path):
             return
 
-        dkey = self.data_key()
+        task_folder = self.task_folder()
         dtype = self.data_type()
 
         default_thumbnail_image = images.ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             self.ROW_SIZE.height() - common.ROW_SEPARATOR())
-        default_background_color = common.THUMBNAIL_BACKGROUND
 
-        self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
+        self.INTERNAL_MODEL_DATA[task_folder] = common.DataDict({
             common.FileItem: common.DataDict(),
             common.SequenceItem: common.DataDict()
         })
@@ -144,9 +148,9 @@ class AssetModel(BaseModel):
                 if activeasset.lower() == filename.lower():
                     flags = flags | common.MarkedAsActive
 
-            idx = len(self.INTERNAL_MODEL_DATA[dkey][dtype])
+            idx = len(self.INTERNAL_MODEL_DATA[task_folder][dtype])
             name = re.sub(ur'[_]{1,}', u' ', filename).strip(u'_')
-            self.INTERNAL_MODEL_DATA[dkey][dtype][idx] = common.DataDict({
+            self.INTERNAL_MODEL_DATA[task_folder][dtype][idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: name,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
@@ -166,16 +170,14 @@ class AssetModel(BaseModel):
                 #
                 common.FileThumbnailLoaded: False,
                 common.DefaultThumbnailRole: default_thumbnail_image,
-                common.DefaultThumbnailBackgroundRole: default_background_color,
                 common.ThumbnailPathRole: None,
                 common.ThumbnailRole: default_thumbnail_image,
-                common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.FileItem,
                 #
-                common.SortByName: common.namekey(filepath),
-                common.SortByLastModified: 0,
-                common.SortBySize: 0,
+                common.SortByNameRole: common.namekey(filepath),
+                common.SortByLastModifiedRole: 0,
+                common.SortBySizeRole: 0,
                 #
                 common.IdRole: idx
             })
@@ -183,7 +185,7 @@ class AssetModel(BaseModel):
         # Explicitly emit signal to notify the other dependent model
         self.activeChanged.emit(self.active_index())
 
-    def data_key(self):
+    def task_folder(self):
         """Data keys are only implemented on the FilesModel but need to return a
         value for compatibility other functions.
 
@@ -209,16 +211,10 @@ class AssetsWidget(ThreadedBaseWidget):
         self.setWindowTitle(u'Assets')
         self._background_icon = u'assets'
 
-    def buttons_hidden(self):
-        """Returns the visibility of the inline icon buttons. There's no need to
-        hide the asset buttons, therefore this function will always return
-        False.
-
-        """
-        return False
-
     def inline_icons_count(self):
         """The number of icons on the right - hand side."""
+        if self.width() < common.WIDTH() * 0.5:
+            return 0
         if self.buttons_hidden():
             return 0
         return 4
@@ -246,9 +242,3 @@ class AssetsWidget(ThreadedBaseWidget):
             self.selectionModel().setCurrentIndex(
                 index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
-
-    def increase_row_size(self):
-        pass
-
-    def decrease_row_size(self):
-        pass

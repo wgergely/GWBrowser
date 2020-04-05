@@ -157,19 +157,19 @@ class ScrollArea(QtWidgets.QScrollArea):
 
         #   ROW
         row = common_ui.add_row(u'Resolution', parent=grp, height=height)
-        self.width_editor = common_ui.NameBase(parent=self, transparent=True)
+        self.width_editor = common_ui.LineEdit(parent=self)
         self.width_editor.setPlaceholderText(u'Width...')
         self.width_editor.setValidator(numvalidator)
         row.layout().addWidget(self.width_editor, 0)
-        self.height_editor = common_ui.NameBase(parent=self, transparent=True)
+        self.height_editor = common_ui.LineEdit(parent=self)
         self.height_editor.setPlaceholderText(u'Height...')
         self.height_editor.setValidator(numvalidator)
         row.layout().addWidget(self.height_editor, 0)
 
         #   ROW
         row = common_ui.add_row(u'Frame rate', parent=grp, height=height)
-        self.framerate_editor = common_ui.NameBase(
-            parent=self, transparent=True)
+        self.framerate_editor = common_ui.LineEdit(
+            parent=self)
         self.framerate_editor.setPlaceholderText(u'Frame rate...')
         self.framerate_editor.setValidator(numvalidator)
         row.layout().addWidget(self.framerate_editor, 0)
@@ -177,7 +177,7 @@ class ScrollArea(QtWidgets.QScrollArea):
         # ********************************************
         grp = common_ui.get_group(parent=grpA)
         row = common_ui.add_row(u'Bookmark Prefix', parent=grp, height=height)
-        self.prefix_editor = common_ui.NameBase(parent=self, transparent=True)
+        self.prefix_editor = common_ui.LineEdit(parent=self)
         self.prefix_editor.setPlaceholderText(u'Prefix (eg. \'MYJOB\')...')
         self.prefix_editor.setValidator(textvalidator)
 
@@ -190,23 +190,22 @@ class ScrollArea(QtWidgets.QScrollArea):
         grp = common_ui.get_group(parent=grpA)
 
         row = common_ui.add_row(u'Start Frame', parent=grp, height=height)
-        self.startframe_editor = common_ui.NameBase(
-            parent=self, transparent=True)
+        self.startframe_editor = common_ui.LineEdit(
+            parent=self)
         self.startframe_editor.setPlaceholderText(u'Start Frame...')
         self.startframe_editor.setValidator(numvalidator)
         row.layout().addWidget(self.startframe_editor, 0)
 
         row = common_ui.add_row(u'Duration', parent=grp, height=height)
-        self.duration_editor = common_ui.NameBase(
-            parent=self, transparent=True)
+        self.duration_editor = common_ui.LineEdit(
+            parent=self)
         self.duration_editor.setPlaceholderText(u'Duration...')
         self.duration_editor.setValidator(numvalidator)
         row.layout().addWidget(self.duration_editor, 0)
         # ********************************************
         grp = common_ui.get_group(parent=widget)
         row = common_ui.add_row(u'Asset Identifier', parent=grp)
-        self.identifier_editor = common_ui.NameBase(
-            transparent=True, parent=row)
+        self.identifier_editor = common_ui.LineEdit(parent=row)
         self.identifier_editor.setPlaceholderText(
             u'Asset identifier, eg. \'workspace.mel\'')
         row.layout().addWidget(self.identifier_editor, 0)
@@ -230,8 +229,7 @@ will be read as assets.'.format(common.PRODUCT)
         grp = common_ui.get_group(parent=grpA)
 
         row = common_ui.add_row(u'Slack API Token', parent=grp, height=height)
-        self.slacktoken_editor = common_ui.NameBase(
-            parent=self, transparent=True)
+        self.slacktoken_editor = common_ui.LineEdit(parent=self)
         self.slacktoken_editor.setPlaceholderText(
             u'xoxb-01234567890-0123456...')
         button = common_ui.PaintedButton(u'Test Token')
@@ -346,11 +344,14 @@ Slack Channels.<br><br>'.format(
                 job=self.job,
                 root=self.root)
         except:
+            s = u'Could not open the database.'
             common_ui.ErrorBox(
                 u'Could not save the properties.',
-                u'Could not open the database.',
+                s,
                 parent=self
-            ).exec_()
+            ).open()
+            common.Log.error(s)
+            raise
 
         d = {}
         with db.transactions():
@@ -366,9 +367,10 @@ Slack Channels.<br><br>'.format(
                     u'There seems to be an error with the database:\n{}'.format(
                         e),
                     parent=self
-                ).exec_()
+                ).open()
                 common.Log.error(u'Error saving properties to the database')
-                return
+                raise
+
         return d
 
     def save_values_to_database(self, compare=False):
@@ -412,9 +414,9 @@ Slack Channels.<br><br>'.format(
                     u'There seems to be an error with the database:\n{}'.format(
                         e),
                     parent=self
-                ).exec_()
+                ).open()
                 common.Log.error(u'Error saving properties to the database')
-                return
+                raise
 
     def test_slack_token(self):
         if not self.slacktoken_editor.text():
@@ -427,9 +429,9 @@ Slack Channels.<br><br>'.format(
                 u'Could not import SlackClient',
                 u'The Slack API python module was not loaded:\n{}'.format(err),
                 parent=self
-            ).exec_()
+            ).open()
             common.Log.error('Slack import error.')
-            return
+            raise
 
         client = slacker.Client(self.slacktoken_editor.text())
         client.verify_token(silent=False)
@@ -444,7 +446,7 @@ Slack Channels.<br><br>'.format(
             u'Token is valid.',
             pretty_response,
             parent=self
-        ).exec_()
+        ).open()
 
     @QtCore.Slot(unicode)
     def feedback(self, v, w, type=float):

@@ -6,7 +6,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.basecontextmenu import contextmenu
 from bookmarks.common_ui import ClickableIconButton
-from bookmarks.datakeywidget import DataKeyView
+from bookmarks.taskfolderwidget import TaskFolderWidget
 import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.common as common
@@ -80,7 +80,6 @@ class FilterButton(BaseControlButton):
 
     def mouseReleaseEvent(self, event):
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
-        no_modifier = modifiers == QtCore.Qt.NoModifier
         alt_modifier = modifiers & QtCore.Qt.AltModifier
         shift_modifier = modifiers & QtCore.Qt.ShiftModifier
         control_modifier = modifiers & QtCore.Qt.ControlModifier
@@ -221,13 +220,13 @@ class SimpleModeButton(BaseControlButton):
         settings.local_settings.setValue(k, not val)
 
         # self.current_widget().update()
-
-    def update(self):
-        super(SimpleModeButton, self).update()
-        if self.current_index() == 2:
-            self.show()
-        else:
-            self.hide()
+    #
+    # def update(self):
+    #     super(SimpleModeButton, self).update()
+    #     if self.current_index() == 2:
+    #         self.show()
+    #     else:
+    #         self.hide()
 
 
 class ToggleFavouriteButton(BaseControlButton):
@@ -333,6 +332,7 @@ class CollapseSequenceMenu(BaseContextMenu):
 
 class PaintedTextButton(QtWidgets.QLabel):
     """Baseclass for text-based control buttons."""
+    icon = u'assets'
     clicked = QtCore.Signal()
     doubleClicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
@@ -362,7 +362,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         try:
             return self.parent().parent().stackedwidget
         except:
-            common.Log.error('Error.')
+            common.Log.error(u'Error.')
             return None
 
     def current_widget(self):
@@ -424,7 +424,8 @@ class PaintedTextButton(QtWidgets.QLabel):
     @QtCore.Slot()
     def adjust_size(self):
         """Slot responsible for setting the size of the widget to match the text."""
-        self.setFixedWidth(self.get_width())
+        self.setMaximumWidth(self.get_width())
+        self.setMinimumWidth(common.MARGIN() * 2)
         self.update()
 
     def showEvent(self, event):
@@ -454,14 +455,32 @@ class PaintedTextButton(QtWidgets.QLabel):
             color = common.TEXT if hover else common.BACKGROUND
             painter.setBrush(color)
 
-        metrics = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
-        width = metrics.width(self.text())
 
-        x = (self.width() / 2.0) - (width / 2.0)
-        y = self.rect().center().y() + (metrics.ascent() * 0.5)
-        path = QtGui.QPainterPath()
-        path.addText(x, y, common.font_db.primary_font(common.MEDIUM_FONT_SIZE()), self.text())
-        painter.drawPath(path)
+        metrics = QtGui.QFontMetrics(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+
+        if (metrics.width(self.text()) + (common.MARGIN() * 0.5)) < self.rect().width():
+            text = metrics.elidedText(
+                self.text(),
+                QtCore.Qt.ElideRight,
+                self.rect().width()
+            )
+            width = metrics.width(text)
+
+            x = (self.width() / 2.0) - (width / 2.0)
+            y = self.rect().center().y() + (metrics.ascent() * 0.5)
+            path = QtGui.QPainterPath()
+            path.addText(x, y, common.font_db.primary_font(common.MEDIUM_FONT_SIZE()), text)
+            painter.drawPath(path)
+        else:
+            pixmap = images.ImageCache.get_rsc_pixmap(self.icon, color, common.MARGIN())
+            # _rect = QtCore.QRect(self.rect())
+            _rect = pixmap.rect()
+            _rect.moveCenter(self.rect().center())
+            painter.drawPixmap(
+                _rect,
+                pixmap,
+                pixmap.rect()
+            )
 
         rect.setHeight(common.ROW_SEPARATOR() * 2.0)
         painter.setPen(QtCore.Qt.NoPen)
@@ -481,6 +500,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
 class BookmarksTabButton(PaintedTextButton):
     """The button responsible for revealing the ``BookmarksWidget``"""
+    icon = u'bookmark'
 
     def __init__(self, parent=None):
         super(BookmarksTabButton, self).__init__(
@@ -540,6 +560,7 @@ class QuickAssetsContextMenu(BaseContextMenu):
 
 class AssetsTabButton(PaintedTextButton):
     """The button responsible for revealing the ``AssetsWidget``"""
+    icon = u'assets'
 
     def __init__(self, parent=None):
         super(AssetsTabButton, self).__init__(
@@ -569,10 +590,10 @@ class AssetsTabButton(PaintedTextButton):
 class FilesTabButton(PaintedTextButton):
     """The buttons responsible for swtiching the the FilesWidget and showing
     the switch to change the data-key."""
-
+    icon = u'files'
     def __init__(self, parent=None):
         super(FilesTabButton, self).__init__(
-            u'Select folder...',
+            u'Select task folder...',
             2,
             u'Click to see or change the current task folder',
             parent=parent)
@@ -583,7 +604,7 @@ class FilesTabButton(PaintedTextButton):
         self.show_view()
 
     def view(self):
-        return self.parent().data_key_view
+        return self.parent().task_folder_view
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -596,18 +617,18 @@ class FilesTabButton(PaintedTextButton):
     def text(self):
         if not self.stacked_widget():
             return self.default_label
-        data_key = self.stacked_widget().widget(2).model().sourceModel().data_key()
-        if data_key:
-            data_key = data_key.upper()
-            if len(data_key) > 25:
-                data_key = u'{}...{}'.format(data_key[0:10], data_key[-12:])
+        task_folder = self.stacked_widget().widget(2).model().sourceModel().task_folder()
+        if task_folder:
+            task_folder = task_folder.upper()
+            if len(task_folder) > 25:
+                task_folder = u'{}...{}'.format(task_folder[0:10], task_folder[-12:])
         else:
-            data_key = self.default_label
-        data_key = data_key + u'  ▼'
-        return data_key
+            task_folder = self.default_label
+        task_folder = task_folder + u'  ▼'
+        return task_folder
 
     def paintEvent(self, event):
-        """Indicating the visibility of the DataKeyView."""
+        """Indicating the visibility of the TaskFolderWidget."""
         if not self.view().isHidden():
             painter = QtGui.QPainter()
             painter.begin(self)
@@ -638,7 +659,7 @@ class FilesTabButton(PaintedTextButton):
 
     @QtCore.Slot()
     def show_view(self):
-        """Shows the ``DataKeyView`` widget for browsing."""
+        """Shows the ``TaskFolderWidget`` widget for browsing."""
         if not self.view():
             return
 
@@ -660,7 +681,7 @@ class FilesTabButton(PaintedTextButton):
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
         self.view().viewport().setFocus(QtCore.Qt.PopupFocusReason)
 
-        key = stackedwidget.currentWidget().model().sourceModel().data_key()
+        key = stackedwidget.currentWidget().model().sourceModel().task_folder()
         if not key:
             return
 
@@ -675,6 +696,7 @@ class FilesTabButton(PaintedTextButton):
 
 class FavouritesTabButton(PaintedTextButton):
     """Drop-down widget to switch between the list"""
+    icon = u'favourite'
 
     def __init__(self, parent=None):
         super(FavouritesTabButton, self).__init__(
@@ -762,7 +784,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         index = parent.widget(0).model().sourceModel().active_index()
         if not index.isValid():
             return
-            
+
         widget = parent.currentWidget().show_slacker(index)
         widget.message_widget.append_message(message)
 
@@ -780,7 +802,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
     textChanged = QtCore.Signal(unicode)
     listChanged = QtCore.Signal(int)
-    dataKeyChanged = QtCore.Signal(unicode)
+    taskFolderChanged = QtCore.Signal(unicode)
     slackDragStarted = QtCore.Signal(QtCore.QModelIndex)
     slackDropFinished = QtCore.Signal(QtCore.QModelIndex)
 
@@ -806,9 +828,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self.files_button = FilesTabButton(parent=self)
         self.favourites_button = FavouritesTabButton(parent=self)
 
-        self.data_key_view = DataKeyView(
+        self.task_folder_view = TaskFolderWidget(
             parent=self.parent().fileswidget, altparent=self)
-        self.data_key_view.setHidden(True)
+        self.task_folder_view.setHidden(True)
 
         self.generate_thumbnails_button = GenerateThumbnailsButton(parent=self)
         self.filter_button = FilterButton(parent=self)
@@ -818,10 +840,10 @@ class ListControlWidget(QtWidgets.QWidget):
         self.slack_button = SlackButton(parent=self)
         self.simple_mode_button = SimpleModeButton(parent=self)
 
-        self.layout().addWidget(self.bookmarks_button)
-        self.layout().addWidget(self.assets_button)
-        self.layout().addWidget(self.files_button)
-        self.layout().addWidget(self.favourites_button)
+        self.layout().addWidget(self.bookmarks_button, 1)
+        self.layout().addWidget(self.assets_button, 1)
+        self.layout().addWidget(self.files_button, 1)
+        self.layout().addWidget(self.favourites_button, 1)
         self.layout().addStretch()
         self.layout().addWidget(self.simple_mode_button)
         self.layout().addSpacing(common.INDICATOR_WIDTH())
@@ -858,7 +880,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def signal_dispatcher(self, index):
-        self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))
+        self.taskFolderChanged.emit(index.data(QtCore.Qt.DisplayRole))
         self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
         self.listChanged.emit(2)
 
@@ -866,7 +888,7 @@ class ListControlWidget(QtWidgets.QWidget):
         pass
 
     def control_view(self):
-        return self.data_key_view
+        return self.task_folder_view
 
     def control_button(self):
         return self.findChild(FilesTabButton)

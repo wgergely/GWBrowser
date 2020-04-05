@@ -393,12 +393,9 @@ class ImageCache(QtCore.QObject):
             return None
 
         image = cls.resize_image(image, height)
-        bg_k = path + u':backgroundcolor'
-        cls.INTERNAL_IMAGE_DATA[bg_k] = cls.get_color_average(path)
-        if k != bg_k:
-            cls.INTERNAL_IMAGE_DATA[k] = image
-
+        cls.INTERNAL_IMAGE_DATA[k] = image
         return cls.INTERNAL_IMAGE_DATA[k]
+
 
     @staticmethod
     def resize_image(image, size):
@@ -429,19 +426,6 @@ class ImageCache(QtCore.QObject):
         p = QtGui.QPixmap(w, h)
         p.convertFromImage(image)
         return p
-
-    @staticmethod
-    def get_color_average(path):
-        """Returns the average color of an image."""
-        buf = OpenImageIO.ImageBuf()
-        buf.reset(path, 0, 0)
-        stats = OpenImageIO.ImageBufAlgo.computePixelStats(buf)
-        a = stats.avg
-        if len(a) in (3, 4):
-            color = QtGui.QColor.fromRgbF(*a[0:3])
-            color.setAlpha(1.0)
-            return color
-        return QtGui.QColor()
 
     @classmethod
     @verify_index
@@ -476,15 +460,9 @@ class ImageCache(QtCore.QObject):
             index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR(),
             overwrite=True
         )
-        color = cls.get(
-            thumbnail_path,
-            u'backgroundcolor',
-            overwrite=False
-        )
 
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
-        data[index.row()][common.ThumbnailBackgroundRole] = color
         index.model().updateIndex.emit(index)
 
     @classmethod
@@ -508,7 +486,6 @@ class ImageCache(QtCore.QObject):
             del cls.INTERNAL_IMAGE_DATA[key]
 
         data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
-        data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
         data[common.FileThumbnailLoaded] = False
         index.model().updateIndex.emit(index)
 
@@ -523,7 +500,7 @@ class ImageCache(QtCore.QObject):
             dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
             dialog.setViewMode(QtWidgets.QFileDialog.List)
             dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-            dialog.setNameFilter(common.get_oiio_namefilters(as_array=False))
+            dialog.setNameFilter(common.get_oiio_namefilters())
             dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
             dialog.setLabelText(
                 QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
@@ -540,27 +517,22 @@ class ImageCache(QtCore.QObject):
         cls.remove(index)
 
         if not QtCore.QFileInfo(QtCore.QFileInfo(thumbnail_path).path()).isWritable():
-            common.Log.error('Destination path is not writable.')
+            common.Log.error(u'Destination path is not writable.')
             return
 
         cls.oiio_make_thumbnail(
             source,
             thumbnail_path,
             common.THUMBNAIL_IMAGE_SIZE,
-            nthreads=4
-        )
+            nthreads=4)
         image = cls.get(
             thumbnail_path,
-            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR(),
+            index.data(QtCore.Qt.SizeHintRole).height(),
             overwrite=True)
-        color = cls.get(
-            thumbnail_path,
-            u'backgroundcolor',
-            overwrite=False)
 
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
-        data[index.row()][common.ThumbnailBackgroundRole] = color
+
         index.model().updateIndex.emit(index)
 
     @classmethod

@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Defines the models, threads and context menus needed to browser the files of
-a asset.
-
+"""
 ``FilesModel`` is responsible for storing file-data. There is a key design
 choice determining the model's overall functionality: we're interested in
 getting an overview of all files contained in an asset. The reason for this is
@@ -32,6 +30,7 @@ import bookmarks._scandir as _scandir
 import bookmarks.common as common
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
+import bookmarks.defaultpaths as defaultpaths
 
 import bookmarks.images as images
 
@@ -43,8 +42,16 @@ class FilesWidgetContextMenu(BaseContextMenu):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_location_toggles_menu()
         self.add_separator()
+        self.add_add_file_menu()
+        self.add_separator()
+        self.add_collapse_sequence_menu()
+        self.add_separator()
+        self.add_rv_menu()
+        #
+        self.add_separator()
         if index.isValid():
             self.add_mode_toggles_menu()
+            self.add_separator()
         self.add_separator()
         self.add_row_size_menu()
         self.add_separator()
@@ -53,10 +60,8 @@ class FilesWidgetContextMenu(BaseContextMenu):
         if index.isValid():
             self.add_copy_menu()
             self.add_reveal_item_menu()
-            self.add_rv_menu()
         self.add_separator()
         self.add_sort_menu()
-        self.add_collapse_sequence_menu()
         self.add_separator()
         self.add_display_toggles_menu()
         self.add_separator()
@@ -79,90 +84,35 @@ class FilesModel(BaseModel):
        self.INTERNAL_MODEL_DATA['textures'] = {} # 'textures' is a data-key
 
     The name of the asset subfolders will become our *data keys*.
-    Switching between data keys should be done by emitting the ``dataKeyChanged``
+    Switching between data keys should be done by emitting the ``taskFolderChanged``
     signal.
 
     """
-    val = settings.local_settings.value(u'widget/rowheight')
-    val = val if val else common.ROW_HEIGHT()
-    val = common.ROW_HEIGHT() if val < common.ROW_HEIGHT() else val
-    
-    ROW_SIZE = QtCore.QSize(common.HEIGHT() * 0.25, val)
+    DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT())
+    val = settings.local_settings.value(u'widget/FilesModel/rowheight')
+    val = val if val else DEFAULT_ROW_SIZE.height()
+    val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
+    ROW_SIZE = QtCore.QSize(1, val)
 
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         # Only used to cache the thumbnails
         self._extension_thumbnails = {}
         self._extension_thumbnail_backgrounds = {}
-        self._defined_thumbnails = set(
-            common.creative_cloud_formats +
-            common.exports_formats +
-            common.scene_formats +
-            common.misc_formats
+        self._defined_thumbnails = defaultpaths.get_extensions(
+            defaultpaths.SceneFilter |
+            defaultpaths.ExportFilter |
+            defaultpaths.MiscFilter |
+            defaultpaths.AdobeFilter
         )
-
-    def reset_thumbnails(self):
-        """Resets all thumbnail-data to its initial state.
-        This in turn allows the `FileThumbnailWorker` to reload all the thumbnails.
-
-        """
-        thumbnails = self.get_default_thumbnails(overwrite=True)
-
-        dkey = self.data_key()
-        for k in (common.FileItem, common.SequenceItem):
-            for item in self.INTERNAL_MODEL_DATA[dkey][k].itervalues():
-                ext = item[QtCore.Qt.StatusTipRole].split(u'.')[-1]
-                if not ext:
-                    continue
-
-                if ext in thumbnails:
-                    placeholder_image = thumbnails[ext]
-                    default_thumbnail_image = thumbnails[ext]
-                    default_background_color = thumbnails[ext +
-                                                          u':backgroundcolor']
-                else:
-                    placeholder_image = thumbnails[u'placeholder']
-                    default_thumbnail_image = thumbnails[u'placeholder']
-                    default_background_color = thumbnails[u'placeholder:backgroundcolor']
-
-                item[common.FileThumbnailLoaded] = False
-                item[common.DefaultThumbnailRole] = default_thumbnail_image
-                item[common.DefaultThumbnailBackgroundRole] = default_background_color
-                item[common.ThumbnailRole] = placeholder_image
-                item[common.ThumbnailBackgroundRole] = default_background_color
 
     def _entry_iterator(self, path):
         for entry in _scandir.scandir(path):
             if entry.is_dir():
-                for entry in self._entry_iterator(entry.path):
-                    yield entry
+                for _entry in self._entry_iterator(entry.path):
+                    yield _entry
             else:
                 yield entry
-
-    def get_default_thumbnails(self, overwrite=False):
-        d = {}
-        for ext in set(
-            common.creative_cloud_formats +
-            common.exports_formats +
-            common.scene_formats +
-            common.misc_formats
-        ):
-            ext = ext.lower()
-            _ext_path = common.rsc_path(__file__, ext)
-            d[ext] = images.ImageCache.get(
-                _ext_path,
-                self.ROW_SIZE.height() - common.ROW_SEPARATOR(),
-                overwrite=overwrite
-            )
-            k = _ext_path + u':backgroundcolor'
-            k = k.lower()
-            d[ext + u':backgroundcolor'] = images.ImageCache.INTERNAL_IMAGE_DATA[k]
-
-        d[u'placeholder'] = images.ImageCache.get(
-            common.rsc_path(__file__, u'placeholder'),
-            self.ROW_SIZE.height() - common.ROW_SEPARATOR())
-        d[u'placeholder:backgroundcolor'] = common.THUMBNAIL_BACKGROUND
-        return d
 
     @initdata
     def __initdata__(self):
@@ -197,7 +147,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        dkey = self.data_key().lower()
+        task_folder = self.task_folder().lower()
 
         SEQUENCE_DATA = common.DataDict()
         MODEL_DATA = common.DataDict({
@@ -212,8 +162,8 @@ class FilesModel(BaseModel):
         activefile = settings.local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
-        location_is_filtered = dkey in common.NameFilters
-        location_path = u'/'.join(self.parent_path).lower() + u'/' + dkey
+        task_folder_extensions = defaultpaths.get_task_folder_extensions(task_folder)
+        location_path = u'/'.join(self.parent_path).lower() + u'/' + task_folder
 
         nth = 987
         c = 0
@@ -238,9 +188,8 @@ class FilesModel(BaseModel):
             filepath = entry.path.lower().replace(u'\\', u'/')
             ext = filename.split(u'.')[-1]
 
-            if location_is_filtered:
-                if ext not in common.NameFilters[dkey]:
-                    continue
+            if ext not in task_folder_extensions:
+                continue
 
             # Progress bar
             c += 1
@@ -257,12 +206,9 @@ class FilesModel(BaseModel):
             if ext in thumbnails:
                 placeholder_image = thumbnails[ext]
                 default_thumbnail_image = thumbnails[ext]
-                default_background_color = thumbnails[ext +
-                                                      u':backgroundcolor']
             else:
                 placeholder_image = thumbnails[u'placeholder']
                 default_thumbnail_image = thumbnails[u'placeholder']
-                default_background_color = thumbnails[u'placeholder:backgroundcolor']
 
             flags = dflags()
 
@@ -280,7 +226,7 @@ class FilesModel(BaseModel):
                 if activefile in filepath:
                     flags = flags | common.MarkedAsActive
 
-            parent_path_role = (server, job, root, asset, dkey, fileroot)
+            parent_path_role = (server, job, root, asset, task_folder, fileroot)
 
             idx = len(MODEL_DATA[common.FileItem])
             MODEL_DATA[common.FileItem][idx] = common.DataDict({
@@ -303,16 +249,14 @@ class FilesModel(BaseModel):
                 #
                 common.FileThumbnailLoaded: False,
                 common.DefaultThumbnailRole: default_thumbnail_image,
-                common.DefaultThumbnailBackgroundRole: default_background_color,
                 common.ThumbnailPathRole: None,
                 common.ThumbnailRole: placeholder_image,
-                common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.FileItem,
                 #
-                common.SortByName: common.namekey(filepath),
-                common.SortByLastModified: 0,
-                common.SortBySize: 0,
+                common.SortByNameRole: common.namekey(filepath),
+                common.SortByLastModifiedRole: 0,
+                common.SortBySizeRole: 0,
                 #
                 common.IdRole: idx  # non-mutable
             })
@@ -348,15 +292,13 @@ class FilesModel(BaseModel):
                         #
                         common.FileThumbnailLoaded: False,
                         common.DefaultThumbnailRole: default_thumbnail_image,
-                        common.DefaultThumbnailBackgroundRole: default_background_color,
                         common.ThumbnailPathRole: None,
                         common.ThumbnailRole: placeholder_image,
-                        common.ThumbnailBackgroundRole: default_background_color,
                         #
                         common.TypeRole: common.SequenceItem,
-                        common.SortByName: common.namekey(seqpath),
-                        common.SortByLastModified: 0,
-                        common.SortBySize: 0,  # Initializing with null-size
+                        common.SortByNameRole: common.namekey(seqpath),
+                        common.SortByLastModifiedRole: 0,
+                        common.SortBySizeRole: 0,  # Initializing with null-size
                         #
                         common.IdRole: 0
                     })
@@ -379,8 +321,8 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.EditRole] = filename
                 v[QtCore.Qt.StatusTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
-                v[common.SortByName] = filepath
-                v[common.SortByLastModified] = 0
+                v[common.SortByNameRole] = filepath
+                v[common.SortByLastModifiedRole] = 0
 
                 flags = dflags()
                 if filepath.lower() in sfavourites:
@@ -404,20 +346,20 @@ class FilesModel(BaseModel):
             MODEL_DATA[common.SequenceItem][idx] = v
             MODEL_DATA[common.SequenceItem][idx][common.IdRole] = idx
 
-        self.INTERNAL_MODEL_DATA[dkey] = MODEL_DATA
+        self.INTERNAL_MODEL_DATA[task_folder] = MODEL_DATA
         del MODEL_DATA
 
-    def data_key(self):
+    def task_folder(self):
         """Current key to the data dictionary."""
-        if not self._datakey:
+        if not self._task_folder:
             val = None
             key = u'activepath/location'
             savedval = settings.local_settings.value(key)
             return savedval.lower() if savedval else val
-        return self._datakey
+        return self._task_folder
 
     @QtCore.Slot(unicode)
-    def set_data_key(self, val):
+    def set_task_folder(self, val):
         """Slot used to save data key to the model instance and the local
         settings.
 
@@ -430,33 +372,33 @@ class FilesModel(BaseModel):
         exist.
 
         """
-        common.Log.debug('set_data_key({})'.format(val), self)
+        common.Log.debug('set_task_folder({})'.format(val), self)
         try:
             k = u'activepath/location'
             stored_value = settings.local_settings.value(k)
             stored_value = stored_value.lower() if stored_value else stored_value
-            self._datakey = self._datakey.lower() if self._datakey else self._datakey
+            self._task_folder = self._task_folder.lower() if self._task_folder else self._task_folder
             val = val.lower() if val else val
 
             # Nothing to do for us when the parent is not set
             if not self.parent_path:
                 return
 
-            if self._datakey is None and stored_value:
-                self._datakey = stored_value.lower()
+            if self._task_folder is None and stored_value:
+                self._task_folder = stored_value.lower()
 
             # We are in sync with a valid value set already
-            if stored_value is not None and self._datakey == val == stored_value:
+            if stored_value is not None and self._task_folder == val == stored_value:
                 val = None
                 return
 
             # We only have to update the local settings, the model is
             # already set
-            if self._datakey == val and val != stored_value:
+            if self._task_folder == val and val != stored_value:
                 settings.local_settings.setValue(k, val)
                 return
 
-            if val is not None and val == self._datakey:
+            if val is not None and val == self._task_folder:
                 val = None
                 return
 
@@ -466,32 +408,32 @@ class FilesModel(BaseModel):
             entries = [f.name.lower() for f in _scandir.scandir(path)]
             if not entries:
                 val = None
-                self._datakey = val
+                self._task_folder = val
                 return
 
             # The key is valid
             if val in entries:
-                self._datakey = val
+                self._task_folder = val
                 settings.local_settings.setValue(k, val)
                 return
 
-            # The new proposed datakey does not exist but the old one is
+            # The new proposed task_folder does not exist but the old one is
             # valid. We'll just stick with the old value instead...
-            if val not in entries and self._datakey in entries:
-                val = self._datakey.lower()
-                settings.local_settings.setValue(k, self._datakey)
+            if val not in entries and self._task_folder in entries:
+                val = self._task_folder.lower()
+                settings.local_settings.setValue(k, self._task_folder)
                 return
 
             # And finally, let's try to revert to a fall-back...
             if val not in entries and u'scenes' in entries:
                 val = u'scenes'
-                self._datakey = val
+                self._task_folder = val
                 settings.local_settings.setValue(k, val)
                 return
 
             # All else... let's select the first folder
             val = entries[0].lower()
-            self._datakey = val
+            self._task_folder = val
             settings.local_settings.setValue(k, val)
 
         except:
@@ -643,16 +585,16 @@ class FilesWidget(ThreadedBaseWidget):
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
-    def new_file_added(self, data_key, file_path):
+    def new_file_added(self, task_folder, file_path):
         """Slot to be called when a new file has been added and
         we want to show it the list.
 
         """
-        if not data_key:
+        if not task_folder:
             return
 
         # Setting the data key
-        self.model().sourceModel().dataKeyChanged.emit(data_key)
+        self.model().sourceModel().taskFolderChanged.emit(task_folder)
         # And reloading the model...
         self.model().sourceModel().modelDataResetRequested.emit()
 
@@ -681,13 +623,13 @@ class FilesWidget(ThreadedBaseWidget):
         common.Log.debug('load_saved_filter_text()', self)
 
         model = self.model().sourceModel()
-        data_key = model.data_key()
-        if not data_key:
+        task_folder = model.task_folder()
+        if not task_folder:
             common.Log.error('load_saved_filter_text(): Data key not yet set')
             return
 
         cls = model.__class__.__name__
-        k = u'widget/{}/{}/filtertext'.format(cls, data_key)
+        k = u'widget/{}/{}/filtertext'.format(cls, task_folder)
         v = settings.local_settings.value(k)
         v = v if v else u''
 
@@ -714,56 +656,6 @@ class FilesWidget(ThreadedBaseWidget):
         filepath = parent_role[5] + u'/' + \
             common.get_sequence_startpath(file_info.fileName())
         settings.local_settings.setValue(u'activepath/file', filepath)
-
-    def mouseDoubleClickEvent(self, event):
-        """We will check if the event is over one of the sub-dir rectangles,
-        and if so we will reveal the folder in the file-explorer.
-
-        """
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        index = self.indexAt(event.pos())
-        if not index.isValid():
-            return
-        if index.flags() & common.MarkedAsArchived:
-            return
-
-        rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
-
-        if self.buttons_hidden():
-            return super(FilesWidget, self).mouseDoubleClickEvent(event)
-
-        clickable_rectangles = self.itemDelegate(
-        ).get_clickable_rectangles(index, rectangles)
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
-
-        if not clickable_rectangles:
-            super(FilesWidget, self).mouseDoubleClickEvent(event)
-            return
-
-        root_dir = []
-        if clickable_rectangles[0][0].contains(cursor_position):
-            self.description_editor_widget.show()
-            return
-
-        for item in clickable_rectangles:
-            rect, text = item
-
-            if not text:
-                continue
-
-            root_dir.append(text)
-            if rect.contains(cursor_position):
-                path = u'/'.join(index.data(common.ParentPathRole)
-                                 [0:5]).rstrip(u'/')
-                root_path = u'/'.join(root_dir).strip(u'/')
-                path = path + u'/' + root_path
-                common.reveal(path)
-                return
-
-        super(FilesWidget, self).mouseDoubleClickEvent(event)
-        return
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
@@ -849,79 +741,3 @@ class FilesWidget(ThreadedBaseWidget):
             common.Log.error('')
 
         self.drag_source_index = QtCore.QModelIndex()
-
-
-    def mouseReleaseEvent(self, event):
-        """The files widget has a few addittional clickable inline icons
-        that control filtering we set the action for here.
-
-        ``Shift`` modifier will add a "positive" filter and hide all items
-        that does not contain the given text.
-
-        The ``alt`` or control modifiers will add a "negative filter"
-        and hide the selected subfolder from the view.
-
-        """
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
-        index = self.indexAt(cursor_position)
-
-        if not index.isValid():
-            return super(FilesWidget, self).mouseReleaseEvent(event)
-
-        modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
-        alt_modifier = modifiers & QtCore.Qt.AltModifier
-        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
-        control_modifier = modifiers & QtCore.Qt.ControlModifier
-
-        rect = self.visualRect(index)
-        if self.buttons_hidden():
-            return super(FilesWidget, self).mouseReleaseEvent(event)
-
-        rectangles = self.itemDelegate().get_rectangles(rect)
-        clickable_rectangles = self.itemDelegate(
-        ).get_clickable_rectangles(index, rectangles)
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
-        if not clickable_rectangles:
-            return super(FilesWidget, self).mouseReleaseEvent(event)
-
-        for idx, item in enumerate(clickable_rectangles):
-            if idx == 0:  # First rectanble is always the description editor
-                continue
-            rect, text = item
-            text = text.lower()
-
-            if rect.contains(cursor_position):
-                filter_text = self.model().filter_text().lower()
-                filter_text = filter_text if filter_text else u''
-
-                # Shift modifier will add a "positive" filter and hide all items
-                # that does not contain the given text.
-                if shift_modifier:
-                    folder_filter = u'"/' + text + u'/"'
-
-                    if folder_filter in filter_text:
-                        filter_text = filter_text.replace(folder_filter, u'')
-                    else:
-                        filter_text = filter_text + u' ' + folder_filter
-                    self.model().filterTextChanged.emit(filter_text)
-                    self.repaint(self.rect())
-                    return super(FilesWidget, self).mouseReleaseEvent(event)
-
-                # The alt or control modifiers will add a "negative filter"
-                # and hide the selected subfolder from the view
-                if alt_modifier or control_modifier:
-                    folder_filter = u'--"/' + text + u'/"'
-                    _folder_filter = u'"/' + text + u'/"'
-
-                    if filter_text:
-                        if _folder_filter in filter_text:
-                            filter_text = filter_text.replace(
-                                _folder_filter, u'')
-                        if folder_filter not in filter_text:
-                            folder_filter = filter_text + u' ' + folder_filter
-
-                    self.model().filterTextChanged.emit(folder_filter)
-                    self.repaint(self.rect())
-                    return super(FilesWidget, self).mouseReleaseEvent(event)
-
-        super(FilesWidget, self).mouseReleaseEvent(event)

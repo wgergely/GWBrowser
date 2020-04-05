@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """The base-context menu associated with the BaseListWidget subclasses."""
 
+import os
 import functools
 import collections
 
@@ -8,6 +9,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.common as common
 import bookmarks.images as images
+import bookmarks.defaultpaths as defaultpaths
 
 
 def contextmenu(func):
@@ -43,6 +45,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
+        self.setMaximumHeight(common.HEIGHT() * 1.5)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
     @contextmenu
@@ -73,6 +76,19 @@ class BaseContextMenu(QtWidgets.QMenu):
             action_set[k][u'visible'] (bool): The visibility of the action.
 
         """
+        def _showEvent(parent, event):
+            """Elides the action text to fit the size of the widget upon showing."""
+            w = []
+            for action in parent.actions():
+                if not action.text():
+                    continue
+                metrics = QtGui.QFontMetrics(
+                    common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+                width = metrics.width(action.text())
+                width += (common.MARGIN() * 4)
+                w.append(int(width))
+            parent.setFixedWidth(max(w))
+
         if not parent:
             parent = self
 
@@ -83,6 +99,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             # Recursive menu creation
             if isinstance(menu_set[k], collections.OrderedDict):
                 parent = QtWidgets.QMenu(k, parent=self)
+                parent.setMaximumHeight(common.HEIGHT() * 1.5)
+                parent.showEvent = functools.partial(_showEvent, parent)
+
                 if u'{}:icon'.format(k) in menu_set:
                     icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
                     parent.setIcon(icon)
@@ -151,17 +170,17 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def showEvent(self, event):
         """Elides the action text to fit the size of the widget upon showing."""
+        w = []
         for action in self.actions():
             if not action.text():
                 continue
+            metrics = QtGui.QFontMetrics(
+                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+            width = metrics.width(action.text())
+            width += (common.MARGIN() * 4)
+            w.append(int(width))
+        self.setFixedWidth(max(w))
 
-            metrics = QtGui.QFontMetrics(self.font())
-            text = metrics.elidedText(
-                action.text(),
-                QtCore.Qt.ElideMiddle,
-                self.width()  # padding set in the stylesheet
-            )
-            action.setText(text)
 
     @contextmenu
     def add_sort_menu(self, menu_set):
@@ -180,9 +199,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         sortorder = m.sort_order()
         sortrole = m.sort_role()
 
-        sort_by_name = sortrole == common.SortByName
-        sort_modified = sortrole == common.SortByLastModified
-        sort_size = sortrole == common.SortBySize
+        sort_by_name = sortrole == common.SortByNameRole
+        sort_modified = sortrole == common.SortByLastModifiedRole
+        sort_size = sortrole == common.SortBySizeRole
 
         menu_set[u'Sort'] = collections.OrderedDict()
 
@@ -201,19 +220,19 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': item_on_icon if sort_by_name else QtGui.QPixmap(),
             # u'ckeckable': True,
             # u'checked': True if sort_by_name else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortByName, sortorder)
+            u'action': lambda: m.sortingChanged.emit(common.SortByNameRole, sortorder)
         }
         menu_set[u'Sort'][u'Date modified'] = {
             u'icon': item_on_icon if sort_modified else QtGui.QPixmap(),
             # u'ckeckable': True,
             # u'checked': True if sort_modified else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortByLastModified, sortorder)
+            u'action': lambda: m.sortingChanged.emit(common.SortByLastModifiedRole, sortorder)
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else QtGui.QPixmap(),
             # u'ckeckable': True,
             # u'checked': True if sort_size else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortBySize, sortorder)
+            u'action': lambda: m.sortingChanged.emit(common.SortBySizeRole, sortorder)
         }
         return menu_set
 
@@ -415,21 +434,21 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         if active or all_off:
             menu_set[u'active'] = {
-                u'text': 'Show active only',
+                u'text': u'Show active',
                 u'icon': item_on if active else item_off,
                 u'disabled': favourite,
                 u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsActive, not active),
             }
         if favourite or all_off:
             menu_set[u'favourite'] = {
-                u'text': 'Show favourites',
+                u'text': u'Show favourites',
                 u'icon': item_on if favourite else item_off,
                 u'disabled': active,
                 u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
             }
         if archived or all_off:
             menu_set[u'archived'] = {
-                u'text': 'Show archived',
+                u'text': u'Show archived',
                 u'icon': item_on if archived else item_off,
                 u'disabled': active if active else favourite,
                 u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsArchived, not archived),
@@ -438,13 +457,27 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_row_size_menu(self, menu_set):
+        increase_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'arrow_up', common.SECONDARY_TEXT, common.MARGIN())
+        decrease_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'arrow_down', common.SECONDARY_TEXT, common.MARGIN())
+        reset_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'minimize', common.SECONDARY_TEXT, common.MARGIN())
+
         menu_set['increase_row_size'] = {
-            'text': u'Increase row height',
+            u'icon': increase_pixmap,
+            'text': u'Increase height',
             'action': self.parent().increase_row_size,
         }
         menu_set['decrease_row_size'] = {
-            'text': u'Decrease row height',
+            u'icon': decrease_pixmap,
+            'text': u'Decrease height',
             'action': self.parent().decrease_row_size,
+        }
+        menu_set['reset_row_size'] = {
+            u'icon': reset_pixmap,
+            'text': u'Reset height',
+            'action': self.parent().reset_row_size,
         }
         return menu_set
 
@@ -659,14 +692,15 @@ class BaseContextMenu(QtWidgets.QMenu):
         dir_ = QtCore.QDir(u'/'.join(parent_item))
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
         for entry in sorted(dir_.entryList()):
-            if model.data_key():
-                checked = model.data_key().lower() == entry.lower()
+            task_folder = model.task_folder()
+            if task_folder:
+                checked = task_folder.lower() == entry.lower()
             else:
                 checked = False
             menu_set[key][entry] = {
                 u'text': entry.title(),
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
-                u'action': functools.partial(model.dataKeyChanged.emit, entry)
+                u'action': functools.partial(model.taskFolderChanged.emit, entry)
             }
         return menu_set
 
@@ -720,6 +754,134 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': remove_icon,
             u'checkable': False,
             u'action': (common.clear_favourites, self.parent().favouritesChanged.emit)
+        }
+
+        return menu_set
+
+    @contextmenu
+    def add_add_file_menu(self, menu_set):
+        add_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'add', common.ADD, common.MARGIN())
+
+        @QtCore.Slot(unicode)
+        def show_widget(ext):
+            import bookmarks.addfilewidget as addfilewidget
+
+            widget = addfilewidget.AddFileWidget(ext, parent=self.parent())
+            res = widget.exec_()
+
+            if res == QtWidgets.QDialog.Accepted:
+                with open(os.path.normpath(widget.get_file_path()), 'a') as f:
+                    pass
+
+        k = u'formats'
+        menu_set[k] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(k)] = add_pixmap
+        menu_set[u'{}:text'.format(k)] = u'Add template file'
+
+        menu_set[k][u'separator1'] = {}
+        menu_set[k][u'scene'] = {
+            u'disabled': True,
+            u'text': u'Scene'
+        }
+        for f in defaultpaths.get_extensions(defaultpaths.SceneFilter):
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                f, None, common.MARGIN())
+            menu_set[k][f] = {
+                u'icon': pixmap,
+                u'text': f.upper(),
+                u'action': functools.partial(show_widget, f)
+            }
+
+        menu_set[k][u'separator2'] = {}
+        menu_set[k][u'export'] = {
+            u'disabled': True,
+            u'text': u'Export'
+        }
+        for f in defaultpaths.get_extensions(defaultpaths.ExportFilter):
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                f, None, common.MARGIN())
+            menu_set[k][f] = {
+                u'icon': pixmap,
+                u'text': f.upper(),
+                u'action': functools.partial(show_widget, f)
+            }
+
+        menu_set[k][u'separator3'] = {}
+        menu_set[k][u'cc'] = {
+            u'disabled': True,
+            u'text': u'Adobe Creative Cloud',
+            u'action': functools.partial(show_widget, f)
+        }
+        for f in defaultpaths.get_extensions(defaultpaths.AdobeFilter):
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                f, None, common.MARGIN())
+            menu_set[k][f] = {
+                u'icon': pixmap,
+                u'text': f.upper(),
+                u'action': functools.partial(show_widget, f)
+            }
+
+        menu_set[k][u'separator4'] = {}
+        menu_set[k][u'misc'] = {
+            u'disabled': True,
+            u'text': u'Other'
+        }
+        for f in defaultpaths.get_extensions(defaultpaths.MiscFilter):
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                f, None, common.MARGIN())
+            menu_set[k][f] = {
+                u'icon': pixmap,
+                u'text': f.upper(),
+                u'action': functools.partial(show_widget, f)
+            }
+
+        return menu_set
+
+    @contextmenu
+    def add_show_addasset_menu(self, menu_set):
+        add_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'add', common.ADD, common.MARGIN())
+
+        @QtCore.Slot()
+        def show_widget():
+            import bookmarks.addassetwidget as addassetwidget
+
+            bookmarks_widget = self.parent().parent().parent().stackedwidget.widget(0)
+            index = bookmarks_widget.model().sourceModel().active_index()
+            if not index.isValid():
+                return
+
+            bookmark = index.data(common.ParentPathRole)
+            bookmark = u'/'.join(bookmark)
+
+            @QtCore.Slot(unicode)
+            def show_and_select_added_asset(view, name):
+                view.model().sourceModel().beginResetModel()
+                view.model().sourceModel().__initdata__()
+
+                for n in xrange(view.model().rowCount()):
+                    index = view.model().index(n, 0)
+                    file_info = QtCore.QFileInfo(
+                        index.data(QtCore.Qt.StatusTipRole))
+                    if file_info.fileName().lower() == name.lower():
+                        view.selectionModel().setCurrentIndex(
+                            index, QtCore.QItemSelectionModel.ClearAndSelect)
+                        view.scrollTo(
+                            index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                        break
+
+            widget = addassetwidget.AddAssetWidget(bookmark, parent=self.parent())
+            widget.templates_widget.templateCreated.connect(
+                functools.partial(show_and_select_added_asset, self.parent()))
+            self.parent().resized.connect(widget.setGeometry)
+            widget.setGeometry(self.parent().viewport().geometry())
+            widget.open()
+
+        menu_set[u'add_asset'] = {
+            u'icon': add_pixmap,
+            u'text': u'Add Asset',
+            u'action': show_widget
         }
 
         return menu_set

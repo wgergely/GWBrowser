@@ -13,7 +13,7 @@ import bookmarks.delegate as delegate
 import bookmarks.common_ui as common_ui
 
 
-class DescriptionEditorWidget(common_ui.NameBase):
+class DescriptionEditorWidget(common_ui.LineEdit):
     """The editor used to edit the desciption of items."""
 
     def __init__(self, parent=None):
@@ -178,7 +178,7 @@ class FilterEditor(QtWidgets.QDialog):
         )
         label = u'Search filter'
         label = PaintedLabel(label, parent=self)
-        self.editor_widget = common_ui.NameBase(parent=self, transparent=True)
+        self.editor_widget = common_ui.LineEdit(parent=self)
 
         row.layout().addWidget(icon, 0)
         row.layout().addWidget(label, 0)
@@ -302,7 +302,7 @@ class ThumbnailsWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
         self.columns = 5
-        
+
         self.setWindowFlags(QtCore.Qt.Widget)
         self.setWindowTitle(u'Select thumbnail')
 

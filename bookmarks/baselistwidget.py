@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Bookmarks is built around the three main lists - **bookmarks**, **assets**
+"""
+Bookmarks has 3 main tabs: bookmarks, assets and files.
+
+Each of the tabs rely on 3 differe
+
+Bookmarks is built around the three main lists - **bookmarks**, **assets**
 and **files**. Each of these lists has a *view*, *model* and *context menus*
 stemming from the *BaseModel*, *BaseView* and *BaseContextMenu* classes defined
 in ``baselistwidget.py`` and ``basecontextmenu.py`` modules.
@@ -22,6 +27,7 @@ from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.delegate as delegate
 import bookmarks.settings as settings
 import bookmarks.images as images
+import bookmarks.defaultpaths as defaultpaths
 import bookmarks.alembicpreview as alembicpreview
 
 import bookmarks.threads as threads
@@ -65,7 +71,7 @@ def initdata(func):
             return
         if not all(self.parent_path):
             return
-        if not self.data_key():
+        if not self.task_folder():
             return
 
         try:
@@ -73,14 +79,16 @@ def initdata(func):
             self._interrupt_requested = False
             common.Log.debug('__initdata__()', self)
             func(self, *args, **kwargs)
-            # sort_data emits the reset signals already
+
             self.blockSignals(True)
             self.sort_data()
             self.blockSignals(False)
+
             self._interrupt_requested = False
             self.endResetModel()
         except:
             common.Log.error(u'Error loading the model data')
+
     return func_wrapper
 
 
@@ -224,10 +232,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         """
         model = self.sourceModel()
-        data_key = model.data_key()
+        task_folder = model.task_folder()
         cls = model.__class__.__name__
         self._filter_text = settings.local_settings.value(
-            u'widget/{}/{}/filtertext'.format(cls, data_key))
+            u'widget/{}/{}/filtertext'.format(cls, task_folder))
 
         self._filterflags = {
             common.MarkedAsActive: settings.local_settings.value(
@@ -255,9 +263,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def set_filter_text(self, val):
         """Sets the path-segment to use as a filter."""
         model = self.sourceModel()
-        data_key = model.data_key()
+        task_folder = model.task_folder()
         cls = model.__class__.__name__
-        k = u'widget/{}/{}/filtertext'.format(cls, data_key)
+        k = u'widget/{}/{}/filtertext'.format(cls, task_folder)
 
         # We're in sync and there's nothing to do
         local_val = settings.local_settings.value(k)
@@ -366,15 +374,15 @@ class BaseModel(QtCore.QAbstractListModel):
     The structure of the data is uniform accross all BaseModel instances but it
     really is built around storing file-data.
 
-    Each folder in the assets folder corresponds to a **data_key**.
+    Each folder in the assets folder corresponds to a **task_folder**.
 
     A data-key example:
         .. code-block:: python
 
             self.INTERNAL_MODEL_DATA = {}
             # will most of the time return a name of a folder, eg. 'scenes'
-            datakey = self.data_key()
-            self.INTERNAL_MODEL_DATA[datakey] = common.DataDict({
+            task_folder = self.task_folder()
+            self.INTERNAL_MODEL_DATA[task_folder] = common.DataDict({
                 common.FileItem: common.DataDict(),
                 common.SequenceItem: common.DataDict()
             })
@@ -393,7 +401,7 @@ class BaseModel(QtCore.QAbstractListModel):
     """Main signal to request a reset and load"""
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
-    dataKeyChanged = QtCore.Signal(unicode)
+    taskFolderChanged = QtCore.Signal(unicode)
     dataTypeChanged = QtCore.Signal(int)
 
     sortingChanged = QtCore.Signal(int, bool)  # (SortRole, SortOrder)
@@ -402,9 +410,10 @@ class BaseModel(QtCore.QAbstractListModel):
     updateIndex = QtCore.Signal(QtCore.QModelIndex)
     updateRow = QtCore.Signal(weakref.ref)
 
-    def __init__(self, parent=None):
+    def __init__(self, has_threads=True, parent=None):
         super(BaseModel, self).__init__(parent=parent)
         self.view = parent
+        self._threads = has_threads
 
         self.INTERNAL_MODEL_DATA = common.DataDict()
         """Custom data type for weakref compatibility """
@@ -418,7 +427,7 @@ class BaseModel(QtCore.QAbstractListModel):
         self._generate_thumbnails_enabled = True
         self.file_info_loaded = False
 
-        self._datakey = None
+        self._task_folder = None
         self._datatype = {}
         self.parent_path = None
 
@@ -467,6 +476,13 @@ class BaseModel(QtCore.QAbstractListModel):
             return True
         return False
 
+    def get_text_segments(self, index):
+        """A utility function that provides rich text-like text segments and
+        colors for the delegate to use.
+
+        """
+        return {}
+
     def initialize_default_sort_values(self):
         """Loads the saved sorting values from the local preferences.
 
@@ -476,8 +492,8 @@ class BaseModel(QtCore.QAbstractListModel):
         cls = self.__class__.__name__
         k = u'widget/{}/sortrole'.format(cls)
         val = settings.local_settings.value(k)
-        if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
-            val = common.SortByName
+        if val not in (common.SortByNameRole, common.SortBySizeRole, common.SortByLastModifiedRole):
+            val = common.SortByNameRole
         self._sortrole = val
 
         k = u'widget/{}/sortorder'.format(cls)
@@ -487,13 +503,13 @@ class BaseModel(QtCore.QAbstractListModel):
         self._sortorder = val
 
         if self._sortrole is None:
-            self._sortrole = common.SortByName
+            self._sortrole = common.SortByNameRole
 
         if self._sortorder is None:
             self._sortorder = False
 
     def sort_role(self):
-        """The item role used to sort the model data, eg. `common.SortByName`"""
+        """The item role used to sort the model data, eg. `common.SortByNameRole`"""
         return self._sortrole
 
     @QtCore.Slot(int)
@@ -534,7 +550,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
         self.beginResetModel()
 
-        k = self.data_key()
+        k = self.task_folder()
         t = self.data_type()
 
         data = self.model_data()
@@ -543,15 +559,15 @@ class BaseModel(QtCore.QAbstractListModel):
 
         sortorder = self.sort_order()
         sortrole = self.sort_role()
-        k = self.data_key()
+        k = self.task_folder()
         t = self.data_type()
 
         if sortrole not in (
-            common.SortByName,
-            common.SortBySize,
-            common.SortByLastModified
+            common.SortByNameRole,
+            common.SortBySizeRole,
+            common.SortByLastModifiedRole
         ):
-            sortrole = common.SortByName
+            sortrole = common.SortByNameRole
 
         sorted_idxs = sorted(
             data,
@@ -629,7 +645,7 @@ class BaseModel(QtCore.QAbstractListModel):
         if not ref():
             return
 
-        if ref() == self.model_data() and (self.sort_order() or self.sort_role() != common.SortByName):
+        if ref() == self.model_data() and (self.sort_order() or self.sort_role() != common.SortByNameRole):
             common.Log.debug(u'>>> Model needs re-sorting', self)
             self.sort_data()
 
@@ -637,6 +653,9 @@ class BaseModel(QtCore.QAbstractListModel):
     @QtCore.Slot(weakref.ref)
     def put_in_thumbnail_queue(self, thread, ref):
         """Slot connected in initialise_threads()."""
+        if not not self._threads:
+            return
+
         common.Log.success('put_in_thumbnail_queue()')
         if not ref():
             return
@@ -645,6 +664,9 @@ class BaseModel(QtCore.QAbstractListModel):
 
     def initialise_threads(self):
         """Starts and connects the threads."""
+        if not self._threads:
+            return
+
         common.Log.debug('initialise_threads()', self)
 
         info_worker = threads.InfoWorker()
@@ -730,6 +752,9 @@ class BaseModel(QtCore.QAbstractListModel):
         Called by the ``modelAboutToBeReset`` signal.
 
         """
+        if not not self._threads:
+            return
+
         common.Log.debug('reset_thread_worker_queues()', self)
 
         for k in self.threads:
@@ -738,7 +763,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
     def model_data(self):
         """A pointer to the model's currently set internal data."""
-        k = self.data_key()
+        k = self.task_folder()
         t = self.data_type()
 
         if not k in self.INTERNAL_MODEL_DATA:
@@ -797,21 +822,20 @@ class BaseModel(QtCore.QAbstractListModel):
         self.dataChanged.emit(index, index)
         return True
 
-    def data_key(self):
+    def task_folder(self):
         """Current key to the data dictionary."""
-        raise NotImplementedError(
-            'data_key is abstract and must be overriden')
+        return u'.'
 
     def data_type(self):
         """Current key to the data dictionary."""
-        data_key = self.data_key()
-        if data_key not in self._datatype:
+        task_folder = self.task_folder()
+        if task_folder not in self._datatype:
             cls = self.__class__.__name__
-            key = u'widget/{}/{}/datatype'.format(cls, data_key)
+            key = u'widget/{}/{}/datatype'.format(cls, task_folder)
             val = settings.local_settings.value(key)
             val = val if val else common.SequenceItem
-            self._datatype[data_key] = val
-        return self._datatype[data_key]
+            self._datatype[task_folder] = val
+        return self._datatype[task_folder]
 
     @QtCore.Slot(int)
     def set_data_type(self, val):
@@ -821,10 +845,10 @@ class BaseModel(QtCore.QAbstractListModel):
         self.beginResetModel()
 
         try:
-            data_key = self.data_key()
-            if data_key not in self._datatype:
-                self._datatype[data_key] = val
-            if self._datatype[data_key] == val:
+            task_folder = self.task_folder()
+            if task_folder not in self._datatype:
+                self._datatype[task_folder] = val
+            if self._datatype[task_folder] == val:
                 return
 
             if val not in (common.FileItem, common.SequenceItem):
@@ -832,10 +856,10 @@ class BaseModel(QtCore.QAbstractListModel):
                     u'Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
 
             cls = self.__class__.__name__
-            key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
+            key = u'widget/{}/{}/datatype'.format(cls, self.task_folder())
             settings.local_settings.save_state(u'location', val)
             settings.local_settings.setValue(key, val)
-            self._datatype[data_key] = val
+            self._datatype[task_folder] = val
 
         except:
             common.Log.error(u'Error setting data key')
@@ -847,9 +871,58 @@ class BaseModel(QtCore.QAbstractListModel):
             self.endResetModel()
 
     @QtCore.Slot(unicode)
-    def set_data_key(self, val):
+    def set_task_folder(self, val):
         """Settings data keys for asset and bookmarks widgets is not available."""
         pass
+
+    def get_default_thumbnails(self, overwrite=False):
+        """Loads all the default thumbnails after row sizes have changed."""
+        d = {}
+        height = self.ROW_SIZE.height() - common.ROW_SEPARATOR()
+        for ext in defaultpaths.get_extensions(
+            defaultpaths.SceneFilter |
+            defaultpaths.ExportFilter |
+            defaultpaths.MiscFilter |
+            defaultpaths.AdobeFilter
+        ):
+            ext = ext.lower()
+            _ext_path = common.rsc_path(__file__, ext)
+            d[ext] = images.ImageCache.get(
+                _ext_path,
+                height,
+                overwrite=overwrite
+            )
+
+        d[u'placeholder'] = images.ImageCache.get(
+            common.rsc_path(__file__, u'placeholder'),
+            height)
+        return d
+
+    @QtCore.Slot()
+    def reset_thumbnails(self):
+        """Resets all thumbnail-data to its initial state.
+        This in turn allows the `FileThumbnailWorker` to reload all the thumbnails.
+
+        """
+        thumbnails = self.get_default_thumbnails(overwrite=True)
+
+        task_folder = self.task_folder()
+        for k in (common.FileItem, common.SequenceItem):
+            for item in self.INTERNAL_MODEL_DATA[task_folder][k].itervalues():
+                ext = item[QtCore.Qt.StatusTipRole].split(u'.')[-1]
+                if not ext:
+                    continue
+
+                if ext in thumbnails:
+                    placeholder_image = thumbnails[ext]
+                    default_thumbnail_image = thumbnails[ext]
+                else:
+                    placeholder_image = thumbnails[u'placeholder']
+                    default_thumbnail_image = thumbnails[u'placeholder']
+
+                item[common.FileThumbnailLoaded] = False
+                item[common.DefaultThumbnailRole] = default_thumbnail_image
+                item[common.ThumbnailRole] = placeholder_image
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -898,6 +971,10 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
 
+        self.reset_rows_timer = QtCore.QTimer(parent=self)
+        self.reset_rows_timer.setInterval(500)
+        self.reset_rows_timer.setSingleShot(True)
+
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
@@ -927,6 +1004,8 @@ class BaseListWidget(QtWidgets.QListView):
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
+        if self.width() < common.WIDTH() * 0.5:
+            return True
         return self._buttons_hidden
 
     def set_buttons_hidden(self, val):
@@ -979,13 +1058,13 @@ class BaseListWidget(QtWidgets.QListView):
         model.activeChanged.connect(self.save_activated)
 
         # Data key, eg. 'scenes'
-        model.dataKeyChanged.connect(
-            lambda: common.Log.debug('dataKeyChanged -> set_data_key', model))
-        model.dataKeyChanged.connect(model.set_data_key)
+        model.taskFolderChanged.connect(
+            lambda: common.Log.debug('taskFolderChanged -> set_task_folder', model))
+        model.taskFolderChanged.connect(model.set_task_folder)
 
-        model.dataKeyChanged.connect(
-            lambda: common.Log.debug('dataKeyChanged -> proxy.invalidate', model))
-        model.dataKeyChanged.connect(proxy.invalidate)
+        model.taskFolderChanged.connect(
+            lambda: common.Log.debug('taskFolderChanged -> proxy.invalidate', model))
+        model.taskFolderChanged.connect(proxy.invalidate)
 
         # FileItem/SequenceItem
         model.dataTypeChanged.connect(
@@ -1036,6 +1115,10 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelReset.connect(
             lambda: common.Log.debug('modelReset -> scheduleDelayedItemsLayout', model))
         model.modelReset.connect(self.scheduleDelayedItemsLayout)
+
+        self.reset_rows_timer.timeout.connect(model.reset_thumbnails)
+        self.reset_rows_timer.timeout.connect(self.repaint_visible_rows)
+        self.reset_rows_timer.timeout.connect(self.start_requestinfo_timers)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_state(self, index):
@@ -1189,7 +1272,7 @@ class BaseListWidget(QtWidgets.QListView):
         cls = self.__class__.__name__
         k = u'widget/{}/{}/selected_item'.format(
             cls,
-            self.model().sourceModel().data_key(),
+            self.model().sourceModel().task_folder(),
         )
         v = common.proxy_path(index)
         settings.local_settings.setValue(k, v)
@@ -1201,7 +1284,7 @@ class BaseListWidget(QtWidgets.QListView):
         cls = self.__class__.__name__
         k = u'widget/{}/{}/selected_item'.format(
             cls,
-            self.model().sourceModel().data_key(),
+            self.model().sourceModel().task_folder(),
         )
         val = settings.local_settings.value(k)
 
@@ -1320,11 +1403,11 @@ class BaseListWidget(QtWidgets.QListView):
             return None
 
         model = self.model().sourceModel()
-        dkey = model.data_key()
+        task_folder = model.task_folder()
         data = model.model_data()[source_index.row()]
 
-        FILE_DATA = model.INTERNAL_MODEL_DATA[dkey][common.FileItem]
-        SEQ_DATA = model.INTERNAL_MODEL_DATA[dkey][common.SequenceItem]
+        FILE_DATA = model.INTERNAL_MODEL_DATA[task_folder][common.FileItem]
+        SEQ_DATA = model.INTERNAL_MODEL_DATA[task_folder][common.SequenceItem]
 
         applied = data[common.FlagsRole] & flag
 
@@ -1373,7 +1456,7 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.data(common.FileThumbnailLoaded):
             return
 
-        if file_info.suffix().lower() in common.oiio_formats:
+        if file_info.suffix().lower() in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
             w = images.ImageViewer(file_info.filePath(), parent=self)
             self.selectionModel().currentChanged.connect(w.delete_timer.start)
             w.show()
@@ -1574,6 +1657,10 @@ class BaseListWidget(QtWidgets.QListView):
                 self.increase_row_size()
                 return
 
+            if event.key() == QtCore.Qt.Key_0:
+                self.reset_row_size()
+                return
+
             if event.key() == QtCore.Qt.Key_Minus:
                 self.decrease_row_size()
                 return
@@ -1700,11 +1787,11 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
-        """Custom double - click event.
+        """Custom doubleclick event.
 
         A double click can `activate` an item, or it can trigger an edit event.
         As each item is associated with multiple editors we have to inspect
-        the double - click location before deciding what action to take.
+        the doubleclick location before deciding what action to take.
 
         """
         if not isinstance(event, QtGui.QMouseEvent):
@@ -1725,12 +1812,36 @@ class BaseListWidget(QtWidgets.QListView):
             self.description_editor_widget.show()
             return
 
-        if rectangles[delegate.DataRect].contains(cursor_position):
-            self.activate(self.selectionModel().currentIndex())
-            return
-
         if rectangles[delegate.ThumbnailRect].contains(cursor_position):
             images.ImageCache.pick(index, parent=self)
+            return
+
+        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(
+            index, rectangles)
+        if not self.buttons_hidden() and clickable_rectangles:
+            root_dir = []
+            for item in clickable_rectangles:
+                rect, text = item
+
+                if not text or not rect:
+                    continue
+
+                root_dir.append(text)
+                if rect.contains(cursor_position):
+                    p = index.data(common.ParentPathRole)
+                    if len(p) >= 5:
+                        p = p[0:5]
+                    elif len(p) == 3:
+                        p = [p[0], ]
+
+                    path = u'/'.join(p).rstrip(u'/')
+                    root_path = u'/'.join(root_dir).strip(u'/')
+                    path = path + u'/' + root_path
+                    common.reveal(path)
+                    return
+
+        if rectangles[delegate.DataRect].contains(cursor_position):
+            self.activate(self.selectionModel().currentIndex())
             return
 
     def _get_status_string(self):
@@ -1832,23 +1943,36 @@ class BaseListWidget(QtWidgets.QListView):
     def resizeEvent(self, event):
         self.resized.emit(self.viewport().geometry())
 
-    def increase_row_size(self):
+    @QtCore.Slot()
+    def repaint_visible_rows(self):
+        if not self.isVisible():
+            return
+
+        proxy = self.model()
+        if not proxy.rowCount():
+            return
+
+        r = self.viewport().rect()
+        index = self.indexAt(r.topLeft())
+        if not index.isValid():
+            return
+
+        rect = self.visualRect(index)
+        while r.intersects(rect):
+            super(BaseListWidget, self).update(index)
+            rect.moveTop(rect.top() + rect.height())
+            index = self.indexAt(rect.topLeft())
+            if not index.isValid():
+                break
+
+    def _reset_rows(self):
+        """Reinitializes the rows to apply size-change."""
         proxy = self.model()
         model = proxy.sourceModel()
-        v = model.ROW_SIZE.height() + common.psize(20)
-        if v >= common.ROW_HEIGHT() * 10:
-            return
-        model.ROW_SIZE.setHeight(int(v))
-
-        settings.local_settings.setValue(
-            u'widget/rowheight', int(v))
-
-        # Save selection
         row = self.selectionModel().currentIndex().row()
 
-        model.reset_thumbnails()
         self.scheduleDelayedItemsLayout()
-        self.start_requestinfo_timers()
+        self.reset_rows_timer.start()
 
         # Reset selection
         index = proxy.index(row, 0)
@@ -1856,31 +1980,48 @@ class BaseListWidget(QtWidgets.QListView):
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         self.scrollTo(
             index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
+    def _save_row_size(self, v):
+        """Saves the current row size to the local settings."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+        model.ROW_SIZE.setHeight(int(v))
+
+        cls = self.model().sourceModel().__class__.__name__
+        k = u'widget/{}/rowheight'.format(cls).lower()
+        settings.local_settings.setValue(k, int(v))
+
+    def increase_row_size(self):
+        """Makes the row height bigger."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        v = model.ROW_SIZE.height() + common.psize(20)
+        if v > common.ROW_HEIGHT() * 10:
+            return
+
+        self._save_row_size(v)
+        self._reset_rows()
 
     def decrease_row_size(self):
+        """Makes the row height smaller."""
         proxy = self.model()
         model = proxy.sourceModel()
+
         v = model.ROW_SIZE.height() - common.psize(20)
-        if v < common.ROW_HEIGHT():
+        if v <= common.ROW_HEIGHT():
             v = common.ROW_HEIGHT()
-        model.ROW_SIZE.setHeight(int(v))
 
-        settings.local_settings.setValue(
-            u'widget/rowheight', int(v))
+        self._save_row_size(v)
+        self._reset_rows()
 
-        # Save selection
-        row = self.selectionModel().currentIndex().row()
-
-        model.reset_thumbnails()
-        self.scheduleDelayedItemsLayout()
-        self.start_requestinfo_timers()
-
-        # Reset selection
-        index = proxy.index(row, 0)
-        self.selectionModel().setCurrentIndex(
-            index, QtCore.QItemSelectionModel.ClearAndSelect)
-        self.scrollTo(
-            index, QtWidgets.QAbstractItemView.PositionAtCenter)
+    def reset_row_size(self):
+        """Resets the row size to its original size."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+        v = model.DEFAULT_ROW_SIZE.height()
+        self._save_row_size(v)
+        self._reset_rows()
 
     def dragEnterEvent(self, event):
         self._thumbnail_drop = (-1, False)
@@ -2019,7 +2160,7 @@ class BaseInlineIconWidget(BaseListWidget):
         app.restoreOverrideCursor()
 
     def mouseReleaseEvent(self, event):
-        """Finishes `BaseInlineIconWidget`'s multi-item toggle operation, and
+        """Concludes `BaseInlineIconWidget`'s multi-item toggle operation, and
         resets the associated variables.
 
         The inlince icon buttons are also triggered here. We're using the
@@ -2031,21 +2172,20 @@ class BaseInlineIconWidget(BaseListWidget):
             self.reset_multitoggle()
             return
 
+        # Let's handle the clickable rectangle event first
+        self.clickableRectangleEvent(event)
+
         index = self.indexAt(event.pos())
-
-        # Ending multi-toggle
-        if self.multi_toggle_items:
-            for n in self.multi_toggle_items:
-                index = self.model().index(n, 0)
-
+        if not index.isValid():
             self.reset_multitoggle()
-            self.model().invalidateFilter()
-
             super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
             return
 
-        if not index.isValid():
+        if self.multi_toggle_items:
+            for n in self.multi_toggle_items:
+                index = self.model().index(n, 0)
             self.reset_multitoggle()
+            self.model().invalidateFilter()
             super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
             return
 
@@ -2267,6 +2407,83 @@ class BaseInlineIconWidget(BaseListWidget):
     def request_visible_thumbnail_load(self):
         pass
 
+    def clickableRectangleEvent(self, event):
+        """Used to handle a mouse press/release on a clickable element. The
+        clickable rectangles define interactive regions on the list widget, and
+        are set by the delegate.
+
+        For instance, the files widget has a few addittional clickable inline icons
+        that control filtering we set the action for here.
+
+        ``Shift`` modifier will add a "positive" filter and hide all items that
+        does not contain the given text.
+
+        The ``alt`` or control modifiers will add a "negative filter" and hide
+        the selected subfolder from the view.
+
+        """
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
+
+        if not index.isValid():
+            return
+
+        modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
+        control_modifier = modifiers & QtCore.Qt.ControlModifier
+
+        rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(
+            index, rectangles)
+        if not clickable_rectangles:
+            return
+
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+
+        for idx, item in enumerate(clickable_rectangles):
+            if idx == 0:
+                continue  # First rectanble is always the description editor
+
+            rect, text = item
+            text = text.lower()
+
+            if rect.contains(cursor_position):
+                filter_text = self.model().filter_text()
+                filter_text = filter_text.lower() if filter_text else u''
+
+                # Shift modifier will add a "positive" filter and hide all items
+                # that does not contain the given text.
+                if shift_modifier:
+                    folder_filter = u'"/' + text + u'/"'
+
+                    if folder_filter in filter_text:
+                        filter_text = filter_text.replace(folder_filter, u'')
+                    else:
+                        filter_text = filter_text + u' ' + folder_filter
+
+                    self.model().filterTextChanged.emit(filter_text)
+                    self.repaint(self.rect())
+                    return
+
+                # The alt or control modifiers will add a "negative filter"
+                # and hide the selected subfolder from the view
+                if alt_modifier or control_modifier:
+                    folder_filter = u'--"/' + text + u'/"'
+                    _folder_filter = u'"/' + text + u'/"'
+
+                    if filter_text:
+                        if _folder_filter in filter_text:
+                            filter_text = filter_text.replace(
+                                _folder_filter, u'')
+                        if folder_filter not in filter_text:
+                            folder_filter = filter_text + u' ' + folder_filter
+
+                    self.model().filterTextChanged.emit(folder_filter)
+                    self.repaint(self.rect())
+                    return
+
 
 class ThreadedBaseWidget(BaseInlineIconWidget):
     """Adds the methods needed to push the indexes to the thread-workers."""
@@ -2448,7 +2665,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         if not threads:
             return
 
-        k = model.data_key()
+        k = model.task_folder()
         if model.data_type() == common.FileItem:
             ts = (common.FileItem, common.SequenceItem)
         else:

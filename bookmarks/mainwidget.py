@@ -541,7 +541,7 @@ class MainWidget(QtWidgets.QWidget):
                 self.assetswidget,
                 self.fileswidget,
                 self.favouriteswidget,
-                self.listcontrolwidget.data_key_view
+                self.listcontrolwidget.task_folder_view
             ):
                 try:
                     widget.removeEventFilter(self)
@@ -759,9 +759,9 @@ class MainWidget(QtWidgets.QWidget):
         a.activated.connect(lambda: lc.listChanged.emit(2))
 
         # Control bar connections
-        lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
-        lc.dataKeyChanged.connect(lc.textChanged)
-        f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
+        lc.taskFolderChanged.connect(f.model().sourceModel().taskFolderChanged)
+        lc.taskFolderChanged.connect(lc.textChanged)
+        f.model().sourceModel().taskFolderChanged.connect(lc.textChanged)
         #####################################################
         # settings.local_settings.active_monitor
         settings.local_settings.activeBookmarkChanged.connect(
@@ -770,13 +770,13 @@ class MainWidget(QtWidgets.QWidget):
             a.model().sourceModel().modelDataResetRequested)
         #####################################################
         b.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+            lambda: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
         b.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+            lambda x: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
         a.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+            lambda: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
         a.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+            lambda x: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
         #####################################################
         lc.listChanged.connect(lb.update)
         lc.listChanged.connect(lc.update_buttons)

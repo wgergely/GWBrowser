@@ -13,13 +13,10 @@ import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
 import bookmarks.common as common
 import bookmarks._scandir as _scandir
-from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.baselistwidget import BaseInlineIconWidget
-from bookmarks.baselistwidget import BaseModel
-from bookmarks.baselistwidget import initdata
+import bookmarks.baselistwidget as baselistwidget
+import bookmarks.basecontextmenu as basecontextmenu
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
-from bookmarks.delegate import BookmarksWidgetDelegate
 
 
 def count_assets(bookmark_path, ASSET_IDENTIFIER):
@@ -41,7 +38,7 @@ def count_assets(bookmark_path, ASSET_IDENTIFIER):
     return n
 
 
-class BookmarksWidgetContextMenu(BaseContextMenu):
+class BookmarksWidgetContextMenu(basecontextmenu.BaseContextMenu):
     """Context menu associated with the BookmarksWidget.
 
     Methods:
@@ -51,45 +48,41 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
-        # Adding persistent actions
-
         self.add_manage_bookmarks_menu()
         self.add_separator()
-
         if index.isValid():
             self.add_mode_toggles_menu()
             self.add_separator()
-
         self.add_separator()
-
+        self.add_row_size_menu()
+        self.add_separator()
+        self.add_set_generate_thumbnails_menu()
         if index.isValid():
-            self.add_reveal_item_menu()
             self.add_copy_menu()
-
+            self.add_reveal_item_menu()
         self.add_separator()
-
         self.add_sort_menu()
-
         self.add_separator()
-
         self.add_display_toggles_menu()
-
         self.add_separator()
-
         self.add_refresh_menu()
 
 
-class BookmarksModel(BaseModel):
+class BookmarksModel(baselistwidget.BaseModel):
     """The model used store the data necessary to display bookmarks.
     """
+    DEFAULT_ROW_SIZE = QtCore.QSize(1, common.BOOKMARK_ROW_HEIGHT())
+    val = settings.local_settings.value(u'widget/bookmarksmodel/rowheight')
+    val = val if val else DEFAULT_ROW_SIZE.height()
+    val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
+    ROW_SIZE = QtCore.QSize(1, val)
 
-    ROW_SIZE = QtCore.QSize(1, common.BOOKMARK_ROW_HEIGHT())
-
-    def __init__(self, parent=None):
-        super(BookmarksModel, self).__init__(parent=parent)
+    def __init__(self, has_threads=True, parent=None):
+        super(BookmarksModel, self).__init__(
+            has_threads=has_threads, parent=parent)
         self.parent_path = (u'.',)
 
-    @initdata
+    @baselistwidget.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -111,14 +104,14 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        dkey = self.data_key()
-
-        _height = common.BOOKMARK_ROW_HEIGHT()
+        task_folder = self.task_folder()
 
         active_paths = settings.local_settings.verify_paths()
         favourites = settings.local_settings.favourites()
         bookmarks = settings.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
+
+        _height = self.ROW_SIZE.height() - common.ROW_SEPARATOR()
 
         for k, v in bookmarks.iteritems():
             if not all(v.values()):
@@ -129,19 +122,14 @@ class BookmarksModel(BaseModel):
 
             if exists:
                 flags = dflags()
-                placeholder_image = images.ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'bookmark_sm', common.ADD, _height)
-                default_thumbnail_image = images.ImageCache.get_rsc_pixmap(
-                    u'bookmark_sm', common.ADD, _height)
-                default_background_color = common.SEPARATOR
             else:
                 flags = dflags() | common.MarkedAsArchived
-
-                placeholder_image = images.ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'remove', common.REMOVE, _height)
-                default_thumbnail_image = images.ImageCache.get_rsc_pixmap(
-                    u'remove', common.REMOVE, _height)
-                default_background_color = common.SEPARATOR
+            placeholder_image = pixmap
+            default_thumbnail_image = pixmap
 
             filepath = file_info.filePath().lower()
 
@@ -159,9 +147,10 @@ class BookmarksModel(BaseModel):
             text = u'{}  |  {}'.format(
                 v[u'job'],
                 v[u'root'],
+                # v[u'root'].split(u'/').pop(),
             )
-            common.Log.info(text)
-            data = self.INTERNAL_MODEL_DATA[dkey][common.FileItem]
+
+            data = self.INTERNAL_MODEL_DATA[task_folder][common.FileItem]
             idx = len(data)
 
             data[idx] = common.DataDict({
@@ -171,6 +160,8 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                 #
+                common.TextSegmentRole: self.get_text_segments(text),
+                #
                 common.EntryRole: [],
                 common.FlagsRole: flags,
                 common.ParentPathRole: (v[u'server'], v[u'job'], v[u'root']),
@@ -179,22 +170,20 @@ class BookmarksModel(BaseModel):
                 common.FileDetailsRole: None,
                 common.SequenceRole: None,
                 common.EntryRole: [],
-                common.FileInfoLoaded: True,
+                common.FileInfoLoaded: False,
                 common.StartpathRole: None,
                 common.EndpathRole: None,
                 #
+                common.FileThumbnailLoaded: False,
                 common.DefaultThumbnailRole: placeholder_image,
-                common.DefaultThumbnailBackgroundRole: default_background_color,
                 common.ThumbnailPathRole: None,
                 common.ThumbnailRole: default_thumbnail_image,
-                common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.FileItem,
-                common.FileInfoLoaded: True,
                 #
-                common.SortByName: text,
-                common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
-                common.SortBySize: file_info.size(),
+                common.SortByNameRole: text,
+                common.SortByLastModifiedRole: file_info.lastModified().toMSecsSinceEpoch(),
+                common.SortBySizeRole: file_info.size(),
                 #
                 common.AssetCountRole: 0,
                 #
@@ -227,19 +216,6 @@ class BookmarksModel(BaseModel):
                 flags = flags | v if v is not None else flags
                 data[idx][common.FlagsRole] = flags
 
-                # Thumbnail
-                data[idx][common.ThumbnailPathRole] = db.thumbnail_path(
-                    data[idx][QtCore.Qt.StatusTipRole])
-                image = images.ImageCache.get(
-                    data[idx][common.ThumbnailPathRole], _height, overwrite=False)
-                if image:
-                    if not image.isNull():
-                        color = images.ImageCache.get(
-                            data[idx][common.ThumbnailPathRole],
-                            u'BackgroundColor')
-                        data[idx][common.ThumbnailRole] = image
-                        data[idx][common.ThumbnailBackgroundRole] = color
-
                 # Todos are a little more convoluted - the todo count refers to
                 # all the current outstanding todos af all assets, including
                 # the bookmark itself
@@ -262,12 +238,18 @@ class BookmarksModel(BaseModel):
         self.activeChanged.emit(self.active_index())
 
     def __resetdata__(self):
-        self.INTERNAL_MODEL_DATA[self.data_key()] = common.DataDict({
+        self.INTERNAL_MODEL_DATA[self.task_folder()] = common.DataDict({
             common.FileItem: common.DataDict({}),
             common.SequenceItem: common.DataDict({}),
         })
         self.__initdata__()
         self.endResetModel()
+
+    def get_default_thumbnails(self, overwrite=False):
+        d = super(BookmarksModel, self).get_default_thumbnails(overwrite=overwrite)
+        h = self.ROW_SIZE.height() - common.ROW_SEPARATOR()
+        d[u'placeholder'] = images.ImageCache.get_rsc_pixmap(u'bookmark_sm', common.ADD, h)
+        return d
 
     def update_description(self, db, data):
         t = u'properties'
@@ -295,15 +277,14 @@ class BookmarksModel(BaseModel):
                 int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
         )
 
-        desc = u'{server}  |  {count} assets{info}'.format(
-            server=data[common.ParentPathRole][0].strip().strip(
-                u'/').strip('\\'),
-            count=data[common.AssetCountRole],
-            info=u'\n{}'.format(info),
+        c = data[common.AssetCountRole]
+        desc = u'{count}{info}'.format(
+            count=u'{} assets'.format(c) if c else u'',
+            info=u'\n' + info if c else info,
         )
         data[common.DescriptionRole] = desc
 
-    def data_key(self):
+    def task_folder(self):
         """Data keys are only implemented on the FilesModel but need to return a
         value for compatibility other functions.
 
@@ -317,29 +298,43 @@ class BookmarksModel(BaseModel):
         """
         return common.FileItem
 
-    def reset_thumbnails(self):
-        pass
+    def get_text_segments(self, text):
+        """Returns a tuple of text and colour information to be used to mimick
+        rich-text like colouring of individual text elements.
 
-    def initialise_threads(self):
-        pass
+        Used by the delegate to represent the job name and root folder.
 
-    def init_generate_thumbnails_enabled(self):
-        self._generate_thumbnails_enabled = False
+        """
+        if not text:
+            return {}
 
-    def generate_thumbnails_enabled(self):
-        return False
+        text = text.strip().strip(u'/').strip(u'\\')
+        if not text:
+            return {}
 
-    def reset_file_info_loaded(self):
-        pass
+        d = {}
+        v = text.split(u'|')
+        for i, s in enumerate(v):
 
-    def reset_thread_worker_queues(self):
-        pass
+            if i == 0:
+                c = common.FAVOURITE.darker(250)
+            else:
+                c = common.TEXT
 
+            _v = s.split(u'/')
+            for _i, _s in enumerate(_v):
+                _s = _s.upper().strip()
+                d[len(d)] = (_s, c)
+                if _i < (len(_v) - 1):
+                    d[len(d)] = (u' / ', common.FAVOURITE.darker(250))
+            if i < (len(v) - 1):
+                d[len(d)] = (u'   |    ', common.FAVOURITE.darker(250))
+        return d
 
-class BookmarksWidget(BaseInlineIconWidget):
+class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
     """The view used to display the contents of a ``BookmarksModel`` instance."""
     SourceModel = BookmarksModel
-    Delegate = BookmarksWidgetDelegate
+    Delegate = delegate.BookmarksWidgetDelegate
     ContextMenu = BookmarksWidgetContextMenu
 
     def __init__(self, parent=None):
@@ -360,13 +355,31 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.manage_bookmarks.widget().bookmark_list.bookmarkRemoved.connect(_update)
         self.resized.connect(self.manage_bookmarks.setGeometry)
 
-    def buttons_hidden(self):
-        """Returns the visibility of the inline icon buttons."""
-        return False
-
     def showEvent(self, event):
         self.manage_bookmarks.resize(self.viewport().geometry().size())
         super(BookmarksWidget, self).showEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
+
+        if not index.isValid():
+            return
+        if index.flags() & common.MarkedAsArchived:
+            return
+
+        rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+
+        if rectangles[delegate.AddAssetRect].contains(cursor_position):
+            self.show_add_asset_widget()
+        elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
+            self.show_bookmark_properties_widget()
+        else:
+            super(BookmarksWidget, self).mouseReleaseEvent(event)
 
     def inline_icons_count(self):
         """The number of row-icons an item has."""
@@ -457,57 +470,25 @@ class BookmarksWidget(BaseInlineIconWidget):
         settings.local_settings.setValue(u'activepath/root', root)
         settings.local_settings.verify_paths()  # Resetting invalid paths
 
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
-        index = self.indexAt(cursor_position)
-
-        if not index.isValid():
-            return
-        if index.flags() & common.MarkedAsArchived:
-            return
-
-        rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
-
-        if rectangles[delegate.AddAssetRect].contains(cursor_position):
-            self.show_add_asset_widget()
-        elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
-            self.show_bookmark_properties_widget()
-        else:
-            super(BookmarksWidget, self).mouseReleaseEvent(event)
-
-    def mouseMoveEvent(self, event):
-        self.reset_multitoggle()
-        super(BookmarksWidget, self).mouseMoveEvent(event)
-        self.reset_multitoggle()
-
     def toggle_item_flag(self, index, flag, state=None):
-        if not index.isValid():
-            return
-
         if flag == common.MarkedAsArchived:
             if hasattr(index.model(), 'sourceModel'):
-                source_index = self.model().mapToSource(index)
+                index = self.model().mapToSource(index)
 
             model = self.model()
-            data = model.sourceModel().model_data()[source_index.row()]
-            data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
+            data = model.sourceModel().model_data()[index.row()]
 
-            # There's no reason to do this but for consistency' sake
+            data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
             self.update_row(weakref.ref(data))
-            #
+
             self.manage_bookmarks.widget().remove_saved_bookmark(
                 *index.data(common.ParentPathRole))
+
             bookmark_db.remove_db(index)
 
-            if self.model().sourceModel().active_index() == source_index:
+            if self.model().sourceModel().active_index() == index:
                 self.unset_activated()
-
-            settings.local_settings.verify_paths()
-
-            return
-
-        super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)
+            else:
+                settings.local_settings.verify_paths()
+        else:
+            super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)

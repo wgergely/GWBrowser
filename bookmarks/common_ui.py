@@ -1,42 +1,53 @@
 # -*- coding: utf-8 -*-
-"""Common ui elements.
+"""Common UI methods used accross the product."""
 
-"""
 from PySide2 import QtWidgets, QtGui, QtCore
+
 import bookmarks.common as common
 import bookmarks.images as images
 
 
 def get_group(parent=None):
-    o = common.INDICATOR_WIDTH()
+    """Utility method for creating a group widget.
+
+    Returns:
+        QGroupBox: group widget.
+
+    """
     grp = QtWidgets.QGroupBox(parent=parent)
+    grp.setMinimumWidth(common.WIDTH() * 0.3)
+    grp.setMaximumWidth(common.WIDTH() * 2.0)
+
     QtWidgets.QVBoxLayout(grp)
+    grp.setSizePolicy(
+        QtWidgets.QSizePolicy.Minimum,
+        QtWidgets.QSizePolicy.Maximum,
+    )
+
+    o = common.INDICATOR_WIDTH()
     grp.layout().setContentsMargins(o, o, o, o)
     grp.layout().setSpacing(o)
     parent.layout().addWidget(grp, 1)
     return grp
 
 
-class NameBase(QtWidgets.QLineEdit):
-    def __init__(self, parent=None, transparent=False):
-        super(NameBase, self).__init__(parent=parent)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding,
-        )
-        self.setAlignment(QtCore.Qt.AlignLeft)
-
-
 def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGHT(), cls=None, vertical=False):
-    """macro for adding a new row"""
+    """Utility method for creating a row widget.
+
+    Returns:
+        QWidget: row widget.
+
+    """
     if cls:
         w = cls(parent=parent)
     else:
         w = QtWidgets.QWidget(parent=parent)
+
     if vertical:
         QtWidgets.QVBoxLayout(w)
     else:
         QtWidgets.QHBoxLayout(w)
+
     w.layout().setContentsMargins(0, 0, 0, 0)
     w.layout().setSpacing(common.INDICATOR_WIDTH())
     w.layout().setAlignment(QtCore.Qt.AlignCenter)
@@ -67,6 +78,12 @@ def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGH
 
 
 def add_label(text, parent=None):
+    """Utility method for creating a label.
+
+    Returns:
+        QLabel: label widget.
+
+    """
     label = QtWidgets.QLabel(text, parent=parent)
     label.setFixedHeight(common.ROW_HEIGHT())
     label.setSizePolicy(
@@ -78,7 +95,13 @@ def add_label(text, parent=None):
 
 
 def add_line_edit(label, parent=None):
-    w = NameBase(transparent=True, parent=parent)
+    """Utility method for adding a line editor.
+
+    Returns:
+        QLineEdit: line editor widget.
+
+    """
+    w = LineEdit(parent=parent)
     w.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
     w.setPlaceholderText(label)
     parent.layout().addWidget(w, 1)
@@ -86,6 +109,12 @@ def add_line_edit(label, parent=None):
 
 
 def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
+    """Utility method for adding a description field.
+
+    Returns:
+        QLabel: the added QLabel.
+
+    """
     row = add_row(label, padding=padding, height=None, parent=parent)
     label = QtWidgets.QLabel(text, parent=parent)
     label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
@@ -99,9 +128,23 @@ def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
     row.layout().addWidget(label, 1)
     parent.layout().addWidget(row)
 
+    return label
+
+
+class LineEdit(QtWidgets.QLineEdit):
+    """Custom line edit widget with a single underline."""
+
+    def __init__(self, parent=None):
+        super(LineEdit, self).__init__(parent=parent)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
+        self.setAlignment(QtCore.Qt.AlignLeft)
+
 
 class PaintedButton(QtWidgets.QPushButton):
-    """Custom button class for used for the Ok and Cancel buttons."""
+    """Custom button class."""
 
     def __init__(self, text, width=None, parent=None):
         super(PaintedButton, self).__init__(text, parent=parent)
@@ -159,7 +202,7 @@ class PaintedButton(QtWidgets.QPushButton):
 
 
 class PaintedLabel(QtWidgets.QLabel):
-    """Used for static informative text."""
+    """QLabel used for static aliased label."""
 
     def __init__(self, text, color=common.TEXT, size=common.MEDIUM_FONT_SIZE(), parent=None):
         super(PaintedLabel, self).__init__(text, parent=parent)
@@ -170,7 +213,8 @@ class PaintedLabel(QtWidgets.QLabel):
         self.update_size()
 
     def update_size(self):
-        metrics = QtGui.QFontMetrics(common.font_db.primary_font(font_size=self._size))
+        metrics = QtGui.QFontMetrics(
+            common.font_db.primary_font(font_size=self._size))
         self.setFixedHeight(metrics.height())
         self.setFixedWidth(metrics.width(self._text) * 1.01)
 
@@ -289,6 +333,9 @@ class ClickableIconButton(QtWidgets.QLabel):
 
 
 class MessageBox(QtWidgets.QDialog):
+    """Informative message box used for notifying the user of an event.
+
+    """
     primary_color = QtGui.QColor(50, 50, 190, 255)
     secondary_color = common.FAVOURITE
     icon = u'icon_bw'
@@ -330,7 +377,8 @@ QWidget {{
 }}
             """.format(
             SIZE=common.LARGE_FONT_SIZE(),
-            FAMILY=common.font_db.primary_font(common.MEDIUM_FONT_SIZE()).family(),
+            FAMILY=common.font_db.primary_font(
+                common.MEDIUM_FONT_SIZE()).family(),
             TEXT=common.rgb(self.secondary_color.darker(150)),
             BG=common.rgb(self.secondary_color)))
 
@@ -400,10 +448,10 @@ QWidget {{
         long_text_row.layout().addWidget(self.long_text_label)
         self.long_text_label.setStyleSheet(
             u'padding:{m}px;background-color: rgba({c}); font-size:{s}px;'.format(
-            m=common.MARGIN(),
-            c=common.rgb(self.secondary_color),
-            s=common.SMALL_FONT_SIZE()
-        ))
+                m=common.MARGIN(),
+                c=common.rgb(self.secondary_color),
+                s=common.SMALL_FONT_SIZE()
+            ))
         self.long_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
         buttons_row = get_row(parent=columns)
@@ -460,6 +508,9 @@ QWidget {{
 
 
 class ErrorBox(MessageBox):
+    """Informative message box used for notifying the user of an error.
+
+    """
     primary_color = QtGui.QColor(190, 50, 50, 255)
     secondary_color = common.REMOVE
     icon = u'close'
@@ -469,6 +520,9 @@ class ErrorBox(MessageBox):
 
 
 class OkBox(MessageBox):
+    """Informative message box used for notifying the user of success.
+
+    """
     primary_color = QtGui.QColor(70, 160, 100, 255)
     secondary_color = QtGui.QColor(70, 180, 130, 255)  # 90, 200, 155)
     icon = u'check'

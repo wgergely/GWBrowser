@@ -465,7 +465,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
 
-        self.name_widget = common_ui.NameBase(parent=self)
+        self.name_widget = common_ui.LineEdit(parent=self)
         self.name_widget.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
         self.name_widget.setPlaceholderText(
             u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
@@ -518,7 +518,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             common_ui.ErrorBox(
                 h, u'Destination has selected!',
                 parent=self
-            ).exec_()
+            ).open()
             return
 
         file_info = QtCore.QFileInfo(self.path())
@@ -527,21 +527,21 @@ class TemplatesWidget(QtWidgets.QGroupBox):
                 h, u'Destination folder "{}" does not exist!'.format(
                     file_info.filePath()),
                 parent=self
-            ).exec_()
+            ).open()
             return
         if not file_info.isWritable():
             common_ui.ErrorBox(
                 h, u'Destination folder "{}" is not writable!'.format(
                     file_info.filePath()),
                 parent=self
-            ).exec_()
+            ).open()
             return
 
         if not self.name_widget.text():
             common_ui.ErrorBox(
                 h, u'Enter a name and try again.',
                 parent=self
-            ).exec_()
+            ).open()
             return
 
         file_info = file_info = QtCore.QFileInfo(
@@ -551,7 +551,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             common_ui.ErrorBox(
                 h, u'"{}" already exists!'.format(self.name_widget.text()),
                 parent=self
-            ).exec_()
+            ).open()
             return
 
         model = self.template_list_widget.selectionModel()
@@ -560,7 +560,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
                 h, u'Select {} folder template and try again'.format(
                     self.mode()),
                 parent=self
-            ).exec_()
+            ).open()
             return
 
         index = model.selectedIndexes()[0]
@@ -574,12 +574,14 @@ class TemplatesWidget(QtWidgets.QGroupBox):
                              members=None, pwd=None)
             self.templateCreated.emit(self.name_widget.text())
         except Exception as err:
+            s = u'Error occured creating the {}:\n{}'.format(
+                self.mode(), err)
             common_ui.ErrorBox(
-                h, u'Error occured creating the {}:\n{}'.format(
-                    self.mode(), err),
+                h, s,
                 parent=self
-            ).exec_()
-            return
+            ).open()
+            common.Log.error(s)
+            raise
         finally:
             self.name_widget.setText(u'')
 
@@ -1419,14 +1421,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             common_ui.ErrorBox(
                 u'Error.', u'"{}" does not exist'.format(server),
                 parent=self
-            ).exec_()
+            ).open()
             return
         if not file_info.isReadable():
             self.job_combobox.blockSignals(False)
             common_ui.ErrorBox(
                 u'Error.', u'"{}" is not readable'.format(server),
                 parent=self
-            ).exec_()
+            ).open()
             return
 
         n = 0

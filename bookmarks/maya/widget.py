@@ -35,10 +35,11 @@ from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 from bookmarks.mainwidget import MainWidget
 import bookmarks.common_ui as common_ui
 import bookmarks.addfilewidget as addfilewidget
+import bookmarks.defaultpaths as defaultpaths
 
 
 ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
-CAPTURE_PATH = u'viewport_captures'
+CAPTURE_PATH = u'captures'
 
 
 maya_button = None
@@ -1702,7 +1703,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.file(rename=file_path)
             cmds.file(force=True, save=True, type=u'mayaAscii')
             fileswidget = self.mainwidget.stackedwidget.widget(2)
-            fileswidget.new_file_added(widget.data_key(), file_path)
+            fileswidget.new_file_added(widget.task_folder(), file_path)
             return file_path
 
         except Exception as e:
@@ -2081,7 +2082,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         template = template if template else ALEMBIC_EXPORT_PATH
         file_path = unicode(template).format(
             workspace=cmds.workspace(q=True, fn=True),
-            exports=common.ExportsFolder,
+            exports=defaultpaths.TASK_FOLDERS[u'export'][u'value'],
             set=set_name
         )
 
@@ -2126,7 +2127,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 start,
                 end
             )
-            fileswidget.new_file_added(widget.data_key(), file_path)
+            fileswidget.new_file_added(widget.task_folder(), file_path)
             return file_path
         except Exception as e:
             s = u'Could not export alembic.'

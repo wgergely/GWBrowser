@@ -48,9 +48,6 @@ class FavouritesModel(FilesModel):
         common.create_temp_dir()
         self.parent_path = common.get_favourite_parent_paths() + (u'.',)
 
-    def data_key(self):
-        return u'.'
-
     def _entry_iterator(self, path):
         """We're using the saved keys to find and return the DirEntries
         corresponding to the saved favourites.
