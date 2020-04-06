@@ -1,5 +1,3 @@
-
-
 # ![alt text][logo] Bookmarks
 
 ### A simple file and asset manager for animation and CG productions.
@@ -7,6 +5,8 @@
 ![alt text](https://img.shields.io/badge/Python-2.7-lightgrey.svg "Python 2.7") ![alt text](https://img.shields.io/badge/Qt-5.6%2B-lightgrey.svg "Qt 5.6+") ![alt text](https://img.shields.io/badge/platform-windows%20%7C%20osx-lightgray.svg "Windows & Mac OS X")
 
 ![alt text](./bookmarks/rsc/docs/tabs.gif "Content is categorised into Bookmarks, assets and files")
+
+#### Bookmarks provides an overview of your shots, the files inside them and any custom notes, thumbnails and descriptions you or your team added. You can use Bookmarks to [create new jobs](##getting-started), add assets to them, or [browse existing content](##content-structure).
 
 ## Features
 
@@ -22,16 +22,62 @@
 
 
 
-Bookmarks provides an overview of your shots, the files inside them and any custom notes, thumbnails and descriptions you or your team added. You can use Bookmarks to create new jobs, add assets to them, or browse existing content.
 
 
-#####  Adding thumbnails and descriptions is easy...
 
-![alt text](./bookmarks/rsc/docs/adding_thumbnails_gif_8fps.gif "Adding thumbnails is easy")
-![alt text](./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif "And so is adding descriptions")
 
-#####  ...as is archiving items:
-![alt text](./bookmarks/rsc/docs/archiving_items.gif "And so is adding descriptions")
+| Adding thumbnails and descriptions is easy... |
+| -- |
+| ![alt text](./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif "And so is adding descriptions") |
+
+| ...as is archiving items | ![alt text](./bookmarks/rsc/docs/archive.gif "And so is adding descriptions") |
+| -- | -- |
+
+
+## ![alt text][maya] mBookmarks (Maya plugin)
+
+Bookmarks replaces Maya's **_Set Project_** and uses assets to set the current workspace. Use bookmarks to import and export footage, caches and scenes, or to apply the default bookmark _frame rate_, _frame range_ and _resolution_ to the current scene.
+
+![alt text](./bookmarks/rsc/docs/maya.gif "And so is adding descriptions")
+
+> Bookmarks comes with a it's file saver. It can name and version your scenes based on current bookmark, asset and mode selections.
+> You can also use it to create named template files when not running Bookmarks from inside a DCC.
+
+
+## ![alt text][slack] Slack
+
+To send messages using Slack configure your bookmark with a valid Slack OAuth token.
+
+The tokens are generated automatically when you install a new app to your workspace.
+[See guides on Slack](mailto:hello@gergely-wootsch.com) on how to add a new app. Make sure to enable the following scopes:
+
+| OAuth Scopes |`channels:read`<br>`chat:write`<br> `chat:write.public`<br>`groups:read`<br>`users:read` |
+|--|--|
+
+
+## Getting started
+
+`Right-click` anywhere on the main window and select ![alt text][add] `Manage bookmarks`. Use the window to configure servers, create new jobs and bookmark folders.
+
+![alt text](./bookmarks/rsc/docs/managing_bookmarks_6fps.gif "Managing bookmarks")
+
+To add a server, click the ![alt text][add] icon next to "Servers".
+
+
+``` python
+  # The server is usually a location on a central network
+  # location but can be any folder accessible to your computer, eg.
+  # \\MY-SERVER\JOBS or C:\JOBS /volumes/server/jobs can all be valid.
+```
+
+To create a new job, click ![alt text][add] next to _Jobs_.
+As templates are simple zip files you can add your own by draggin any zip file where
+the templates are listed, or select `right-click` -> `Add template...`</p>
+
+If the job template already has bookmark folders they will be listed below.
+Click the bookmark to add or remove it.
+To mark a new folder as a bookmark, click ![alt text][add] by the _Bookmarks_ label.
+
 
 
 ## Content Structure
@@ -53,52 +99,6 @@ Content is organised into three separate sections: `Bookmarks`, `Assets` & `File
   # speeds, etc.
 ```
 
-## Getting started
-
-`Right-click` anywhere on the main window and select ![alt text][add] `Manage bookmarks`. Use the window to configure servers, create new jobs and bookmark folders.
-
-![alt text](./bookmarks/rsc/docs/managing_bookmarks_6fps.gif "Managing bookmarks")
-
-To add a server, click the ![alt text][add] icon next to "Servers".
-
-
-``` python
-  # The server is usually a location on a central network
-  # location but can be any folder accessible to your computer, eg.
-  # \\MY-SERVER\JOBS or C:\JOBS /volumes/server/jobs can all be valid.
-```
-
-
-
-To create a new job, click ![alt text][add] next to _Jobs_.
-As templates are simple zip files you can add your own by draggin any zip file where
-the templates are listed, or select `right-click` -> `Add template...`</p>
-
-If the job template already has bookmark folders they will be listed below.
-Click the bookmark to add or remove it.
-To mark a new folder as a bookmark, click ![alt text][add] by the _Bookmarks_ label.
-
-
-## Maya plugin - mBookmarks.py
-
-The Maya plugin replaces Maya's **_Set Project_** and uses Bookmarks' own assets to set the current Workspace.
-
-It also implement a heap of custom methods to deal Maya scene references and exporting/importing caches and scenes.
-
-Bookmarks also comes with a file saver. It names and versions your scenes automatically based on the current bookmark, asset and mode selections.
-
-#### Bookmarks provides a custom file saver...
-![alt text](./bookmarks/rsc/docs/maya_saver.jpg "Managing bookmarks")
-#### ...and methods to import and export files to and from Maya
-![alt text](./bookmarks/rsc/docs/maya_files.jpg "Managing bookmarks")
-
-
-## Slack
-
-To use Slack you will have to create a Slack bot or app and allow it to read channels. See the guides at https://api.slack.com/apps.
-To send messages make sure you activate all the needed scopes, as of writing this guide these were the following:
-
-![alt text](./bookmarks/rsc/docs/slack_scopes.jpg "Slack scopes")
 
 ## Credits and Acknowledgments
 
@@ -110,3 +110,5 @@ To send messages make sure you activate all the needed scopes, as of writing thi
 
 [logo]: ./bookmarks/rsc/logo_s.png "Bookmarks: A simple file and asset manager for animation and CG productions"
 [add]: ./bookmarks/rsc/add_button_s.png "Add button"
+[maya]: ./bookmarks/rsc/maya.png "Add button"
+[slack]: ./bookmarks/rsc/slack_color_sm.png "Add button"
