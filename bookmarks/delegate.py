@@ -501,12 +501,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     @paintmethod
     def paint_archived(self, *args):
+        """Paints a gray overlay when an item is archived."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        if archived:
-            rect = QtCore.QRect(rectangles[IndicatorRect])
-            rect.setRight(option.rect.right())
-            painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 200)))
-            painter.drawRect(rect)
+        if not archived:
+            return
+        painter.setBrush(common.SEPARATOR)
+        painter.setOpacity(0.8)
+        painter.drawRect(option.rect)
 
 
 class BookmarksWidgetDelegate(BaseDelegate):
@@ -783,7 +784,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         text = index.data(common.DescriptionRole)
         text = text if text else u''
         font = common.font_db.primary_font(
-            font_size=common.MEDIUM_FONT_SIZE() * (0.9))
+            font_size=common.MEDIUM_FONT_SIZE())
         painter.setFont(font)
         _metrics = QtGui.QFontMetrics(font)
         text = _metrics.elidedText(
@@ -1177,8 +1178,7 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         painter.setOpacity(1.0)
-        color = common.TEXT if hover else common.SECONDARY_TEXT
-        color = common.TEXT_SELECTED if selected else color
+        color = common.TEXT_SELECTED if selected or hover else common.ADD
 
         text = index.data(common.DescriptionRole)
         width = metrics.width(text)
