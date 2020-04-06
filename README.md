@@ -1,3 +1,5 @@
+<center>
+
 # ![alt text][logo] Bookmarks
 
 ### A simple file and asset manager for animation and CG productions.
@@ -103,9 +105,11 @@ Content is organised into three separate sections: `Bookmarks`, `Assets` & `File
 
 ## Credits and Acknowledgments
 
-(c) Gergely Wootsch, 2020.<br>
-[Email Me](mailto:hello@gergely-wootsch.com
-)<br>
+(c) Gergely Wootsch, 2020.
+<br>
+[Email](mailto:hello@gergely-wootsch.com
+)
+<br>
 [gergely-wootsch.com](http://gergely-wootsch.com)
 
 
@@ -113,3 +117,5 @@ Content is organised into three separate sections: `Bookmarks`, `Assets` & `File
 [add]: ./bookmarks/rsc/add_button_s.png "Add button"
 [maya]: ./bookmarks/rsc/maya.png "Add button"
 [slack]: ./bookmarks/rsc/slack_color_sm.png "Add button"
+
+</center>
