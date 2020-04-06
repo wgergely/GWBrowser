@@ -10,31 +10,32 @@
 
 ## Features
 
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Create jobs and assets using custom folder templates
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/todo.png" height=20>Annotate items using thumbnails, TODOs, tags and descriptions
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/archived.png" height=20>Archive superflous items without touching underlying files
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/active.png" height=20>Preview easily most image formats and Alembic archives
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Reveal files in Finder / Explorer
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Drag & Drop capable file-browser
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/rv.png" height=20>Push footage to **Shotgun RV** from within Bookmarks
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/slack_color.png" height=20>Send file paths and messages directly with **Slack**
-* <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>Dedicated Maya plugin
-
-
-
-
-
-
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Create jobs and assets using custom folder templates
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/todo.png" height=20>Annotate items using thumbnails, TODOs, tags and descriptions
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/archived.png" height=20>Archive superflous items without touching underlying files
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/active.png" height=20>Preview easily most image formats and Alembic archives
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Reveal files in Finder / Explorer
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/rv.png" height=20>Push footage to **Shotgun RV** from within Bookmarks
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/slack_color.png" height=20>[Send file paths and messages directly with **Slack**](##slack)
+<br>
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>[Dedicated Maya plugin](##bookmarks-maya-plugin)
 
 | Adding thumbnails and descriptions is easy... |
 | -- |
-| ![alt text](./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif "And so is adding descriptions") |
+| ![alt text](./bookmarks/rsc/docs/adding_thumbnails_gif_8fps.gif "Adding thumbnails and descriptions is easy...") |
+| ![alt text](./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif "Adding thumbnails and descriptions is easy...") |
 
 | ...as is archiving items | ![alt text](./bookmarks/rsc/docs/archive.gif "And so is adding descriptions") |
 | -- | -- |
 
 
-## ![alt text][maya] mBookmarks (Maya plugin)
+## ![alt text][maya] Bookmarks Maya Plugin
 
 Bookmarks replaces Maya's **_Set Project_** and uses assets to set the current workspace. Use bookmarks to import and export footage, caches and scenes, or to apply the default bookmark _frame rate_, _frame range_ and _resolution_ to the current scene.
 
@@ -55,7 +56,7 @@ The tokens are generated automatically when you install a new app to your worksp
 |--|--|
 
 
-## Getting started
+## Getting Started
 
 `Right-click` anywhere on the main window and select ![alt text][add] `Manage bookmarks`. Use the window to configure servers, create new jobs and bookmark folders.
 
