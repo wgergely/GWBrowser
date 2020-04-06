@@ -197,38 +197,52 @@ def psize(n):
 
 
 def proxy_path(v):
-    """Returns a path where the original sequence element has been
-    replaced with `[0]`.
+    """Encompasses the logic used to associate preferences with items.
 
-    Accepts a data dict, index or filepath string.
+    Sequence items need ageneric key to save values as the sequence length might
+    change. Any `FileItem` will use their filepath as the key and
+    SequenceItems will use `[0]` in place of their frame-range.
+
+    Args:
+        v (QModelIndex, dict or unicode): Data dict, index or filepath string.
+
+    Returns:
+        unicode: The key used to store the items information in the local
+        preferences and the bookmarks database.
 
     """
     if isinstance(v, dict):
-        m = v[SequenceRole]
         k = v[QtCore.Qt.StatusTipRole]
-        if m:
-            k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
-        return k
+
+        if v[TypeRole] == FileItem:
+            return k
+
+        m = v[SequenceRole]
+        if not m:
+            return k
+
+        return m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
 
     if isinstance(v, QtCore.QModelIndex):
-        m = v.data(SequenceRole)
         k = v.data(QtCore.Qt.StatusTipRole)
-        if m:
-            k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
-        return k
+
+        if v.data(TypeRole) == FileItem:
+            return k
+
+        m = v.data(SequenceRole)
+        if not m:
+            return k
+        return m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
 
     if not (isinstance, unicode):
-        raise ValueError(
-            'Invalid type. Expected <type \'QModelIndex\'> or `<type \'unicode\'>')
+        s = u'Invalid type. Expected `<type \'unicode\'>'
+        Log.error(s)
+        raise ValueError(s)
 
-    m = get_sequence(v)
-    if m:
-        k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
-        return k
     m = is_collapsed(v)
     if m:
-        k = m.group(1) + u'[0]' + m.group(3)
-        return k
+        return m.group(1) + u'[0]' + m.group(3)
+
     return v
 
 

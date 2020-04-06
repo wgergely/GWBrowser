@@ -44,13 +44,19 @@ class DescriptionEditorWidget(common_ui.LineEdit):
             self.hide()
             return
 
-        if index.data(common.TypeRole) == common.FileItem:
-            k = index.data(QtCore.Qt.StatusTipRole)
-        elif index.data(common.TypeRole) == common.SequenceItem:
-            k = common.proxy_path(index)
+        k = common.proxy_path(index)
 
-        db = bookmark_db.get_db(index)
-        db.setValue(k, u'description', self.text())
+        try:
+            db = bookmark_db.get_db(index)
+            db.setValue(k, u'description', self.text())
+        except Exception as e:
+            common_ui.ErrorBox(
+                u'Error occured saving the description.',
+                u'{}'.format(e)
+            ).open()
+            common.Log.error()
+            raise
+
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
         data[common.DescriptionRole] = self.text()

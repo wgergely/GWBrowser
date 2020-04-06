@@ -1313,7 +1313,7 @@ class BaseListWidget(QtWidgets.QListView):
     def toggle_item_flag(self, index, flag, state=None):
         """Sets the index's `flag` value based `state`.
 
-        We're using this mark items archived, or favourite and save the changes
+        We're using the method to mark items archived, or favourite and save the changes
         to the database or the local config file.
 
         Args:
@@ -1413,10 +1413,7 @@ class BaseListWidget(QtWidgets.QListView):
             mode = state
 
         # Sequence-agnosic key based on the file-name
-        if data[common.SequenceRole]:
-            k = common.proxy_path(data)
-        else:
-            k = data[QtCore.Qt.StatusTipRole]
+        k = common.proxy_path(data)
 
         _set_flag(k, mode, data, flag, commit=True)
 

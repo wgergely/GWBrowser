@@ -21,7 +21,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.common as common
-from bookmarks.common_ui import add_row, ClickableIconButton, PaintedLabel
+import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 
 
@@ -391,7 +391,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             QtGui.QDesktopServices.openUrl(url)
 
 
-class RemoveNoteButton(ClickableIconButton):
+class RemoveNoteButton(common_ui.ClickableIconButton):
     def __init__(self, parent=None):
         super(RemoveNoteButton, self).__init__(
             u'remove',
@@ -814,7 +814,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         # Top row
         height = common.ROW_HEIGHT() * 0.6666
-        row = add_row(None, height=height, parent=self)
+        row = common_ui.add_row(None, height=height, parent=self)
         row.layout().addSpacing(height * 0.33)
 
         def paintEvent(event):
@@ -829,7 +829,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         # row.paintEvent = paintEvent
         # Thumbnail
-        self.add_button = ClickableIconButton(
+        self.add_button = common_ui.ClickableIconButton(
             u'add',
             (common.ADD, common.ADD),
             height,
@@ -839,12 +839,12 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         # Name label
         text = u'Notes and Tasks'
-        label = PaintedLabel(text, color=common.SEPARATOR,
+        label = common_ui.PaintedLabel(text, color=common.SEPARATOR,
                              size=common.LARGE_FONT_SIZE(), parent=self)
         row.layout().addWidget(label, 1)
         row.layout().addStretch(1)
 
-        self.refresh_button = ClickableIconButton(
+        self.refresh_button = common_ui.ClickableIconButton(
             u'refresh',
             (QtGui.QColor(0, 0, 0, 255), QtGui.QColor(0, 0, 0, 255)),
             height,
@@ -854,7 +854,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         self.refresh_button.clicked.connect(self.refresh)
         row.layout().addWidget(self.refresh_button, 0)
 
-        self.remove_button = ClickableIconButton(
+        self.remove_button = common_ui.ClickableIconButton(
             u'close',
             (QtGui.QColor(0, 0, 0, 255), QtGui.QColor(0, 0, 0, 255)),
             height,
@@ -864,9 +864,9 @@ class TodoEditorWidget(QtWidgets.QDialog):
         self.remove_button.clicked.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
 
-        row = add_row(None, height=height, parent=self)
+        row = common_ui.add_row(None, height=height, parent=self)
         text = u'Add new note'
-        label = PaintedLabel(text, color=common.SECONDARY_TEXT,
+        label = common_ui.PaintedLabel(text, color=common.SECONDARY_TEXT,
                              size=common.SMALL_FONT_SIZE(), parent=self)
 
         row.layout().addWidget(self.add_button, 0)
@@ -915,9 +915,14 @@ class TodoEditorWidget(QtWidgets.QDialog):
                 k = common.proxy_path(self.index)
 
             v = db.value(k, u'notes')
-        except:
-            common.Log.error(u'Error getting notes')
-            return
+        except Exception as e:
+            s = u'Error getting notes'
+            common_ui.ErrorBox(
+                s,
+                u'{}'.format(e)
+            )
+            common.Log.error(s)
+            raise
 
         if not v:
             return
@@ -1127,17 +1132,19 @@ class TodoEditorWidget(QtWidgets.QDialog):
                 u'text': editor.document().toHtml(),
             }
 
-        if self.index.data(common.TypeRole) == common.FileItem:
-            k = self.index.data(QtCore.Qt.StatusTipRole)
-        elif self.index.data(common.TypeRole) == common.SequenceItem:
-            k = common.proxy_path(self.index)
+        k = common.proxy_path(self.index)
 
         try:
             db = bookmark_db.get_db(self.index)
             v = json.dumps(data, ensure_ascii=False, encoding='utf-8')
             v = base64.b64encode(v.encode('utf-8'))
             db.setValue(k, u'notes', v)
-        except:
+        except Exception as e:
+            common.ErrorBox(
+                u'Failed to save ToDos',
+                u'{}'.format(e)
+            )
+            common.Log.error()
             raise
         finally:
             todo_count = len([k for k in data if not data[k][u'checked']])

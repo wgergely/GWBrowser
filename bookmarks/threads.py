@@ -242,10 +242,7 @@ class InfoWorker(BaseWorker):
         # DATABASE --BEGIN--
         with db.transactions():
             # Item description
-            if ref()[common.TypeRole] == common.FileItem:
-                k = ref()[QtCore.Qt.StatusTipRole]
-            elif ref()[common.TypeRole] == common.SequenceItem:
-                k = common.proxy_path(ref())
+            k = common.proxy_path(ref())
 
             # Description
             v = db.value(k, u'description')
