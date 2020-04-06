@@ -6,7 +6,7 @@
 
 ![alt text](./bookmarks/rsc/docs/tabs.gif "Content is categorised into Bookmarks, assets and files")
 
-#### Bookmarks provides an overview of your shots, the files inside them and any custom notes, thumbnails and descriptions you or your team added. You can use Bookmarks to [create new jobs](##getting-started), add assets to them, or [browse existing content](##content-structure).
+#### Bookmarks provides an overview of your shots, the files inside them and any custom notes, thumbnails and descriptions you or your team added. You can use Bookmarks to [create new jobs](#getting-started), add assets to them, or [browse existing content](#content-structure).
 
 ## Features
 
@@ -22,9 +22,9 @@
 <br>
 <img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/rv.png" height=20>Push footage to **Shotgun RV** from within Bookmarks
 <br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/slack_color.png" height=20>[Send file paths and messages directly with **Slack**](##slack)
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/slack_color.png" height=20>[Send file paths and messages directly with **Slack**](#slack)
 <br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>[Dedicated Maya plugin](##bookmarks-maya-plugin)
+<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>[Dedicated Maya plugin](#bookmarks-maya-plugin)
 
 | Adding thumbnails and descriptions is easy... |
 | -- |
