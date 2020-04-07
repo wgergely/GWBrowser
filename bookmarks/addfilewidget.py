@@ -26,6 +26,21 @@ The path is generated using the tokens set in ``FILE_NAME_PATTERN``. The
 destination folder will also depend on the task the file is associated with.
 These task, or modes, are defined in ``SCENE_FOLDERS`` and ``EXPORT_FOLDERS``.
 
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 import functools
 import uuid
@@ -35,7 +50,6 @@ import bookmarks.bookmark_db as bookmark_db
 import bookmarks.settings as settings
 import bookmarks.common as common
 import bookmarks._scandir as _scandir
-import bookmarks.editors as editors
 import bookmarks.common_ui as common_ui
 from bookmarks.bookmarkswidget import BookmarksModel
 from bookmarks.assetswidget import AssetModel
@@ -930,7 +944,7 @@ class ThumbnailButton(common_ui.ClickableIconButton):
             self.update()
 
         rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
-        widget = editors.ThumbnailsWidget(parent=self.parent())
+        widget = common_ui.ThumbnailsWidget(parent=self.parent())
         widget.thumbnailSelected.connect(_add_thumbnail_from_library)
         widget.show()
         widget.setFocus(QtCore.Qt.PopupFocusReason)
@@ -1677,7 +1691,7 @@ class AddFileWidget(QtWidgets.QDialog):
         return self._file_path
 
     def task_folder(self):
-        """The currently set data key."""
+        """The currently set task folder."""
         if self._file_to_increment:
             return None
 

@@ -130,11 +130,30 @@ class TestSQLite(unittest.TestCase):
         self.assertEqual(self.db.row_id(1), 1)
 
         self.assertEqual(self.db.row_id(u'UPPERCASE'), u'uppercase')
+        self.assertIsInstance(self.db.row_id(u'UPPERCASE'), unicode)
         self.assertEqual(self.db.row_id(u'ŰNICÓDE'), u'űnicóde')
+        self.assertIsInstance(self.db.row_id(u'ŰNICÓDE'), unicode)
         self.assertEqual(self.db.row_id(u'A\\B'), u'a/b')
+        self.assertIsInstance(self.db.row_id(u'A\\B'), unicode)
 
         with self.assertRaises(TypeError):
             self.db.row_id('string')
+
+    def test_thumbnail_path(self):
+        with self.assertRaises(TypeError):
+            self.db.row_id('string')
+
+        a = self.db.thumbnail_path(u'UPPERCASE')
+        b = self.db.thumbnail_path(u'uppercase')
+        self.assertEqual(a, b)
+        a = self.db.thumbnail_path(u'ŰNICÓDE')
+        b = self.db.thumbnail_path(u'űnicóde')
+        self.assertEqual(a, b)
+
+        a = self.db.thumbnail_path(u'A\\B')
+        b = self.db.thumbnail_path(u'A/B')
+        self.assertEqual(a, b)
+
 
     def test_set_get(self):
         k = 'description'
@@ -668,13 +687,13 @@ class TestAddFileWidget(unittest.TestCase):
 if __name__ == '__main__':
     loader = unittest.TestLoader()
     cases = (
-        loader.loadTestsFromTestCase(TestImports),
-        loader.loadTestsFromTestCase(TestImages),
+        # loader.loadTestsFromTestCase(TestImports),
+        # loader.loadTestsFromTestCase(TestImages),
         loader.loadTestsFromTestCase(TestSQLite),
-        loader.loadTestsFromTestCase(TestLocalSettings),
-        loader.loadTestsFromTestCase(TestAddFileWidget),
-        loader.loadTestsFromTestCase(TestBookmarksWidget),
-        loader.loadTestsFromTestCase(TestModules),
+        # loader.loadTestsFromTestCase(TestLocalSettings),
+        # loader.loadTestsFromTestCase(TestAddFileWidget),
+        # loader.loadTestsFromTestCase(TestBookmarksWidget),
+        # loader.loadTestsFromTestCase(TestModules),
     )
     suite = unittest.TestSuite(cases)
     unittest.TextTestRunner(verbosity=2, failfast=True).run(suite)

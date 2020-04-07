@@ -1,4 +1,20 @@
-"""Preferences"""
+"""Application preferences.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -240,7 +256,8 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
         ##############################
         row = common_ui.add_row(u'Update', parent=grp)
-        self.check_updates = common_ui.PaintedButton(u'Check for Updates', parent=row)
+        self.check_updates = common_ui.PaintedButton(
+            u'Check for Updates', parent=row)
         self.show_help = common_ui.PaintedButton(u'Help', parent=row)
         row.layout().addWidget(self.check_updates)
         row.layout().addWidget(self.show_help)
@@ -345,7 +362,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.layout().addWidget(label)
         grp = common_ui.get_group(parent=self)
         o = common.MARGIN()
-        grp.layout().setContentsMargins(o,o,o,o)
+        grp.layout().setContentsMargins(o, o, o, o)
         # row = common_ui.add_row(u'Version', parent=grp, height=None)
         s = u'\n'.join(bookmarks.get_info())
         common_ui.add_description(s, label=None, parent=grp)
@@ -476,7 +493,8 @@ class SaverSettingsWidget(BaseSettingsWidget):
             scroll_area.setAttribute(QtCore.Qt.WA_TranslucentBackground)
             grp.layout().addWidget(scroll_area)
 
-            _row = common_ui.add_row(None, vertical=True, padding=None, height=None, parent=grp)
+            _row = common_ui.add_row(
+                None, vertical=True, padding=None, height=None, parent=grp)
             _row.layout().setContentsMargins(0, 0, 0, 0)
             _row.layout().setSpacing(0)
             scroll_area.setWidget(_row)
@@ -523,14 +541,15 @@ class SaverSettingsWidget(BaseSettingsWidget):
             common_ui.add_description(label, label=u'', parent=row)
             row = common_ui.add_row(
                 None, padding=None, height=height, parent=grp)
-            line_edit = common_ui.add_line_edit(defaultpaths.FILE_NAME_PATTERN, parent=row)
+            line_edit = common_ui.add_line_edit(
+                defaultpaths.FILE_NAME_PATTERN, parent=row)
             line_edit.textChanged.connect(
                 functools.partial(text_changed, defaultpaths.FILE_NAME_PATTERN, u'defaultpaths/filenamepattern'))
             line_edit.setAlignment(QtCore.Qt.AlignLeft)
             line_edit.setText(defaultpaths.FILE_NAME_PATTERN)
 
             s = \
-u'Available tokens<br><br>\
+                u'Available tokens<br><br>\
 <span style="color:rgba({ADD});">{{folder}}</span>  -  The destination folder<br>\
 <span style="color:rgba({ADD});">{{prefix}}</span>  -  Prefix defined by the bookmark<br>\
 <span style="color:rgba({ADD});">{{asset}}</span>   -  Asset name<br>\
@@ -538,9 +557,9 @@ u'Available tokens<br><br>\
 <span style="color:rgba({ADD});">{{user}}</span>    -  Name of the current user<br>\
 <span style="color:rgba({ADD});">{{version}}</span> -  Version number<br>\
 <span style="color:rgba({ADD});">{{ext}}</span>     -  File extension'.format(
-                ADD=common.rgb(common.ADD),
-                v=u'The template used to generate new file names'
-            )
+                    ADD=common.rgb(common.ADD),
+                    v=u'The template used to generate new file names'
+                )
             grp.layout().addSpacing(o)
             common_ui.add_description(s, label='', parent=grp)
 
@@ -553,10 +572,10 @@ u'Available tokens<br><br>\
             grp.layout().setSpacing(0)
 
             description = \
-    u'Edit the list of valid extensions. Use \
+                u'Edit the list of valid extensions. Use \
     <span style="color:rgba({ADD});">*</span> to allow all files.'.format(
-                p=common.PRODUCT,
-                ADD=common.rgb(common.ADD))
+                    p=common.PRODUCT,
+                    ADD=common.rgb(common.ADD))
 
             label = common_ui.PaintedLabel(
                 u'Default extension filters',
@@ -577,7 +596,8 @@ u'Available tokens<br><br>\
             scroll_area.setAttribute(QtCore.Qt.WA_TranslucentBackground)
             grp.layout().addWidget(scroll_area)
 
-            _row = common_ui.add_row(None, vertical=True, padding=None, height=None, parent=grp)
+            _row = common_ui.add_row(
+                None, vertical=True, padding=None, height=None, parent=grp)
             _row.layout().setContentsMargins(0, 0, 0, 0)
             _row.layout().setSpacing(0)
             scroll_area.setWidget(_row)
@@ -600,28 +620,31 @@ u'Available tokens<br><br>\
                 line_edit.setText(v[u'value'])
 
         description = \
-u'A <span style="color:rgba({ADD});">task folder</span> is any folder \
+            u'A <span style="color:rgba({ADD});">task folder</span> is any folder \
 located in the root of the asset. The folders usually correspond to different \
 stages of the asset\'s production cycle and used to categorise CG content.'.format(
-            p=common.PRODUCT,
-            ADD=common.rgb(common.ADD))
-        add_section(u'Default task folder names', description, defaultpaths.TASK_FOLDERS)
+                p=common.PRODUCT,
+                ADD=common.rgb(common.ADD))
+        add_section(u'Default task folder names',
+                    description, defaultpaths.TASK_FOLDERS)
 
         description = \
-u'Edit the default mode names. When saving files {p} can suggest paths \
+            u'Edit the default mode names. When saving files {p} can suggest paths \
 depending on the selected <span style="color:rgba({ADD});">mode</span>.\
 <br><br>See below for the available modes - by default each located in the \
 <span style="color:rgba({ADD});">scene</span> task folder \
 (paths are relative to the asset\'s root folder).'.format(
-            p=common.PRODUCT,
-            ADD=common.rgb(common.ADD))
-        add_section(u'Default scene paths', description, defaultpaths.SCENE_FOLDERS)
+                p=common.PRODUCT,
+                ADD=common.rgb(common.ADD))
+        add_section(u'Default scene paths', description,
+                    defaultpaths.SCENE_FOLDERS)
 
         description = \
-u'Customize the export folder used by DCCs when exporting caches.'.format(
-            p=common.PRODUCT,
-            ADD=common.rgb(common.ADD))
-        add_section(u'Default export paths', description, defaultpaths.EXPORT_FOLDERS)
+            u'Customize the export folder used by DCCs when exporting caches.'.format(
+                p=common.PRODUCT,
+                ADD=common.rgb(common.ADD))
+        add_section(u'Default export paths', description,
+                    defaultpaths.EXPORT_FOLDERS)
 
         add_name_template()
         add_extensions()

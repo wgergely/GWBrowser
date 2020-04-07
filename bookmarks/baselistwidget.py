@@ -1,16 +1,39 @@
 # -*- coding: utf-8 -*-
-"""
-Bookmarks has 3 main tabs: bookmarks, assets and files.
+"""Core model and view widgets.
 
-Each of the tabs rely on 3 differe
+BaseModel is the core container for item data. The all data is stored
+internally in `BaseModel.INTERNAL_MODEL_DATA` and is populated by
+`BaseModel.__initdata__()`.
 
-Bookmarks is built around the three main lists - **bookmarks**, **assets**
-and **files**. Each of these lists has a *view*, *model* and *context menus*
-stemming from the *BaseModel*, *BaseView* and *BaseContextMenu* classes defined
-in ``baselistwidget.py`` and ``basecontextmenu.py`` modules.
+Multi-threading:
+    Each BaseModel instance can be initiated with threads, used to load secondary
+    file information, like custom descriptions and thumbnails.
+    See the `bookmarks.threads` module for more information.
 
-The *BaseListWidget* subclasses are then added to the layout of **StackedWidget**,
-the widget used to switch between the lists.
+Data is filtered with QSortFilterProxyModels.
+
+The main view tabs derive from the base list view classes:
+
+BaseListWidget:         Defines core list behaviours.
+BaseInlineIconWidget:   Adds the methods needed to respond to custom
+                        inline button events.
+ThreadedBaseWidget:     Implements the methods needed to use custom worker
+                        threads.
+
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import re
@@ -22,7 +45,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
-import bookmarks.editors as editors
 from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.delegate as delegate
 import bookmarks.settings as settings
@@ -368,37 +390,34 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
 
 class BaseModel(QtCore.QAbstractListModel):
-    """The base model for storing bookmarks, assets and files.
+    """The base model for storing bookmark, asset and file information.
 
-    The model stores its data in the **self.INTERNAL_MODEL_DATA** private dictionary.
-    The structure of the data is uniform accross all BaseModel instances but it
-    really is built around storing file-data.
+    The model stores its internal data in **self.INTERNAL_MODEL_DATA**
+    dictionary (a custom dict =that enables weakrefs).
 
-    Each folder in the assets folder corresponds to a **task_folder**.
+    Data internally is stored per `task folder`. Each task folder keeps
+    information about individual files and file sequences, like so:
 
-    A data-key example:
-        .. code-block:: python
+    .. code-block:: python
 
-            self.INTERNAL_MODEL_DATA = {}
-            # will most of the time return a name of a folder, eg. 'scenes'
-            task_folder = self.task_folder()
-            self.INTERNAL_MODEL_DATA[task_folder] = common.DataDict({
-                common.FileItem: common.DataDict(),
-                common.SequenceItem: common.DataDict()
-            })
+        self.INTERNAL_MODEL_DATA = {}
+        self.INTERNAL_MODEL_DATA['scene'] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
+        self.INTERNAL_MODEL_DATA['export'] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
 
-    Each data-key can simultaniously hold information about single files (**FileItems**), and
-    groupped sequences (**SequenceItem**), eg. a rendered image sequence. The model provides the
-    signals and slots for exposing the different private data elements to the model.
+    `self.INTERNAL_MODEL_DATA` is exposed to the model via `self.model_data()`.
+    To get the current task folder use `self.task_folder()` and
+    `self.set_task_folder()``.
 
-    Sorting information is also managed by BaseModel. The user choices are saved in
-    the local registry.
+    Data sorting is also handled by the model, see `self.sort_data()`.
 
     """
-
-    # Emit before the model is about to change
-    modelDataResetRequested = QtCore.Signal()
-    """Main signal to request a reset and load"""
+    modelDataResetRequested = QtCore.Signal()  # Main signal to load model data
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
     taskFolderChanged = QtCore.Signal(unicode)
@@ -544,7 +563,11 @@ class BaseModel(QtCore.QAbstractListModel):
 
     @QtCore.Slot()
     def sort_data(self):
-        """Sorts the internal `INTERNAL_MODEL_DATA` dictionary.
+        """Sorts the internal `INTERNAL_MODEL_DATA` by the current
+        `sort_role` and `sort_order`.
+
+        The data sorting is wrapped in a begin- & endResetModel sequence.
+
         """
         common.Log.debug(u'sort_data()', self)
 
@@ -855,7 +878,7 @@ class BaseModel(QtCore.QAbstractListModel):
             self._datatype[task_folder] = val
 
         except:
-            common.Log.error(u'Error setting data key')
+            common.Log.error(u'Error setting task folder')
         finally:
             self.blockSignals(True)
             self.sort_data()
@@ -865,7 +888,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
     @QtCore.Slot(unicode)
     def set_task_folder(self, val):
-        """Settings data keys for asset and bookmarks widgets is not available."""
+        """Settings task folders for asset and bookmarks widgets is not available."""
         pass
 
     def get_default_thumbnails(self, overwrite=False):
@@ -946,10 +969,10 @@ class BaseListWidget(QtWidgets.QListView):
         self.progress_widget = ProgressWidget(parent=self)
         self.progress_widget.setHidden(True)
         self.filter_active_widget = FilterOnOverlayWidget(parent=self)
-        self.filter_editor = editors.FilterEditor(parent=self)
+        self.filter_editor = common_ui.FilterEditor(parent=self)
         self.filter_editor.setHidden(True)
 
-        self.description_editor_widget = editors.DescriptionEditorWidget(
+        self.description_editor_widget = common_ui.DescriptionEditorWidget(
             parent=self)
         self.description_editor_widget.setHidden(True)
 
@@ -2767,7 +2790,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
                 if model.generate_thumbnails_enabled():
                     if tcount and not thumb_loaded:
-                        model.threads[common.ThumbnailThread][t % tcount].put(ref)
+                        model.threads[common.ThumbnailThread][t %
+                                                              tcount].put(ref)
                         t += 1
 
                 rect.moveTop(rect.top() + rect.height())

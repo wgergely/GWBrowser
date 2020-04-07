@@ -117,7 +117,7 @@ Use the ![alt text][add] icons to add a new server, job or bookmark. The job tem
   widget.show()
 
   # NOTE: Bookmarks is meant to be used as a singleton,
-  # and running multiple instances is probably a call for trouble.
+  # and running multiple instances is a call for trouble.
 
 ```
 

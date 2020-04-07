@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
-"""**managebookmarks.py** defines ``ManageBookmarksWidget`` and the supplemetary
-widgets needed to add, create and select **servers**, **jobs** and **bookmark** folders.
+"""Widgets needed to add, create and select **servers**, **jobs** and
+**bookmark** folders.
 
-These three choices togethermake up a **bookmark** - an entrypoint for Bookmarks
-to start browsing the contents of a job.
-The path of a bookmark, unsurprisingly, is a composite of the above elements:
-*server/job/bookmark folder*. Eg.: **//network_server/my_job/shots.**
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import re
@@ -284,7 +293,8 @@ class TemplateListWidget(QtWidgets.QListWidget):
 
             painter.setBrush(common.SEPARATOR)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setFont(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
+            painter.setFont(common.font_db.secondary_font(
+                common.SMALL_FONT_SIZE()))
             painter.setOpacity(0.3)
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
@@ -406,7 +416,8 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.setBrush(common.SECONDARY_BACKGROUND)
             painter.setPen(QtCore.Qt.NoPen)
 
-            painter.setFont(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
+            painter.setFont(common.font_db.secondary_font(
+                common.SMALL_FONT_SIZE()))
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
@@ -467,7 +478,8 @@ class TemplatesWidget(QtWidgets.QWidget):
         row.layout().setSpacing(0)
 
         self.name_widget = common_ui.LineEdit(parent=self)
-        self.name_widget.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+        self.name_widget.setFont(
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
         self.name_widget.setPlaceholderText(
             u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
@@ -625,7 +637,8 @@ class TemplatesWidget(QtWidgets.QWidget):
                 mbox.setWindowTitle(u'A file already exists')
                 mbox.setText(
                     u'"{}" already exists.'.format(dest_info.fileName()))
-                mbox.setInformativeText(u'Are you sure you want to override it?')
+                mbox.setInformativeText(
+                    u'Are you sure you want to override it?')
                 mbox.setStandardButtons(
                     QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel)
                 mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
@@ -635,7 +648,6 @@ class TemplatesWidget(QtWidgets.QWidget):
                     continue
                 elif res == QtWidgets.QMessageBox.Yes:
                     QtCore.QFile.remove(destination)
-
 
             # If copied successfully, let's reload the ``TemplateListWidget``
             # contents.
@@ -689,7 +701,8 @@ class TemplatesWidget(QtWidgets.QWidget):
             else:
                 icon = folder_icon
             item = QtWidgets.QListWidgetItem(parent=self)
-            item.setData(QtCore.Qt.FontRole, common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
+            item.setData(QtCore.Qt.FontRole, common.font_db.secondary_font(
+                common.SMALL_FONT_SIZE()))
             item.setData(QtCore.Qt.DisplayRole, f)
             item.setData(QtCore.Qt.SizeHintRole, size)
             item.setData(QtCore.Qt.DecorationRole, icon)
@@ -835,7 +848,8 @@ class BookmarksWidget(QtWidgets.QListWidget):
                 return False
             painter = QtGui.QPainter()
             painter.begin(self)
-            painter.setFont(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
+            painter.setFont(common.font_db.secondary_font(
+                common.SMALL_FONT_SIZE()))
             painter.setBrush(common.ADD)
             painter.setPen(common.TEXT_DISABLED)
             painter.drawText(
@@ -1162,7 +1176,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             description=u'Mark an existing folder `bookmarkable`',
             parent=row
         )
-
 
         row = common_ui.get_group(parent=grp)
         row.setSizePolicy(
@@ -1555,6 +1568,7 @@ class ManageBookmarks(QtWidgets.QScrollArea):
     """The main widget to manage servers, jobs and bookmarks.
 
     """
+
     def __init__(self, parent=None):
         super(ManageBookmarks, self).__init__(parent=parent)
         if not self.parent():
@@ -1579,14 +1593,12 @@ class ManageBookmarks(QtWidgets.QScrollArea):
             QtWidgets.QSizePolicy.Minimum,
         )
 
-
     def showEvent(self, event):
         self.setFocus(QtCore.Qt.PopupFocusReason)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
             self.widget()._interrupt_requested = True
-
 
 
 if __name__ == '__main__':

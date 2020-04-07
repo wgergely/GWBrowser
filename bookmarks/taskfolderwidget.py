@@ -1,11 +1,25 @@
 # -*- coding: utf-8 -*-
 """The widget used to change the `FilesModel`'s' `task folder`.
 
-Data keys are subfolders inside the root of the asset folder. They are usually
+Task folders are subfolders inside the root of the asset folder. They are usually
 are associated with a task or data-type eg, ``render``, ``comp``, ``textures``
 folder.
 
-See the `defaultpaths` module for task folder descriptions.
+See the `defaultpaths` module for implemented task folder descriptions.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import weakref

@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Setings window for setting a bookmark's properties where `width`, `height`,
-`frame rate`, and the `Slack API Token` can be configured.
+"""Settings window for the bookmark properties.
+
+Use it to configure the `width`, `height`, `frame rate`and `Slack Tokens`.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import re
@@ -555,17 +570,3 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
 
     def showEvent(self, event):
         self.setFocus()
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    common.DEBUG_ON = True
-    app = standalone.StandaloneApp([])
-    w = BookmarkPropertiesWidget(
-        QtCore.QModelIndex(),
-        server='C:/temp',
-        job=u'EXAMPLE_JOB_A',
-        root=u'ASSETS'
-    )
-    w.show()
-    app.exec_()

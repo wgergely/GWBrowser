@@ -1,5 +1,21 @@
 # -*- coding: utf-8 -*-
-"""The base-context menu associated with the BaseListWidget subclasses."""
+"""All context-menus derive from the `BaseContextMenu` defined below.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 
 import os
 import functools
@@ -8,6 +24,7 @@ import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.common as common
+import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 import bookmarks.defaultpaths as defaultpaths
 
@@ -179,7 +196,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             width = metrics.width(action.text())
             width += (common.MARGIN() * 4)
             w.append(int(width))
-        self.setFixedWidth(max(w))
+        if w:
+            self.setFixedWidth(max(w))
 
 
     @contextmenu
@@ -554,8 +572,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         show_thumbnail = images.ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.MARGIN())
 
-        import bookmarks.editors as editors
-
         source_index = index.model().mapToSource(index)
         thumbnail_path = index.data(common.ThumbnailPathRole)
         thumbnail_info = QtCore.QFileInfo(thumbnail_path)
@@ -580,7 +596,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': functools.partial(images.ImageCache.capture, source_index)}
 
         def show_thumbnail_picker():
-            widget = editors.ThumbnailsWidget(parent=self.parent())
+            widget = common_ui.ThumbnailsWidget(parent=self.parent())
 
             @QtCore.Slot(unicode)
             def add_thumbnail_from_library(path):

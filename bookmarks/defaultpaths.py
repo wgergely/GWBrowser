@@ -1,20 +1,33 @@
 # -*- coding: utf-8 -*-
-"""Contains information about the structure of an asset.
+"""Contains information about the file structure of an asset.
 
 Each asset is made up of a series of `task folders`. All folders located in the
-root of the asset is considered a `task folder` and should correspond to
-data types and/or a different stage of an asset's production cycle.
+root of the asset is considered a `task folder` and should correspond to data
+types and/or a different stage of an asset's production cycle.
 
-A list of some arbitary task folders are defined by `TASK_FOLDERS`.
-Bookmarks can suggest save locations for files depending their extension and
-mode, defined by `SCENE_FOLDERS` and `EXPORT_FOLDERS`.
+A list of some arbitary task folders are defined by `TASK_FOLDERS`. Bookmarks
+can suggest save locations for files depending their extension and mode, defined
+by `SCENE_FOLDERS` and `EXPORT_FOLDERS`.
 
-When saving file, names are generated based on the value
-of `FILE_NAME_PATTERN`.
+When saving, names are generated based on the value of `FILE_NAME_PATTERN`.
 
 `FORMAT_FILTERS` contains the list of valid extensions for each `task folder`.
-It is used, for instance, by the `FilesModel` to ignore invalid extensions -
-eg. to make sure that the `render` folder does not contain scene files, etc.
+It is used, for instance, by the `FilesModel` to ignore invalid extensions - eg.
+to make sure that the `render` folder does not contain scene files, etc.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import re

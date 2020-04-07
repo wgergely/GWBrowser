@@ -1,11 +1,43 @@
 # -*- coding: utf-8 -*-
+"""Bookmark DB is an SQLite database used to store custom data.
 
-"""SQLite based database used to store file information associated with
-a bookmark.
+Various data is stored in the database, eg. the bookmarks width, height,
+framerate properties, or the filter flags and descriptions set for an item.
 
-The database stores it's values in
+See `bookmark_db.KEYS` `BookmarkDB.and init_tables()` for table/column
+definitions. Use the `bookmar_db.get_db()` interface get a new thread-specific
+BookmarkDB instance.
+
+code-block:: python
+
+    import bookmarks.bookmark_db as bookmark_db
+    db = bookmark_db.get_db(
+        index=QtCore.QModelIndex(), # invalid index
+        server='//SERVER',
+        job='MYJOB',
+        root='DATA/SHOTS'
+    )
+    value = db.value(u
+        u'//server/myjob/data/shots/sh0010/scene/myscene.ma',
+        u'description'
+    )
+
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
-
 import hashlib
 from contextlib import contextmanager
 import time
@@ -102,11 +134,12 @@ def reset():
 
 
 class BookmarkDB(QtCore.QObject):
-    """Database connector for storing file and asset settings in SQLite
-    database.
+    """Database connector used to interface with the SQLite database.
+
+    Use `BookmarkDB.value()` and `BookmarkDB.setValue()` to get and set data
+    to the database.
 
     """
-
     def __init__(self, server, job, root, parent=None):
         super(BookmarkDB, self).__init__(parent=parent)
         self._connection = None
@@ -169,10 +202,16 @@ class BookmarkDB(QtCore.QObject):
         return k
 
     def thumbnail_path(self, path):
-        if not path:
-            raise TypeError('Unable to get the thumbnail, invalid path.')
-        filename = hashlib.md5(self.row_id(
-            path)).hexdigest() + u'.' + common.THUMBNAIL_FORMAT
+        """Returns the item's thumbnail path.
+
+        """
+        if not isinstance(path, unicode):
+            s = u'Expected <type \'unicode\'>, got {}'.format(type(path))
+            common.Log.error(s)
+            raise TypeError(s)
+
+        k = self.row_id(path)
+        filename = hashlib.md5(k.encode('utf-8')).hexdigest() + u'.' + common.THUMBNAIL_FORMAT
         p = self._bookmark + u'/.bookmark/' + filename
         return p
 
@@ -263,7 +302,7 @@ CREATE TABLE IF NOT EXISTS info (
 
         Args:
             id (unicode): The database row key.
-            key (unicode): The data key to return.
+            key (unicode): A column name.
             table (unicode): Optional table parameter, defaults to 'data'.
 
         Returns:

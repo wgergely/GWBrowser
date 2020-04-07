@@ -1,16 +1,29 @@
 # -*- coding: utf-8 -*-
-"""The ``images.py`` module defines most image-operation related classes and
-methods including the global image cache.
+"""Module for most image related classes and methods including the
+app's.
 
-Thumbnails
+Thumbnails:
     We're relying on ``OpenImageIO`` to generate image and movie thumbnails.
-    Thumbnail operations are multi-threaded and are mostly associated with
-    the *FilesModel* (we only generate thumbnails from file OpenImageIO
-    understands.
+    Thumbnail operations are multi-threaded.
 
-    To generate a thumbnail use ``ImageCache.oiio_make_thumbnail()``.
+    See ``ImageCache.oiio_make_thumbnail()`` for the OpenImageIO wrapper for
+    generating thubmanails.
 
 All generated thumbnails and ui resources are cached in ``ImageCache``.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import os
@@ -25,7 +38,7 @@ import bookmarks.defaultpaths as defaultpaths
 
 
 oiio_cache = OpenImageIO.ImageCache(shared=True)
-oiio_cache.attribute('max_memory_MB', 2048.0)
+oiio_cache.attribute('max_memory_MB', 4096.0)
 oiio_cache.attribute('max_open_files', 0)
 oiio_cache.attribute('trust_file_extensions', 1)
 
@@ -155,7 +168,6 @@ class CaptureScreen(QtWidgets.QDialog):
 
         self.accepted.connect(self.capture)
 
-
     def pixmap(self):
         """The captured rectangle."""
         return self._pixmap
@@ -166,7 +178,8 @@ class CaptureScreen(QtWidgets.QDialog):
         try:
             workspace_rect = QtCore.QRect()
             for screen in app.screens():
-                workspace_rect = workspace_rect.united(screen.availableGeometry())
+                workspace_rect = workspace_rect.united(
+                    screen.availableGeometry())
             self.setGeometry(workspace_rect)
         except:
             rect = app.primaryScreen().availableGeometry()
@@ -226,7 +239,8 @@ class CaptureScreen(QtWidgets.QDialog):
             painter.setCompositionMode(
                 QtGui.QPainter.CompositionMode_SourceOver)
 
-        pen = QtGui.QPen(QtGui.QColor(255, 255, 255, 64), common.ROW_SEPARATOR(), QtCore.Qt.DotLine)
+        pen = QtGui.QPen(QtGui.QColor(255, 255, 255, 64),
+                         common.ROW_SEPARATOR(), QtCore.Qt.DotLine)
         painter.setPen(pen)
 
         # Draw cropping markers at click position
@@ -397,7 +411,6 @@ class ImageCache(QtCore.QObject):
         cls.INTERNAL_IMAGE_DATA[k] = image
         return cls.INTERNAL_IMAGE_DATA[k]
 
-
     @staticmethod
     def resize_image(image, size):
         """Returns a scaled copy of the `QPixmap` fitting inside the square of
@@ -458,7 +471,8 @@ class ImageCache(QtCore.QObject):
 
         image = cls.get(
             thumbnail_path,
-            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR(),
+            index.data(QtCore.Qt.SizeHintRole).height() -
+            common.ROW_SEPARATOR(),
             overwrite=True
         )
 
@@ -728,7 +742,7 @@ class ImageCache(QtCore.QObject):
         # and pnglib crashes when encounters an invalid profile.
         # Removing the ICC profile seems to fix the issue. Annoying!
         _spec = OpenImageIO.ImageSpec()
-        _spec.from_xml(spec.to_xml()) # this doesn't copy the extra attributes
+        _spec.from_xml(spec.to_xml())  # this doesn't copy the extra attributes
         for i in spec.extra_attribs:
             if i.name.lower() == 'iccprofile':
                 continue
@@ -831,7 +845,8 @@ class Viewer(QtWidgets.QGraphicsView):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
-            metrics = QtGui.QFontMetrics(common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
+            metrics = QtGui.QFontMetrics(
+                common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)
@@ -1028,9 +1043,9 @@ class ImageViewer(QtWidgets.QWidget):
         self.load_timer.start()
 
 
-
 if __name__ == '__main__':
     import bookmarks.standalone as standlone
     app = standlone.StandaloneApp([])
-    w = ImageViewer(ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
+    w = ImageViewer(
+        ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
     w.exec_()

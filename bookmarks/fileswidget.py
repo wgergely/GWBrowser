@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
-"""
-``FilesModel`` is responsible for storing file-data. There is a key design
-choice determining the model's overall functionality: we're interested in
-getting an overview of all files contained in an asset. The reason for this is
-that files are sometimes are tucked away into subfolders and are hard to get to.
-Bookmarks will expand all sub-folders, get all files inside them and present the
-items as a flat list that can be filtered later.
+"""The view and model used to store and view files.
 
-Note:
-    We'using Python 3's ``scandir.walk()`` to querry the filesystem. This is
-    because of performance considerations, on my test ``scandir`` outperformed
-    Qt's ``QDirIterator``. Bookmarks uses a custom build of ``scandir``
-    comptible with Python 2.7.
+We're heavily relying on 'Python 3's ``scandir.walk()`` to querry the
+On my tests ``scandir`` outperformed Qt's ``QDirIterator`` many fold.
 
-``FilesModel`` differs from the other models as in it doesn't load all necessary
-data in the main-thread. It instead relies on workers to querry and set
-addittional data. The model will also try to generate thumbnails for any
-``OpenImageIO`` readable file-format via its workers.
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 from PySide2 import QtWidgets, QtCore, QtGui
@@ -69,23 +69,15 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
 
 class FilesModel(BaseModel):
-    """The model used store individual and collapsed sequence files found inside
-    an asset.
+    """The model used store individual and file sequences found in `parent_path`.
 
-    Every asset contains subfolders, eg. the ``scenes``, ``textures``, ``cache``
-    folders. The model will load file-data associated with each of those
-    subfolders and save it in ``self.INTERNAL_MODEL_DATA`` using a **data key**,
-    and **data_type** keys. The latter refers to expanded and collapsed sequences.
+    File data is saved ``self.INTERNAL_MODEL_DATA`` using the **task folder**,
+    and **data_type** keys.
 
     .. code-block:: python
 
-       self.INTERNAL_MODEL_DATA = common.DataDict()
-       self.INTERNAL_MODEL_DATA['scenes'] = {} # 'scenes' is a data-key
-       self.INTERNAL_MODEL_DATA['textures'] = {} # 'textures' is a data-key
-
-    The name of the asset subfolders will become our *data keys*.
-    Switching between data keys should be done by emitting the ``taskFolderChanged``
-    signal.
+        data = self.model_data() # the currently exposed dataset
+        print data == self.INTERNAL_MODEL_DATA[self.task_folder()][self.data_type()] # True
 
     """
     DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT())
@@ -137,7 +129,10 @@ class FilesModel(BaseModel):
             is magnitudes slower than using the same methods on windows.
 
             A workaround I found was to use Python 3+'s ``scandir`` module. Both
-            on Windows and Mac OS X the performance seems to be adequate.
+            on Windows and Mac OS X the performance seems to be good.
+
+        Internally, the actual files are returned by `self._entry_iterator()`,
+        this is where scandir is evoked.
 
         """
         def dflags():
@@ -162,8 +157,10 @@ class FilesModel(BaseModel):
         activefile = settings.local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
-        task_folder_extensions = defaultpaths.get_task_folder_extensions(task_folder)
-        location_path = u'/'.join(self.parent_path).lower() + u'/' + task_folder
+        task_folder_extensions = defaultpaths.get_task_folder_extensions(
+            task_folder)
+        location_path = u'/'.join(self.parent_path).lower() + \
+            u'/' + task_folder
 
         nth = 987
         c = 0
@@ -226,7 +223,8 @@ class FilesModel(BaseModel):
                 if activefile in filepath:
                     flags = flags | common.MarkedAsActive
 
-            parent_path_role = (server, job, root, asset, task_folder, fileroot)
+            parent_path_role = (server, job, root, asset,
+                                task_folder, fileroot)
 
             idx = len(MODEL_DATA[common.FileItem])
             MODEL_DATA[common.FileItem][idx] = common.DataDict({
@@ -360,7 +358,7 @@ class FilesModel(BaseModel):
 
     @QtCore.Slot(unicode)
     def set_task_folder(self, val):
-        """Slot used to save data key to the model instance and the local
+        """Slot used to save task folder to the model instance and the local
         settings.
 
         Each subfolder inside the root folder, defined by``parent_path``,
@@ -377,7 +375,8 @@ class FilesModel(BaseModel):
             k = u'activepath/location'
             stored_value = settings.local_settings.value(k)
             stored_value = stored_value.lower() if stored_value else stored_value
-            self._task_folder = self._task_folder.lower() if self._task_folder else self._task_folder
+            self._task_folder = self._task_folder.lower(
+            ) if self._task_folder else self._task_folder
             val = val.lower() if val else val
 
             # Nothing to do for us when the parent is not set
@@ -436,7 +435,7 @@ class FilesModel(BaseModel):
             self._task_folder = val
             settings.local_settings.setValue(k, val)
         except:
-            common.Log.error(u'Could not set data key')
+            common.Log.error(u'Could not set task folder')
         finally:
             if not self.model_data():
                 self.__initdata__()
@@ -470,15 +469,20 @@ class FilesModel(BaseModel):
         """
         def add_path_to_mime(mime, path):
             """Adds the given path to the mime data."""
-            path = QtCore.QFileInfo(path).absoluteFilePath()
-            path = QtCore.QDir.toNativeSeparators(path)
+            if not isinstance(path, unicode):
+                s = u'Expected <type \'unicode\'>, got {}'.format(type(str))
+                common.Log.error(s)
+                raise TypeError(s)
 
-            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path), ])
-            data = common.ubytearray(QtCore.QDir.toNativeSeparators(path))
+            path = QtCore.QFileInfo(path).absoluteFilePath()
+            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path),])
+
+            path = QtCore.QDir.toNativeSeparators(path).encode('utf-8')
+            _bytes = QtCore.QByteArray(path)
             mime.setData(
-                'application/x-qt-windows-mime;value="FileName"', data)
+                u'application/x-qt-windows-mime;value="FileName"', _bytes)
             mime.setData(
-                'application/x-qt-windows-mime;value="FileNameW"', data)
+                u'application/x-qt-windows-mime;value="FileNameW"', _bytes)
 
             return mime
 
@@ -603,7 +607,7 @@ class FilesWidget(ThreadedBaseWidget):
         if not task_folder:
             return
 
-        # Setting the data key
+        # Setting the task folder
         self.model().sourceModel().taskFolderChanged.emit(task_folder)
         # And reloading the model...
         self.model().sourceModel().modelDataResetRequested.emit()

@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
+"""Interface to add notes and todo-like annotations for an bookmark or an asset
+item.
 
-"""Defines the widgets needed to add and modify notes and todo-type annotions
-for an Bookmark or an Asset.
+Copyright (C) 2020 Gergely Wootsch
 
-`TodoEditorWidget` is the top widget. It reads the asset configuration file
-and loads stored todo items. The todo items support basic HTML elements but
-embedding media resources are not supported.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
-Methods:
-    TodoEditorWidget.add_item(): Main function to add a new todo item.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import json
@@ -767,8 +773,9 @@ class TodoItemWidget(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QColor(255,255,255,255))
-        painter.drawRoundedRect(self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.setBrush(QtGui.QColor(255, 255, 255, 255))
+        painter.drawRoundedRect(
+            self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
 
@@ -840,7 +847,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         # Name label
         text = u'Notes and Tasks'
         label = common_ui.PaintedLabel(text, color=common.SEPARATOR,
-                             size=common.LARGE_FONT_SIZE(), parent=self)
+                                       size=common.LARGE_FONT_SIZE(), parent=self)
         row.layout().addWidget(label, 1)
         row.layout().addStretch(1)
 
@@ -867,7 +874,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         row = common_ui.add_row(None, height=height, parent=self)
         text = u'Add new note'
         label = common_ui.PaintedLabel(text, color=common.SECONDARY_TEXT,
-                             size=common.SMALL_FONT_SIZE(), parent=self)
+                                       size=common.SMALL_FONT_SIZE(), parent=self)
 
         row.layout().addWidget(self.add_button, 0)
         row.layout().addWidget(label, 0)
@@ -959,7 +966,8 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
-            font = common.font_db.secondary_font(font_size=common.MEDIUM_FONT_SIZE())
+            font = common.font_db.secondary_font(
+                font_size=common.MEDIUM_FONT_SIZE())
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 

@@ -1,11 +1,23 @@
 # -*- coding: utf-8 -*-
-"""The threads and the associated workers are defined here.
+"""The threads and associated worker classes.
 
-Bookmarks does OpenImageIO and file-load operations on separate threads
-controlled by QThread objects.
-
+Thumbnail and file-load work on carried out on secondary threads.
 Each thread is assigned a single Worker - usually responsible for taking
 *QModelIndexes* from the thread's python Queue.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 from PySide2 import QtCore, QtGui
@@ -76,9 +88,10 @@ class UniqueQueue(Queue.Queue):
 
 
 def process(func):
-    """Decorator wraps the worker's process_data call:
-    Will take and pass the next available data in
-    the queue for processing and emits the dataReady
+    """Decorator wraps the worker's process_data call.
+
+    Takes and passes the next available data in the queue for processing
+    and emits the `dataReady` signal if the data has been correctly loaded.
 
     """
     @functools.wraps(func)
@@ -101,6 +114,13 @@ def process(func):
 
 
 class BaseWorker(QtCore.QObject):
+    """Base thread worker class.
+
+    Each work has its own queue. The thread controllers also control the workers
+    via the `dataRequested` signal. When this is emited the worker will
+    take the next available data from the queue.
+
+    """
     dataRequested = QtCore.Signal()
     dataReady = QtCore.Signal(dict)
     resetQueue = QtCore.Signal()
@@ -114,7 +134,8 @@ class BaseWorker(QtCore.QObject):
 
         self.resetQueue.connect(
             lambda: common.Log.debug(u'resetQueue --> reset_queue', self))
-        self.resetQueue.connect(self.reset_queue, type=QtCore.Qt.QueuedConnection)
+        self.resetQueue.connect(
+            self.reset_queue, type=QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot()
     def reset_queue(self):
@@ -138,9 +159,7 @@ class BaseWorker(QtCore.QObject):
 
 
 class BaseThread(QtCore.QThread):
-    """Base thread controller used across Bookmarks.
-    Threads are responsible for updating the items with the missing
-    information and generating thumbnails.
+    """Base thread controller.
 
     """
     startTimer = QtCore.Signal()
@@ -503,7 +522,8 @@ class ThumbnailWorker(BaseWorker):
             # Load the image and the background color
             image = images.ImageCache.get(
                 ref()[common.ThumbnailPathRole],
-                ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR(),
+                ref()[QtCore.Qt.SizeHintRole].height() -
+                common.ROW_SEPARATOR(),
                 overwrite=True)
             ref()[common.ThumbnailRole] = image
             return True

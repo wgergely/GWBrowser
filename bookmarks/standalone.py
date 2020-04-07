@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
-"""The module containing the widgets needed to run in standalone-mode."""
+"""Widgets required to run Bookmarks in standalone-mode.
 
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from bookmarks.mainwidget import MainWidget
@@ -66,7 +81,8 @@ class StandaloneMainWidget(MainWidget):
         }
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
@@ -350,7 +366,8 @@ class StandaloneApp(QtWidgets.QApplication):
 
         common.font_db = common.FontDatabase()
 
-        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, common.ROW_HEIGHT() * 7.0)
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'icon', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.setWindowIcon(icon)
 

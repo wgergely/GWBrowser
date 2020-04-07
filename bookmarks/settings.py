@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
-"""``settings.py`` contains the classes needed to get and set settings for
-the application and the asset and file items.
+"""The local settings file used to store active paths, widget and user options.
+
+Copyright (C) 2020 Gergely Wootsch
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 
 import collections
@@ -220,7 +234,6 @@ class LocalSettings(QtCore.QSettings):
 
         if self._active_paths == active_paths:
             return
-
 
         serverChanged = self._active_paths[u'server'] != active_paths[u'server']
         jobChanged = self._active_paths[u'job'] != active_paths[u'job']

@@ -5,8 +5,21 @@ File sequences are recognised using regexes defined in this module. See
 :func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
 :func:`.get_sequence_startpath`,  :func:`.get_ranges` for more information.
 
-"""
+Copyright (C) 2020 Gergely Wootsch
 
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 import os
 import sys
 import re
@@ -246,7 +259,6 @@ def proxy_path(v):
     return v
 
 
-
 def k(s):
     return getattr(Log, s).replace(u'[', u'\\[')
 
@@ -448,7 +460,6 @@ FAVOURITE = QtGui.QColor(107, 135, 165)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 THUMBNAIL_BACKGROUND = SEPARATOR
-
 
 
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
@@ -786,7 +797,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
 
     elide = None
-    metrics = QtGui.QFontMetricsF(font)
+    metrics = QtGui.QFontMetrics(font)
 
     elide = QtCore.Qt.ElideLeft
     if QtCore.Qt.AlignLeft & align:
@@ -887,18 +898,9 @@ def walk(path):
         DirEntry:   A ctype class.
 
     """
-    # MacOS/Windows encoding error workaround
-    try:
-        top = unicode(path, u'utf-8')
-    except TypeError:
-        try:
-            top = top.decode(sys.getfilesystemencoding())
-        except:
-            pass
-
     try:
         it = _scandir.scandir(path=path)
-    except OSError as error:
+    except OSError:
         return
 
     while True:
@@ -907,7 +909,7 @@ def walk(path):
                 entry = next(it)
             except StopIteration:
                 break
-        except OSError as error:
+        except OSError:
             return
 
         try:
@@ -934,15 +936,6 @@ def rsc_path(f, n):
     return path
 
 
-def ubytearray(ustring):
-    """Helper function to convert a unicode string to a QByteArray object."""
-    if not isinstance(ustring, unicode):
-        raise TypeError('The provided string has to be a unicode string')
-    # We convert the string to a hex array
-    hstr = [r'\x{}'.format(f.encode('hex')) for f in ustring.encode('utf-8')]
-    return QtCore.QByteArray.fromHex(''.join(hstr))
-
-
 def create_asset_template(source, dest, overwrite=False):
     """Responsible for adding the files and folders of the given source to the
     given zip - file.
@@ -963,10 +956,11 @@ def create_asset_template(source, dest, overwrite=False):
 
 
 def push_to_rv(path):
-    """Pushes the given given path to RV."""
+    """Uses `rvpush` to view a given footage."""
     import subprocess
     import bookmarks.settings as settings
     import bookmarks.common_ui as common_ui
+
     def get_preference(k): return settings.local_settings.value(
         u'preferences/{}'.format(k))
 
@@ -991,12 +985,22 @@ def push_to_rv(path):
     if get_platform() == u'win':
         rv_push_path = u'{}/rvpush.exe'.format(rv_info.path())
         if QtCore.QFileInfo(rv_push_path).exists():
-            cmd = u'"{}" -tag {} set "{}"'.format(rv_push_path, PRODUCT, path)
+            # cmd = u'"{}" -tag {} set "{}"'.format(rv_push_path, PRODUCT, path)
+            cmd = u'"{RV}" -tag {PRODUCT} url \'rvlink:// -reuse 1 -inferSequence -l -play -fps 25 -fullscreen -nofloat -lookback 0 -nomb "{PATH}"\''.format(
+                RV=rv_push_path,
+                PRODUCT=PRODUCT,
+                PATH=path)
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
-
+    else:
+        common_ui.ErrorBox(
+            u'Pushing to RV not yet implemented on this platform.',
+            u'Sorry about this. Send me an email if you\'d like to see this work soon!'
+        ).open()
+        Log.error(u'Function not implemented')
+        return
 
 
 class FontDatabase(QtGui.QFontDatabase):
@@ -1008,6 +1012,7 @@ class FontDatabase(QtGui.QFontDatabase):
         super(FontDatabase, self).__init__(parent=parent)
 
         self._fonts = {}
+        self._metrics = {}
         self.add_custom_fonts()
 
     def add_custom_fonts(self):
@@ -1022,7 +1027,6 @@ class FontDatabase(QtGui.QFontDatabase):
         if not os.path.isdir(p):
             raise OSError('{} could not be found'.format(p))
 
-        import bookmarks._scandir as scandir
         for entry in _scandir.scandir(p):
             if not entry.name.endswith(u'ttf'):
                 continue
@@ -1043,6 +1047,7 @@ class FontDatabase(QtGui.QFontDatabase):
 
         self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', font_size)
         self._fonts[k].setPixelSize(font_size)
+
 
         if self._fonts[k].family() != u'bmRobotoBold':
             raise RuntimeError(
@@ -1368,7 +1373,6 @@ class LogView(QtWidgets.QTextBrowser):
 
     def sizeHint(self):
         return QtCore.QSize(WIDTH(), HEIGHT())
-
 
 
 font_db = None
