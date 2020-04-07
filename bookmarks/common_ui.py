@@ -477,12 +477,13 @@ QWidget {{
         buttons_row = get_row(parent=columns)
         buttons_row.setStyleSheet(
             u'background-color: rgba({});'.format(common.rgb(self.secondary_color)))
-        self.ok_button = QtWidgets.QPushButton('Ok', parent=self)
+        self.ok_button = QtWidgets.QPushButton(u'Ok', parent=self)
         buttons_row.layout().addWidget(self.ok_button)
 
         self.ok_button.setStyleSheet(
             """
         QPushButton {{
+            font-size: {px}px;
             color: rgba(255,255,255,150);
             border-radius: {i}px;
             border: {s}px solid {c};
@@ -499,6 +500,7 @@ QWidget {{
             background-color: rgba({pd});
         }}
         """.format(
+                px=common.SMALL_FONT_SIZE(),
                 i=common.INDICATOR_WIDTH(),
                 s=common.ROW_SEPARATOR(),
                 c=common.rgb(self.secondary_color.lighter(150)),

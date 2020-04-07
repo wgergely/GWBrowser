@@ -544,9 +544,15 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        self._clickable_rectangles[index.row()] = []
+        if not index.isValid():
+            return
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
+        if not index.data(common.ParentPathRole):
+            return
 
-        # standin for the descirption rectangle
+        # Standin for the descirption rectangle
+        self._clickable_rectangles[index.row()] = []
         self._clickable_rectangles[index.row()].append((QtCore.QRect(), u''))
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)

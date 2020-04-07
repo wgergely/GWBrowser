@@ -1314,11 +1314,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         return d
 
     def save_bookmark(self, server, job, root, add_config_dir=True):
+        """Saves the given bookmark to the local settings.
+
+        """
         if not all((server, job, root)):
             return
 
         k = self.key(server, job, root)
-        if add_config_dir:
+        if add_config_dir and not QtCore.QFileInfo(u'{}/.bookmark'.format(k)).exists():
             if not QtCore.QDir(k).mkpath(u'.bookmark'):
                 s = u'Could not create "{}/.bookmark"'.format(k)
                 common.Log.error(s)
@@ -1338,6 +1341,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         settings.local_settings.setValue(self.BOOKMARK_KEY, d)
 
     def remove_saved_bookmark(self, server, job, root):
+        """Remove the bookmark from the local settings.
+
+        """
         k = self.key(server, job, root)
         d = self._get_saved_bookmarks()
         if k in d:

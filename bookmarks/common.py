@@ -21,7 +21,6 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import os
-import sys
 import re
 import time
 import zipfile
@@ -36,7 +35,7 @@ import bookmarks._scandir as _scandir
 DEBUG_ON = False
 STANDALONE = True  # Standalone
 PRODUCT = u'Bookmarks'
-ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks-about'
+ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks'
 
 
 SynchronisedMode = 0
