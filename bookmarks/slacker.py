@@ -417,7 +417,7 @@ class MessageWidget(QtWidgets.QSplitter):
 
         self.setOrientation(QtCore.Qt.Horizontal)
         self.setWindowTitle(u'Send Message')
-        self.setStyleSheet('border: 1px solid rgba(0,0,0,50);')
+        # self.setStyleSheet('border: 1px solid rgba(0,0,0,50);')
 
         self._create_UI()
         self._connect_signals()
