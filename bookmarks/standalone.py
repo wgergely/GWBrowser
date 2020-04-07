@@ -10,6 +10,10 @@ import bookmarks.images as images
 from bookmarks.mainwidget import TrayMenu
 
 
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+
+
 class StandaloneMainWidget(MainWidget):
     """An subclass of ``MainWidget`` adapted to run it as a standalone
     application.
@@ -337,9 +341,6 @@ class StandaloneApp(QtWidgets.QApplication):
     MODEL_ID = u'{}App'.format(common.PRODUCT)
 
     def __init__(self, args):
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-
         super(StandaloneApp, self).__init__(args)
         import bookmarks
 
