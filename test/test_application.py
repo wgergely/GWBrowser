@@ -687,13 +687,13 @@ class TestAddFileWidget(unittest.TestCase):
 if __name__ == '__main__':
     loader = unittest.TestLoader()
     cases = (
-        # loader.loadTestsFromTestCase(TestImports),
-        # loader.loadTestsFromTestCase(TestImages),
+        loader.loadTestsFromTestCase(TestImports),
+        loader.loadTestsFromTestCase(TestImages),
         loader.loadTestsFromTestCase(TestSQLite),
-        # loader.loadTestsFromTestCase(TestLocalSettings),
-        # loader.loadTestsFromTestCase(TestAddFileWidget),
-        # loader.loadTestsFromTestCase(TestBookmarksWidget),
-        # loader.loadTestsFromTestCase(TestModules),
+        loader.loadTestsFromTestCase(TestLocalSettings),
+        loader.loadTestsFromTestCase(TestAddFileWidget),
+        loader.loadTestsFromTestCase(TestBookmarksWidget),
+        loader.loadTestsFromTestCase(TestModules),
     )
     suite = unittest.TestSuite(cases)
     unittest.TextTestRunner(verbosity=2, failfast=True).run(suite)
