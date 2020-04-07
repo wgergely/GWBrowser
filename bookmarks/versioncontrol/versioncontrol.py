@@ -169,7 +169,13 @@ def check():
         raise
 
     tags = [(version.parse(f[u'tag_name']).release, f) for f in data]
-
+    if not tags:
+        common_ui.MessageBox(
+            u'No versions are available',
+            u'Could not find any releases. Maybe no release has been published yet.'
+        ).open()
+        return
+        
     # Getting the latest version
     latest = max(tags, key=lambda x: x[0])
     current_version = version.parse(bookmarks.__version__)
