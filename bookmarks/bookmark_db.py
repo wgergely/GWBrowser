@@ -73,8 +73,8 @@ def get_db(index, server=None, job=None, root=None):
         BookmarkDB: A BookmarkDB instance that lives in the current thread.
 
     """
+    global DB_CONNECTIONS
     try:
-        global DB_CONNECTIONS
         thread_id = repr(QtCore.QThread.currentThread())
 
         if not index.isValid():
@@ -136,28 +136,30 @@ def reset():
 class BookmarkDB(QtCore.QObject):
     """Database connector used to interface with the SQLite database.
 
-    Use `BookmarkDB.value()` and `BookmarkDB.setValue()` to get and set data
-    to the database.
+    Use `BookmarkDB.value()` and `BookmarkDB.setValue()` to get and set data.
 
     """
     def __init__(self, server, job, root, parent=None):
         super(BookmarkDB, self).__init__(parent=parent)
+
         self._connection = None
         self._server = server.lower().encode(u'utf-8')
         self._job = job.lower().encode(u'utf-8')
         self._root = root.lower().encode(u'utf-8')
         self._bookmark = server + u'/' + job + u'/' + root
         self._database_path = u'{server}/{job}/{root}/.bookmark/bookmark.db'.format(
-            server=self._server,
-            job=self._job,
-            root=self._root
+            server=server,
+            job=job,
+            root=root
         )
 
-        # Let's make sure the parent folder is created first, otherwise
-        # we won't be able to create the database file.
-        if not QtCore.QFileInfo(self._database_path).dir().mkpath(u'.'):
-            raise RuntimeError(u'Unable to create database dir\n"{}"'.format(
-                self._database_path))
+        # Let's make sure the parent folder exists before connecting
+        _p = u'{}/.bookmark'.format(self._bookmark)
+        if not QtCore.QFileInfo(_p).exists():
+            if not QtCore.QDir(self._bookmark).mkpath(u'.bookmark'):
+                s = u'Unable to create folder "{}"'.format(_p)
+                common.Log.error(s)
+                raise OSError(s)
 
         try:
             self._connection = sqlite3.connect(

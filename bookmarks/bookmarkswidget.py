@@ -141,7 +141,7 @@ class BookmarksModel(baselistwidget.BaseModel):
             else:
                 flags = dflags() | common.MarkedAsArchived
                 pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'remove', common.REMOVE, _height)
+                    u'failed', common.REMOVE, _height)
             placeholder_image = pixmap
             default_thumbnail_image = pixmap
 
@@ -362,6 +362,10 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
         self.manage_bookmarks.resize(self.viewport().geometry().size())
         super(BookmarksWidget, self).showEvent(event)
 
+    def mousePressEvent(self, event):
+        super(BookmarksWidget, self).mousePressEvent(event)
+        self.reset_multitoggle()
+        
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return

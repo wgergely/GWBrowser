@@ -468,6 +468,8 @@ class ThumbnailWorker(BaseWorker):
             if not image:
                 return None
 
+            if not ref() or self.interrupt:
+                return None
             ref()[common.ThumbnailRole] = image
             ref()[common.FileThumbnailLoaded] = True
             return ref

@@ -9,7 +9,7 @@ clear && printf "\x1B[3J"
 
 
 PRODUCT=bookmarks
-VERSION="0.3.0"
+VERSION="0.3.1"
 COPYRIGHT="(c) 2020 Gergely Wootsch"
 DOMAIN="org.bookmarks.com"
 

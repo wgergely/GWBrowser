@@ -921,6 +921,9 @@ class BookmarksWidget(QtWidgets.QListWidget):
 
 
 class ManageBookmarksWidget(QtWidgets.QWidget):
+    """The main widget used to add and remove bookmarks.
+
+    """
     BOOKMARK_KEY = u'bookmarks'
     SERVER_KEY = u'servers'
 
@@ -1054,7 +1057,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             u' Manage Bookmarks', size=common.LARGE_FONT_SIZE(), parent=self)
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
-        self.layout().addSpacing(common.MARGIN())
+        self.layout().addSpacing(common.MARGIN() * 0.5)
 
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
@@ -1236,27 +1239,61 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.add_bookmark_button.clicked.connect(add_new_bookmark)
 
-        # Add/remove bookmarks
-        def _toggle_bookmark(root, mode):
+        @QtCore.Slot(unicode)
+        @QtCore.Slot(int)
+        def _toggle_bookmark(root_path, mode):
+            """Adds or removes the given bookmark."""
             idx = self.server_combobox.currentIndex()
+            if idx < 0:
+                s = u'Error saving the bookmark'
+                common.Log.error(s)
+                common_ui.ErrorBox(s, u'Server not selected', parent=self).open()
+                raise RuntimeError(s)
+
             server = self.server_combobox.itemData(
                 idx, role=QtCore.Qt.DisplayRole)
-            idx = self.job_combobox.currentIndex()
-            job = self.job_combobox.itemData(idx, role=QtCore.Qt.DisplayRole)
+            if not server:
+                s = u'Error saving the bookmark'
+                common.Log.error(s)
+                common_ui.ErrorBox(s, u'Invalid server value', parent=self).open()
+                raise RuntimeError(s)
 
-            if not all((server, job)):
-                return
-            root = root.lower().replace(
-                u'{}/{}'.format(server, job).lower(),
-                u''
-            ).strip(u'/')
-            if not all((server, job, root)):
-                return
+            idx = self.job_combobox.currentIndex()
+            if idx < 0:
+                s = u'Error saving the bookmark'
+                common.Log.error(s)
+                common_ui.ErrorBox(s, u'Job not selected', parent=self).open()
+                raise RuntimeError(s)
+
+            job = self.job_combobox.itemData(idx, role=QtCore.Qt.DisplayRole)
+            if not job:
+                s = u'Error saving the bookmark'
+                common.Log.error(s)
+                common_ui.ErrorBox(s, u'Invalid job value', parent=self).open()
+                raise RuntimeError(s)
+
+            # To get the root path, let's remove the server and job segment
+            s = u'{}/{}'.format(
+                server.rstrip(u'/'),
+                job.strip(u'/')
+            )
+            root = root_path.lower().replace(s.lower(), u'').strip(u'/')
+
+            res = u'{}/{}/{}'.format(server.rstrip(u'/'), job.strip(u'/'), root).lower()
+            if  res != root_path.lower():
+                s = u'Error saving the bookmark'
+                common.Log.error(s)
+                common_ui.ErrorBox(s, u'Inconsistent bookmark path', parent=self).open()
+                raise RuntimeError(s)
 
             if mode == AddMode:
                 self.save_bookmark(
-                    server, job, root, add_config_dir=True)
-            if mode == RemoveMode:
+                    server,
+                    job,
+                    root,
+                    add_config_dir=True
+                )
+            elif mode == RemoveMode:
                 self.remove_saved_bookmark(server, job, root)
 
         self.bookmark_list.bookmarkAdded.connect(
@@ -1272,6 +1309,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         return k
 
     def get_saved_servers(self):
+        """Returns a list of saved servers."""
         def sep(s):
             return re.sub(
                 ur'[\\]', u'/', s, flags=re.UNICODE | re.IGNORECASE)
@@ -1299,9 +1337,15 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
     def _get_saved_bookmarks(self):
         val = settings.local_settings.value(self.BOOKMARK_KEY)
-        if not val:
+        if val is None:
             return {}
-        return val
+
+        if isinstance(val, dict):
+            return val
+
+        s = u'invalid bookmark format in local settings'
+        common.Log.error(s)
+        raise TypeError(s)
 
     def get_saved_bookmarks(self):
         def r(s): return re.sub(ur'[\\]', u'/',
@@ -1321,16 +1365,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             return
 
         k = self.key(server, job, root)
-        if add_config_dir and not QtCore.QFileInfo(u'{}/.bookmark'.format(k)).exists():
+        if add_config_dir:
             if not QtCore.QDir(k).mkpath(u'.bookmark'):
-                s = u'Could not create "{}/.bookmark"'.format(k)
-                common.Log.error(s)
-                common_ui.ErrorBox(
-                    u'Error occured saving bookmark.',
-                    s,
-                    parent=self
-                ).open()
-                raise RuntimeError(s)
+                common.Log.error(u'Could not create "{}/.bookmark"'.format(k))
 
         d = self._get_saved_bookmarks()
         d[k] = {
@@ -1577,10 +1614,16 @@ class ManageBookmarks(QtWidgets.QScrollArea):
 
     def __init__(self, parent=None):
         super(ManageBookmarks, self).__init__(parent=parent)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
         if not self.parent():
             common.set_custom_stylesheet(self)
 
         self.setWindowTitle(u'Manage Bookmarks')
+        self.installEventFilter(self)
         widget = ManageBookmarksWidget(parent=self)
 
         @QtCore.Slot(QtWidgets.QWidget)
@@ -1606,6 +1649,30 @@ class ManageBookmarks(QtWidgets.QScrollArea):
         if event.key() == QtCore.Qt.Key_Escape:
             self.widget()._interrupt_requested = True
 
+    def eventFilter(self, widget, event):
+        if widget != self:
+            return False
+
+        if event.type() == QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(widget)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+            pen = QtGui.QPen(common.SEPARATOR)
+            pen.setWidth(common.ROW_SEPARATOR())
+            painter.setPen(pen)
+            painter.setBrush(common.BACKGROUND)
+
+            o = common.MARGIN() * 0.5
+            rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
+
+            painter.setOpacity(0.95)
+            o = common.INDICATOR_WIDTH() * 1.5
+            painter.drawRoundedRect(rect, o, o)
+            painter.end()
+            return True
+
+        return False
 
 if __name__ == '__main__':
     import bookmarks.standalone as standalone
