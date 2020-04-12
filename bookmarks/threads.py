@@ -20,7 +20,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-from PySide2 import QtCore, QtGui
 import time
 import base64
 import json
@@ -28,6 +27,8 @@ import Queue
 import functools
 import weakref
 import collections
+
+from PySide2 import QtCore, QtGui, QtWidgets
 
 import bookmarks.images as images
 import bookmarks.bookmark_db as bookmark_db
@@ -37,6 +38,59 @@ import OpenImageIO
 
 
 THREADS = {}
+
+
+class ThreadMonitor(QtWidgets.QWidget):
+    """A progress label used to display the number of items currently in the
+    processing queues across all threads.
+
+    """
+    def __init__(self, parent=None):
+        super(ThreadMonitor, self).__init__(parent=parent)
+        self.timer = QtCore.QTimer(parent=self)
+        self.timer.setInterval(200)
+        self.timer.setSingleShot(False)
+        self.timer.timeout.connect(self.update)
+        self.metrics = QtGui.QFontMetrics(
+            common.font_db.primary_font(common.SMALL_FONT_SIZE()))
+
+    def showEvent(self, event):
+        self.timer.start()
+
+    def hideEvent(self, event):
+        self.timer.stop()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        common.draw_aliased_text(
+            painter,
+            common.font_db.primary_font(common.SMALL_FONT_SIZE()),
+            self.rect(),
+            self.text(),
+            QtCore.Qt.AlignCenter,
+            common.ADD
+        )
+        painter.end()
+
+    def update(self):
+        self.setFixedWidth(self.metrics.width(self.text()) + common.MARGIN())
+        super(ThreadMonitor, self).update()
+
+    @staticmethod
+    def text():
+        l = 0
+        for thread in THREADS.itervalues():
+            if thread.worker is None:
+                continue
+            l += len(thread.worker.data_queue.queue)
+
+        if l == 0:
+            return u''
+
+        return u'Loading... ({} left)'.format(l)
+
+
 
 
 class UniqueQueue(Queue.Queue):

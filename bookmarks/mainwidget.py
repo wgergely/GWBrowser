@@ -19,6 +19,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import os
+import gc
 import time
 import functools
 import subprocess
@@ -42,6 +43,7 @@ import bookmarks.common as common
 
 __instance__ = None
 
+
 @QtCore.Slot()
 def show_window():
     """Shows/reveal the main window if it is not visible."""
@@ -59,13 +61,15 @@ def show_window():
         geo = h.screen().availableGeometry()
         if __instance__.width() > geo.width() or __instance__.height() > geo.height():
             o = common.MARGIN()
-            __instance__.setGeometry(geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
+            __instance__.setGeometry(
+                geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
 
 
 class StatusBar(QtWidgets.QStatusBar):
     """Bookmarks's statusbar on the bottom of the window.
 
     """
+
     def __init__(self, height, parent=None):
         super(StatusBar, self).__init__(parent=parent)
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -280,6 +284,7 @@ class ToggleModeButton(QtWidgets.QWidget):
             return u'Instance is syncronised. Click to toggle.'
         elif settings.local_settings.current_mode() == common.SoloMode:
             return u'Instance not synronised. Click to toggle.'
+        return u'Invalid mode.'
 
     @QtCore.Slot()
     def reverse_direction(self):
@@ -371,7 +376,8 @@ class MainWidget(QtWidgets.QWidget):
         super(MainWidget, self).__init__(parent=parent)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, common.ASSET_ROW_HEIGHT())
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'icon', None, common.ASSET_ROW_HEIGHT())
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self._contextMenu = None
@@ -388,6 +394,8 @@ class MainWidget(QtWidgets.QWidget):
         self.favouriteswidget = None
         self.statusbar = None
         self.solo_button = None
+
+        self.thread_monitor = None
 
         self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
@@ -448,8 +456,11 @@ class MainWidget(QtWidgets.QWidget):
         self.solo_button.message.connect(
             lambda s: self.statusbar.showMessage(s, 4000))
 
-        row.layout().addWidget(self.statusbar)
-        row.layout().addWidget(self.solo_button)
+        self.thread_monitor = threads.ThreadMonitor(parent=self)
+
+        row.layout().addWidget(self.thread_monitor, 0)
+        row.layout().addWidget(self.statusbar, 1)
+        row.layout().addWidget(self.solo_button, 0)
 
     @QtCore.Slot()
     def initialize(self):
@@ -526,7 +537,6 @@ class MainWidget(QtWidgets.QWidget):
         self._initialized = True
         self.initialized.emit()
 
-
     @QtCore.Slot()
     def screenChanged(self):
         screen = self.window().windowHandle().screen()
@@ -540,7 +550,6 @@ class MainWidget(QtWidgets.QWidget):
 
         """
         def ui_teardown():
-            import bookmarks.settings as settings
             settings.local_settings.sync_timer.stop()
             settings.local_settings.server_mount_timer.stop()
 
@@ -599,10 +608,8 @@ class MainWidget(QtWidgets.QWidget):
 
             images.ImageCache.INTERNAL_MODEL_DATA = None
 
-            import bookmarks.settings as settings
             settings.local_settings.deleteLater()
             settings.local_settings = None
-            import gc
             gc.collect()
 
         def close_database_connections():
@@ -670,7 +677,8 @@ class MainWidget(QtWidgets.QWidget):
     def open_new_instance(self):
         try:
             if common.get_platform() == u'win':
-                p = os.environ['BOOKMARKS_ROOT'] + os.path.sep + 'bookmarks.exe'
+                p = os.environ['BOOKMARKS_ROOT'] + \
+                    os.path.sep + 'bookmarks.exe'
                 subprocess.Popen(p)
         except KeyError:
             common.Log.error(u'Could not open new instance')
@@ -909,16 +917,17 @@ class MainWidget(QtWidgets.QWidget):
             pixmaprect.setHeight(s)
             pixmaprect.moveCenter(center)
 
-            painter.setBrush(QtGui.QColor(0,0,0,20))
-            pen = QtGui.QPen(QtGui.QColor(0,0,0,20))
+            painter.setBrush(QtGui.QColor(0, 0, 0, 20))
+            pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 20))
             painter.setPen(pen)
 
             painter.drawRoundedRect(
-                pixmaprect.marginsAdded(QtCore.QMargins(o * 3, o * 3, o * 3, o * 3)),
+                pixmaprect.marginsAdded(
+                    QtCore.QMargins(o * 3, o * 3, o * 3, o * 3)),
                 o, o)
 
             pixmap = images.ImageCache.get_rsc_pixmap(
-                'icon_bw', None, s)
+                u'icon_bw', None, s)
             painter.setOpacity(0.5)
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
             painter.setOpacity(1.0)
