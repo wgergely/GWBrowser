@@ -59,25 +59,45 @@ def verify_index(func):
     return func_wrapper
 
 
-def oiio_get_qimage(path):
-    """Get the pixel data using OpenImageIO and wrap it in a QImage instance."""
-    i = OpenImageIO.ImageInput.open(path)
+def oiio_get_buf(source):
+    """Check the given file for compatibility.
+
+    Args:
+        source (unicode): Path to an OpenImageIO compatible image file.
+
+    Returns:
+        ImageBuf: An `ImageBuf` instance or `None` if the file is invalid.
+
+    """
+    ext = source.split(u'.').pop().lower()
+    i = OpenImageIO.ImageInput.create(ext)
     if not i:
         common.Log.error(OpenImageIO.geterror())
         return None
 
-    try:
-        buf = OpenImageIO.ImageBuf()
-        o_spec = i.spec_dimensions(0, miplevel=0)
-        buf.reset(path, 0, 0, o_spec)
-    except:
-        common.Log.error(buf.geterror())
-        return None
-    finally:
+    if not i.valid_file(source):
         i.close()
+        common.Log.error(u'{} is invalid'.format(source))
+        return None
+
+    i.close()
+
+    buf = OpenImageIO.ImageBuf()
+    buf.reset(source, 0, 0)
 
     if buf.has_error:
         common.Log.error(buf.geterror())
+        return None
+
+    return buf
+
+
+def oiio_get_qimage(path):
+    """Get the pixel data using OpenImageIO and wrap it in a QImage instance.
+
+    """
+    buf = oiio_get_buf(path)
+    if buf is None:
         return None
 
     spec = buf.spec()
@@ -393,15 +413,18 @@ class ImageCache(QtCore.QObject):
         if k in cls.INTERNAL_IMAGE_DATA and overwrite:
             del cls.INTERNAL_IMAGE_DATA[k]
 
-        # Checking if the file can be opened
-        i = OpenImageIO.ImageInput.open(path)
-        if not i:
+        # A little leap of faith here as I'm using OpenImageIO to check if Qt5
+        # can load the image. My reasoning is that the performance of oiio is
+        # excellent and both qt5 and oiio use the same PNG library, hence if
+        # oiio can open it qt5 should be able to as well. I also get access to
+        # image properties this way
+        buf = oiio_get_buf(path)
+        if buf is None:
             return None
 
         if not height:
-            d = i.spec_dimensions(0, miplevel=0)
-            height = max((d.height, d.width))
-        i.close()
+            spec = buf.spec()
+            height = max((spec.height, spec.width))
 
         image = QtGui.QPixmap(path)
         if image.isNull():
@@ -492,8 +515,9 @@ class ImageCache(QtCore.QObject):
 
         if file_.exists():
             if not file_.remove():
-                print '# Failed to remove thumbnail: {}'.format(
+                s = u'Could not remove {}'.format(
                     data[common.ThumbnailPathRole])
+                common.Log.error(s)
 
         keys = [k for k in cls.INTERNAL_IMAGE_DATA if data[common.ThumbnailPathRole].lower()
                 in k.lower()]
@@ -629,6 +653,20 @@ class ImageCache(QtCore.QObject):
 
     @classmethod
     def oiio_make_thumbnail(cls, source, dest, dest_size, nthreads=4):
+        """OpenImageIO wrapper converts `source` to an sRGB image fitting int the bounds of `dest_size`.
+
+        Args:
+            source (unicode): Source image's file path.
+            dest (unicode): Destination of the converted image.
+            dest_size (int): The bounds to fit the converted image (in pixels).
+            nthreads (int): Number of threads to use. Defaults to 4.
+
+        Returns:
+            bool: True if successfully converted the image.
+
+        """
+        common.Log.debug(u'Converting {}...'.format(source), cls)
+
         def get_scaled_spec(source_spec):
             w = source_spec.width
             h = source_spec.height
@@ -680,28 +718,12 @@ class ImageCache(QtCore.QObject):
                 common.Log.error('Could not conver tthe color profile')
             return buf
 
-        i = OpenImageIO.ImageInput.open(source)
-        if not i:
-            common.Log.error(OpenImageIO.geterror())
-            return False
-
-        try:
-            buf = OpenImageIO.ImageBuf()
-            o_spec = i.spec_dimensions(0, miplevel=0)
-            buf.reset(source, 0, 0, o_spec)
-        except:
-            common.Log.error(buf.geterror())
-            return False
-        finally:
-            i.close()
-
-        if buf.has_error:
-            common.Log.error(buf.geterror())
+        buf = oiio_get_buf(source)
+        if not buf:
             return False
 
         source_spec = buf.spec()
-        ext = source.split(u'.').pop().lower()
-        accepted_codecs = (u'h.264', u'mpeg-4')
+        accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4')
         codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
 
         if ext in (u'tif', u'tiff', u'gif') and source_spec.format == 'uint16':
@@ -715,7 +737,7 @@ class ImageCache(QtCore.QObject):
             for codec in accepted_codecs:
                 if codec.lower() not in codec_name.lower():
                     common.Log.error(
-                        'Unsupported movie format: {}'.format(codec_name))
+                        u'Unsupported movie format: {}'.format(codec_name))
                     return False
 
         dest_spec = get_scaled_spec(source_spec)
@@ -744,18 +766,19 @@ class ImageCache(QtCore.QObject):
         _spec = OpenImageIO.ImageSpec()
         _spec.from_xml(spec.to_xml())  # this doesn't copy the extra attributes
         for i in spec.extra_attribs:
-            if i.name.lower() == 'iccprofile':
+            if i.name.lower() == u'iccprofile':
                 continue
             try:
                 _spec[i.name] = i.value
-            except ValueError:
+            except:
+                common.Log.error(u'Error saving iccprofile. Continuing.')
                 continue
         spec = _spec
 
         # On some dpx images I'm getting "GammaCorrectedinf"
         if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
-            spec['oiio:ColorSpace'] = u'sRGB'
-            spec['oiio:Gamma'] = u'0.454545'
+            spec[u'oiio:ColorSpace'] = u'sRGB'
+            spec[u'oiio:Gamma'] = u'0.454545'
 
         # Initiating a new spec with the modified spec
         _buf = OpenImageIO.ImageBuf(spec)
@@ -1043,9 +1066,9 @@ class ImageViewer(QtWidgets.QWidget):
         self.load_timer.start()
 
 
-if __name__ == '__main__':
-    import bookmarks.standalone as standlone
-    app = standlone.StandaloneApp([])
-    w = ImageViewer(
-        ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
-    w.exec_()
+# if __name__ == '__main__':
+    # import bookmarks.standalone as standlone
+    # app = standlone.StandaloneApp([])
+    # w = ImageViewer(
+    #     ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
+    # w.exec_()
