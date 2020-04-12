@@ -70,6 +70,9 @@ def oiio_get_buf(source):
 
     """
     ext = source.split(u'.').pop().lower()
+    if not ext:
+        return None
+
     i = OpenImageIO.ImageInput.create(ext)
     if not i:
         common.Log.error(OpenImageIO.geterror())
@@ -93,7 +96,14 @@ def oiio_get_buf(source):
 
 
 def oiio_get_qimage(path):
-    """Get the pixel data using OpenImageIO and wrap it in a QImage instance.
+    """Load the pixel data using OpenImageIO and return it as a
+    `RGBA8888` / `RGB888` QImage.
+
+    Args:
+        path (unicode): Path to an OpenImageIO readable image.
+
+    Returns:
+        QImage: An QImage instance or `None` if the image/path is invalid.
 
     """
     buf = oiio_get_buf(path)
@@ -107,31 +117,36 @@ def oiio_get_qimage(path):
         b = OpenImageIO.ImageBufAlgo.channels(
             buf,
             (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]),
-            ('R', 'G', 'B')
+            (u'R', u'G', u'B')
         )
     elif int(spec.nchannels) > 4:
-        if spec.channelindex('A') > -1:
+        if spec.channelindex(u'A') > -1:
             b = OpenImageIO.ImageBufAlgo.channels(
-                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+                b, (u'R', u'G', u'B', u'A'), (u'R', u'G', u'B', u'A'))
         else:
             b = OpenImageIO.ImageBufAlgo.channels(
-                b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+                b, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
+
 
     np_arr = buf.get_pixels()
     np_arr = (np_arr / (1.0 / 255.0)).astype(np.uint8)
-    if np_arr.shape[2] == 3:
-        format = QtGui.QImage.Format_RGB888
+    if np_arr.shape[2] == 1:
+        _format = QtGui.QImage.Format_Grayscale8
+    if np_arr.shape[2] == 2:
+        _format = QtGui.QImage.Format_Invalid
+    elif np_arr.shape[2] == 3:
+        _format = QtGui.QImage.Format_RGB888
     elif np_arr.shape[2] == 4:
-        format = QtGui.QImage.Format_RGBA8888
-    else:
-        format = QtGui.QImage.Format_RGB888
+        _format = QtGui.QImage.Format_RGBA8888
+    elif np_arr.shape[2] > 4:
+        _format = QtGui.QImage.Format_Invalid
 
     image = QtGui.QImage(
         np_arr,
         spec.width,
         spec.height,
         spec.width * spec.nchannels,  # scanlines
-        format
+        _format
     )
 
     # As soon as the numpy array is garbage collected, the QImage becomes
@@ -711,11 +726,11 @@ class ImageCache(QtCore.QObject):
         def convert_color(buf, source_spec):
             colorspace = source_spec.get_string_attribute(u'oiio:ColorSpace')
             try:
-                if colorspace != 'sRGB':
+                if colorspace != u'sRGB':
                     buf = OpenImageIO.ImageBufAlgo.colorconvert(
-                        buf, colorspace, 'sRGB')
+                        buf, colorspace, u'sRGB')
             except:
-                common.Log.error('Could not conver tthe color profile')
+                common.Log.error(u'Could not conver tthe color profile')
             return buf
 
         buf = oiio_get_buf(source)
@@ -725,8 +740,9 @@ class ImageCache(QtCore.QObject):
         source_spec = buf.spec()
         accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4')
         codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
-
-        if ext in (u'tif', u'tiff', u'gif') and source_spec.format == 'uint16':
+        common.Log.success(codec_name)
+        ext = source.split(u'.').pop().lower()
+        if ext in (u'tif', u'tiff', u'gif') and source_spec.format.lower() == u'uint16':
             pass
             # return False
 
@@ -734,11 +750,10 @@ class ImageCache(QtCore.QObject):
             # [BUG] Not all codec formats are supported by ffmpeg. There does
             # not seem to be (?) error handling and an unsupported codec will
             # crash ffmpeg and the rest of the app.
-            for codec in accepted_codecs:
-                if codec.lower() not in codec_name.lower():
-                    common.Log.error(
-                        u'Unsupported movie format: {}'.format(codec_name))
-                    return False
+            if not [f for f in accepted_codecs if f.lower() in codec_name.lower()]:
+                common.Log.error(
+                    u'Unsupported movie format: {}'.format(codec_name))
+                return False
 
         dest_spec = get_scaled_spec(source_spec)
         buf = shuffle_channels(buf, source_spec)
