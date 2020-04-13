@@ -667,7 +667,6 @@ class BaseModel(QtCore.QAbstractListModel):
         common.Log.debug(u'model_loaded()', self)
         if not ref():
             return
-
         if ref() == self.model_data() and (self.sort_order() or self.sort_role() != common.SortByNameRole):
             common.Log.debug(u'>>> Model needs re-sorting', self)
             self.sort_data()
@@ -1202,13 +1201,15 @@ class BaseListWidget(QtWidgets.QListView):
     def update_row(self, ref):
         """Slot used to update the row associated with the data segment."""
         common.Log.debug('update_row(ref)', self)
-        if not ref():
-            return
 
         if self.isHidden():
             return
         model = self.model()
+
+        if not ref():
+            return
         index = model.sourceModel().index(ref()[common.IdRole], 0)
+
         index = model.mapFromSource(index)
         super(BaseListWidget, self).update(index)
 
@@ -2725,6 +2726,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             icount = len(model.threads[common.InfoThread])
             while r.intersects(rect):
                 source_index = proxy.mapToSource(index)
+                if source_index.row() not in data:
+                    continue
+
                 ref = weakref.ref(data[source_index.row()])
 
                 info_loaded = index.data(common.FileInfoLoaded)
