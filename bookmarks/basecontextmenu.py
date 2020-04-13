@@ -104,7 +104,8 @@ class BaseContextMenu(QtWidgets.QMenu):
                 width = metrics.width(action.text())
                 width += (common.MARGIN() * 4)
                 w.append(int(width))
-            parent.setFixedWidth(max(w))
+            if w:
+                parent.setFixedWidth(max(w))
 
         if not parent:
             parent = self
