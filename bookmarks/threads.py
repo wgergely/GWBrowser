@@ -288,26 +288,48 @@ class BaseThread(QtCore.QThread):
 
 
 class InfoWorker(BaseWorker):
+    """A worker used to retrieve file information.
+
+    For large number of files this involves multiple IO calls that while
+    don't want to do in the main thread.
+
+    """
     @process
-    @QtCore.Slot()
+    @QtCore.Slot(weakref.ref)
     def process_data(self, ref):
-        """"""
+        """Slot to load all necessary file-information."""
         if not ref() or self.interrupt:
             return None
         ref = self.process_file_information(ref)
+        if not ref():
+            return None
         return ref
 
     @classmethod
     def process_file_information(cls, ref):
+        """Populates the DataDict instance with all file information.
+
+        Args:
+            ref (weakref): An internal model data DataDict instance's weakref.
+
+        Returns:
+            weakref: The original weakref, or None if loading fails.
+
+        """
+        if not ref():
+            return None
         if ref()[common.FileInfoLoaded]:
             return ref
 
         # The call should already be thread-safe guarded by a lock
+        if not ref():
+            return None
+        pp = ref()[common.ParentPathRole]
         db = bookmark_db.get_db(
             QtCore.QModelIndex(),
-            server=ref()[common.ParentPathRole][0],
-            job=ref()[common.ParentPathRole][1],
-            root=ref()[common.ParentPathRole][2]
+            server=pp[0],
+            job=pp[1],
+            root=pp[2]
         )
         if not db:
             return None
@@ -315,15 +337,17 @@ class InfoWorker(BaseWorker):
         # DATABASE --BEGIN--
         with db.transactions():
             # Item description
+            if not ref():
+                return None
             k = common.proxy_path(ref())
 
             # Description
             v = db.value(k, u'description')
             if v:
+                if not ref():
+                    return None
                 ref()[common.DescriptionRole] = v
 
-            # Todos - We'll have to load the data to count the items.
-            # Hope fully this won't end up as a super costly operation
             v = db.value(k, u'notes')
             count = 0
             if v:
@@ -334,29 +358,39 @@ class InfoWorker(BaseWorker):
                              and not v[k][u'checked']]
                     count = len(count)
                 except:
-                    common.Log.error('Could not read notes')
+                    common.Log.error(u'Could not read notes')
 
+            if not ref():
+                return None
             ref()[common.TodoCountRole] = count
 
             # Item flags
+            if not ref():
+                return None
             flags = ref()[
                 common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
             v = db.value(k, u'flags')
             if v:
                 flags = flags | v
 
+            if not ref():
+                return None
             ref()[common.FlagsRole] = flags
-
-        if not ref():
-            return None
 
         # For sequence items we will work out the name of the sequence based on
         # the frames.
+        if not ref():
+            return None
         if ref()[common.TypeRole] == common.SequenceItem:
-            intframes = [int(f) for f in ref()[common.FramesRole]]
-            padding = len(ref()[common.FramesRole][0])
+            if not ref():
+                return None
+            frs = ref()[common.FramesRole]
+            intframes = [int(f) for f in frs]
+            padding = len(frs[0])
             rangestring = common.get_ranges(intframes, padding)
 
+            if not ref():
+                return None
             seq = ref()[common.SequenceRole]
             startpath = \
                 seq.group(1) + \
@@ -385,25 +419,48 @@ class InfoWorker(BaseWorker):
             seqname = seqpath.split(u'/')[-1]
 
             # Setting the path names
+            if not ref():
+                return None
             ref()[common.StartpathRole] = startpath
+            if not ref():
+                return None
             ref()[common.EndpathRole] = endpath
+            if not ref():
+                return None
             ref()[QtCore.Qt.StatusTipRole] = seqpath
+            if not ref():
+                return None
             ref()[QtCore.Qt.ToolTipRole] = seqpath
+            if not ref():
+                return None
             ref()[QtCore.Qt.DisplayRole] = seqname
+            if not ref():
+                return None
             ref()[QtCore.Qt.EditRole] = seqname
+            if not ref():
+                return None
             ref()[common.ThumbnailPathRole] = db.thumbnail_path(thumb_k)
 
             # We saved the DirEntry instances previously in `__initdata__` but
             # only for the thread to extract the information from it.
-            if ref()[common.EntryRole]:
+            if not ref():
+                return None
+            er = ref()[common.EntryRole]
+            if er:
                 mtime = 0
-                for entry in ref()[common.EntryRole]:
+                for entry in er:
                     stat = entry.stat()
                     mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
+                    if not ref():
+                        return None
                     ref()[common.SortBySizeRole] += stat.st_size
+                if not ref():
+                    return None
                 ref()[common.SortByLastModifiedRole] = mtime
                 mtime = common.qlast_modified(mtime)
 
+                if not ref():
+                    return None
                 info_string = \
                     unicode(len(intframes)) + u'f;' + \
                     mtime.toString(u'dd') + u'/' + \
@@ -412,14 +469,18 @@ class InfoWorker(BaseWorker):
                     mtime.toString(u'hh') + u':' + \
                     mtime.toString(u'mm') + u';' + \
                     common.byte_to_string(ref()[common.SortBySizeRole])
+                if not ref():
+                    return None
                 ref()[common.FileDetailsRole] = info_string
 
         if not ref():
             return None
-
         if ref()[common.TypeRole] == common.FileItem:
-            if ref()[common.EntryRole]:
-                stat = ref()[common.EntryRole][0].stat()
+            if not ref():
+                return None
+            er = ref()[common.EntryRole]
+            if er:
+                stat = er[0].stat()
                 mtime = stat.st_mtime
                 ref()[common.SortByLastModifiedRole] = mtime
                 mtime = common.qlast_modified(mtime)
@@ -431,27 +492,47 @@ class InfoWorker(BaseWorker):
                     mtime.toString(u'hh') + u':' + \
                     mtime.toString(u'mm') + u';' + \
                     common.byte_to_string(ref()[common.SortBySizeRole])
-
+                if not ref():
+                    return None
                 ref()[common.FileDetailsRole] = info_string
+            if not ref():
+                return None
             ref()[common.ThumbnailPathRole] = db.thumbnail_path(
                 ref()[QtCore.Qt.StatusTipRole])
 
+        # Finally, set flag to mark this loaded
         if not ref():
             return None
-
-        # Finally, set flag to mark this loaded
         ref()[common.FileInfoLoaded] = True
+
+        if not ref():
+            return None
         return ref
 
 
 class BackgroundInfoWorker(InfoWorker):
+    """An alternate file information loader.
+
+    Instead of a taking a single file, it concerns itself with iterating over
+    all items in a data-set.
+
+    """
     modelLoaded = QtCore.Signal(weakref.ref)
 
     @process
-    @QtCore.Slot()
+    @QtCore.Slot(weakref.ref)
     def process_data(self, ref):
+        """Iterates over all items in a model data segment.
+
+        It does not return the original reference but emits the `modelLoaded`
+        signal that triggers all necessary refresh slots.
+
+        Args:
+            ref (type): Internal model data DataDict.
+
+        """
         if not ref() or self.interrupt:
-            return
+            return None
 
         changed = False
         for item in ref().itervalues():
@@ -467,7 +548,6 @@ class BackgroundInfoWorker(InfoWorker):
         if changed:
             common.Log.debug('modelLoaded.emit()', self)
             self.modelLoaded.emit(ref)
-
         return None
 
     def reset_queue(self):
@@ -493,10 +573,11 @@ class ThumbnailWorker(BaseWorker):
         if ref()[common.FlagsRole] & common.MarkedAsArchived:
             return None
 
-        # In theory a FileInfo thread should already have picked the item up
-        # Let's wait a little for the data to load, and cancel after...
+        # In theory a one of the FileInfoWorkers thread should already have
+        # picked the item up as the they have a smaller refresh frequency. Best
+        # is to wait a while for the data to load, and abort after...
         n = 0
-        while not ref()[common.FileInfoLoaded]:
+        while ref() and not ref()[common.FileInfoLoaded]:
             if n > 20:
                 return None
             if not ref() or self.interrupt:
@@ -504,14 +585,19 @@ class ThumbnailWorker(BaseWorker):
             time.sleep(0.1)
             n += 1
 
+        if not ref() or self.interrupt:
+            return None
         if ref()[common.FileThumbnailLoaded]:
             return None
 
-        if not ref():
+        if not ref() or self.interrupt:
             return None
-
         thumbnail_path = ref()[common.ThumbnailPathRole]
+        if not ref() or self.interrupt:
+            return None
         height = ref()[QtCore.Qt.SizeHintRole].height()
+        if not ref() or self.interrupt:
+            return None
         ext = ref()[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
@@ -525,7 +611,11 @@ class ThumbnailWorker(BaseWorker):
             if not ref() or self.interrupt:
                 return None
             ref()[common.ThumbnailRole] = image
+            if not ref() or self.interrupt:
+                return None
             ref()[common.FileThumbnailLoaded] = True
+            if not ref() or self.interrupt:
+                return None
             return ref
 
         # If the item doesn't have a saved thumbnail we will check if
@@ -533,13 +623,17 @@ class ThumbnailWorker(BaseWorker):
         if ext.lower() not in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
             return None
 
-        ref()[common.FileThumbnailLoaded] = False
         if not ref() or self.interrupt:
             return None
+        ref()[common.FileThumbnailLoaded] = False
 
         if not self.process_thumbnail(ref):
             return None
+        if not ref() or self.interrupt:
+            return None
         ref()[common.FileThumbnailLoaded] = True
+        if not ref() or self.interrupt:
+            return None
         return ref
 
     @QtCore.Slot(weakref.ref)
@@ -549,7 +643,7 @@ class ThumbnailWorker(BaseWorker):
         a weak dict reference.
 
         Args:
-            ref (weakref.ref):  A weak reference to a data segment
+            ref (weakref.ref):  A weak reference to a data segment.
 
         Returns:
             bool: `True` when the operation was successful, `False` otherwise
@@ -559,14 +653,18 @@ class ThumbnailWorker(BaseWorker):
             # OpenImageIO images.ImageCache instance to control file handles
             cache = OpenImageIO.ImageCache()
 
+            if not ref():
+                return False
             source = ref()[QtCore.Qt.StatusTipRole]
             if common.is_collapsed(source):
                 source = common.get_sequence_startpath(source)
+            if not ref():
+                return False
             dest = ref()[common.ThumbnailPathRole]
 
-            # Make sure we're not trying to generate a thumbnail for
-            # an enournmous file...
-            if QtCore.QFileInfo(source).size() >= 836870912:
+            # Making sure we're not trying to generate a thumbnail for
+            # a very big file
+            if QtCore.QFileInfo(source).size() >= pow(1024, 3) * 2: # 1GB
                 return False
 
             if not images.ImageCache.oiio_make_thumbnail(source, dest, common.THUMBNAIL_IMAGE_SIZE):
@@ -574,20 +672,21 @@ class ThumbnailWorker(BaseWorker):
 
             if not ref():
                 return False
-
-            # Load the image and the background color
             image = images.ImageCache.get(
                 ref()[common.ThumbnailPathRole],
-                ref()[QtCore.Qt.SizeHintRole].height() -
-                common.ROW_SEPARATOR(),
-                overwrite=True)
-            ref()[common.ThumbnailRole] = image
-            return True
-        except:
-            common.Log.error('Failed to process thumbnail')
+                # ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR(),
+                ref()[QtCore.Qt.SizeHintRole].height(),
+                overwrite=True
+            )
             if not ref():
                 return False
-            ref()[common.ThumbnailRole] = ref()[common.DefaultThumbnailRole]
+            ref()[common.ThumbnailRole] = image
+            if not ref():
+                return False
+            return True
+        except:
+            if ref():
+                ref()[common.ThumbnailRole] = ref()[common.DefaultThumbnailRole]
             common.Log.error('Failed to generate thumbnail')
         finally:
             if ref():
@@ -600,27 +699,30 @@ class TaskFolderWorker(BaseWorker):
     @process
     @QtCore.Slot()
     def process_data(self, ref):
-        """Counts the number of items in the task folder up to 999."""
+        """Counts the number of items in the task folder up to 999.
+
+        """
         if not ref() or self.interrupt:
             return None
-
-        for _ref in [weakref.ref(f) for f in ref().values()]:
-            # The underlying data can change whilst walking...
-            if not ref():
+        vals = ref().values()
+        for _ref in [weakref.ref(f) for f in vals]:
+            if not ref() or self.interrupt:
                 return None
 
             count = 0
             for entry in common.walk(_ref()[QtCore.Qt.StatusTipRole]):
+                if not ref() or not _ref() or self.interrupt:
+                    return None
                 if entry.name.startswith(u'.'):
                     continue
                 count += 1
                 if count > 999:
                     break
 
-            if not ref():
-                return None
-            if not _ref():
+            if not ref() or not _ref() or self.interrupt:
                 return None
             _ref()[common.TodoCountRole] = count
+            if not ref() or not _ref() or self.interrupt:
+                return None
             self.dataReady.emit(_ref)
         return None
