@@ -470,7 +470,7 @@ def namekey(s):
         s = s.split(u'/').pop()  # order by filename
     else:
         n = len(s.split(u'/'))
-        s = ((u'Ω' * n) + s)  # order by number of subfolders, then name
+        s = ((u'Ω' * (n - 1)) + s)  # order by number of subfolders, then name
     return [int(f) if f.isdigit() else f for f in s]
 
 
