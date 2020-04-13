@@ -556,6 +556,14 @@ class TestImages(unittest.TestCase):
     def tearDown(self):
         self.source = None
 
+    def test_oiio_get_buf(self):
+        import bookmarks.images as images
+        import OpenImageIO
+        buf = images.oiio_get_buf('bogus_path')
+        self.assertEqual(buf, None)
+        buf = images.oiio_get_buf(self.source)
+        self.assertIsInstance(buf, OpenImageIO.ImageBuf)
+
     def test_oiio_get_qimage(self):
         import bookmarks.images as images
         from PySide2 import QtGui
