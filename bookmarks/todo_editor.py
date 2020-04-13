@@ -946,15 +946,17 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         self.clear()
 
+        keys = sorted(d.keys())
         try:
-            for k, _ in enumerate(d):
+            for k in keys:
                 self.add_item(
-                    text=d[unicode(k)][u'text'],
-                    checked=d[unicode(k)][u'checked']
+                    text=d[k][u'text'],
+                    checked=d[k][u'checked']
                 )
         except:
             common.Log.error(u'Error adding notes')
-            return
+            common_ui.ErrorBox(u'Error refreshing the data', u'').open()
+            raise
 
     @property
     def index(self):
