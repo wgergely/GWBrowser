@@ -319,7 +319,7 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.EditRole] = filename
                 v[QtCore.Qt.StatusTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
-                v[common.SortByNameRole] = filepath
+                v[common.SortByNameRole] = common.namekey(filepath)
                 v[common.SortByLastModifiedRole] = 0
 
                 flags = dflags()
