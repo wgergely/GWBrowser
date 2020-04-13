@@ -738,20 +738,14 @@ class ImageCache(QtCore.QObject):
             return False
 
         source_spec = buf.spec()
-        accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4')
+        accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4', u'gif')
         codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
-        common.Log.success(codec_name)
-        ext = source.split(u'.').pop().lower()
-        if ext in (u'tif', u'tiff', u'gif') and source_spec.format.lower() == u'uint16':
-            pass
-            # return False
-
         if source_spec.get_int_attribute(u'oiio:Movie') == 1:
             # [BUG] Not all codec formats are supported by ffmpeg. There does
             # not seem to be (?) error handling and an unsupported codec will
             # crash ffmpeg and the rest of the app.
             if not [f for f in accepted_codecs if f.lower() in codec_name.lower()]:
-                common.Log.error(
+                common.Log.debug(
                     u'Unsupported movie format: {}'.format(codec_name))
                 return False
 
