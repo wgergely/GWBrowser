@@ -28,7 +28,7 @@ name = u'bookmarks'
 author = 'Gergely Wootsch'
 website = 'https://gergely-wootsch.com'
 email = 'hello@gergely-wootsch.com'
-__version__ = u'0.3.2'
+__version__ = u'0.3.5'
 
 
 def get_info():
@@ -53,7 +53,7 @@ def get_info():
     )
 
 
-def exec_(debug=False):
+def exec_():
     """Starts the product as a standalone PySide2 application.
 
     .. code-block:: python
@@ -66,10 +66,10 @@ def exec_(debug=False):
     for info in get_info():
         sys.stdout.write(u'{}\n'.format(info))
 
-    from PySide2 import QtWidgets, QtCore
-    # Set UI
+    from PySide2 import QtWidgets
     import bookmarks.common as common
     import bookmarks.settings as settings
+
     ui_scale = settings.local_settings.value(u'preferences/ui_scale')
     ui_scale = ui_scale if ui_scale else common.UI_SCALE
 
@@ -81,11 +81,6 @@ def exec_(debug=False):
         app = QtWidgets.QApplication.instance()
     else:
         app = standalone.StandaloneApp([])
-
-        if debug:
-            common.DEBUG_ON = True
-            logview = common.LogView()
-            logview.show()
 
     import bookmarks.mainwidget as mainwidget
     standalone.StandaloneMainWidget()

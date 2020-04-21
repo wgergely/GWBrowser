@@ -19,12 +19,16 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.images as images
 
 import bookmarks._scandir as _scandir
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.delegate as delegate
+
+
+_message_box_instance = None
 
 
 def get_group(parent=None):
@@ -361,6 +365,9 @@ class MessageBox(QtWidgets.QDialog):
     icon = u'icon_bw'
 
     def __init__(self, short_text, long_text, parent=None):
+        global _message_box_instance
+        _message_box_instance = self
+
         super(MessageBox, self).__init__(parent=parent)
 
         if parent is None:
@@ -586,16 +593,12 @@ class DescriptionEditorWidget(LineEdit):
 
         k = common.proxy_path(index)
 
-        try:
-            db = bookmark_db.get_db(index)
-            db.setValue(k, u'description', self.text())
-        except Exception as e:
-            ErrorBox(
-                u'Error occured saving the description.',
-                u'{}'.format(e)
-            ).open()
-            common.Log.error()
-            raise
+        db = bookmark_db.get_db(
+            index.data(common.ParentPathRole)[0],
+            index.data(common.ParentPathRole)[1],
+            index.data(common.ParentPathRole)[2]
+        )
+        db.setValue(k, u'description', self.text())
 
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
@@ -783,156 +786,3 @@ class FilterEditor(QtWidgets.QDialog):
         self.editor_widget.setText(text)
         self.editor_widget.selectAll()
         self.editor_widget.setFocus()
-
-
-class ThumbnailLabel(QtWidgets.QLabel):
-    """Custom QLabel to select a thumbnail."""
-    clicked = QtCore.Signal(unicode)
-
-    def __init__(self, path, size, parent=None):
-        super(ThumbnailLabel, self).__init__(parent=parent)
-        self._path = path
-
-        self.setFixedWidth(size)
-        self.setFixedHeight(size)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Maximum,
-            QtWidgets.QSizePolicy.Maximum)
-
-    def enterEvent(self, event):
-        self.update()
-
-    def leaveEvent(self, event):
-        self.update()
-
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.clicked.emit(self._path)
-
-    def paintEvent(self, event):
-        super(ThumbnailLabel, self).paintEvent(event)
-
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        if hover:
-            painter.setPen(common.TEXT)
-            common.draw_aliased_text(
-                painter,
-                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
-                self.rect(),
-                self._path.split(
-                    u'/').pop().replace(u'thumb_', u'').split(u'_')[0],
-                QtCore.Qt.AlignCenter,
-                common.TEXT_SELECTED
-            )
-            painter.end()
-            return
-
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QColor(0, 0, 0, 33))
-        painter.drawRect(self.rect())
-        painter.end()
-
-
-class ThumbnailsWidget(QtWidgets.QWidget):
-    """The widget used to let the end-user pick a new thumbnail."""
-    thumbnailSelected = QtCore.Signal(unicode)
-    thumbnail_size = common.ASSET_ROW_HEIGHT()
-
-    def __init__(self, parent=None):
-        super(ThumbnailsWidget, self).__init__(parent=parent)
-        self.columns = 5
-
-        self.setWindowFlags(QtCore.Qt.Widget)
-        self.setWindowTitle(u'Select thumbnail')
-
-        self._create_UI()
-
-    def _create_UI(self):
-        """Using scandir we will get all the installed thumbnail files from the rsc directory."""
-        QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN()
-
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
-
-        widget = QtWidgets.QWidget()
-        widget.setStyleSheet(
-            'background-color: rgba({})'.format(common.rgb(common.SECONDARY_BACKGROUND)))
-        # widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # widget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-
-        QtWidgets.QGridLayout(widget)
-        widget.layout().setAlignment(QtCore.Qt.AlignCenter)
-        widget.layout().setContentsMargins(
-            common.INDICATOR_WIDTH(),
-            common.INDICATOR_WIDTH(),
-            common.INDICATOR_WIDTH(),
-            common.INDICATOR_WIDTH())
-        widget.layout().setSpacing(common.INDICATOR_WIDTH())
-
-        scrollarea = QtWidgets.QScrollArea(parent=self)
-        scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        scrollarea.setWidgetResizable(True)
-        scrollarea.setWidget(widget)
-        self.layout().addWidget(scrollarea, 1)
-
-        row = 0
-        path = u'{}/../rsc'.format(__file__)
-        path = os.path.normpath(os.path.abspath(path))
-
-        idx = 0
-        for entry in _scandir.scandir(path):
-            if not entry.name.startswith(u'thumb_'):
-                continue
-
-            name = entry.name.replace(u'.png', u'')
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                name, None, self.thumbnail_size)
-            if pixmap.isNull():
-                continue
-
-            label = ThumbnailLabel(
-                entry.path.replace(u'\\', u'/'),
-                self.thumbnail_size,
-                parent=self
-            )
-
-            label.setPixmap(pixmap)
-
-            column = idx % self.columns
-            if column == 0:
-                row += 1
-            widget.layout().addWidget(label, row, column)
-            label.clicked.connect(self.thumbnailSelected)
-            label.clicked.connect(self.close)
-
-            idx += 1
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = common.INDICATOR_WIDTH() * 2.0
-        painter.drawRoundedRect(
-            self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)),
-            o, o
-        )
-        painter.end()
-
-    def keyPressEvent(self, event):
-        """Closes the widget on any key-press."""
-        self.close()
-
-    def showEvent(self, event):
-        self.setFocus(QtCore.Qt.PopupFocusReason)

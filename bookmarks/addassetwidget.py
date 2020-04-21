@@ -23,11 +23,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import bookmarks.managebookmarks as managebookmarks
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 import bookmarks.preferenceswidget as preferenceswidget
 
+
+_widget_instance = None
 
 
 class AddAssetWidget(QtWidgets.QDialog):
@@ -38,31 +41,34 @@ class AddAssetWidget(QtWidgets.QDialog):
 
     """
 
-    def __init__(self, path, parent=None):
+    def __init__(self, server, job, root, parent=None):
+        global _widget_instance
+        _widget_instance = self
+
         super(AddAssetWidget, self).__init__(parent=parent)
         if not parent:
             common.set_custom_stylesheet(self)
 
+        self.server = server
+        self.job = job
+        self.root = root
+
         self.templates_widget = None
         self._create_UI()
-        self.templates_widget.set_path(path)
+
+        bookmark = u'{}/{}/{}'.format(server, job, root)
+        self.templates_widget.set_path(bookmark)
 
         self.hide_button.clicked.connect(self.close)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setWindowTitle(u'Add asset: {}'.format(path))
-        self.setWindowFlags(QtCore.Qt.Widget)
+        self.setWindowTitle(u'Add a new asset')
 
         self.templates_widget.templateCreated.connect(self.popup)
 
     @QtCore.Slot(unicode)
     def popup(self, v):
-        """Slot to show the popup window."""
         common_ui.OkBox(
             u'Successully created "{}"'.format(v),
             u'',
-            parent=self
         ).open()
 
     def _create_UI(self):
@@ -72,16 +78,6 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.layout().setSpacing(o)
 
         row = common_ui.add_row(u'', parent=self)
-        label = QtWidgets.QLabel()
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'assets', common.SECONDARY_BACKGROUND, common.ROW_HEIGHT())
-        label.setPixmap(pixmap)
-        row.layout().addWidget(label, 0)
-        label = common_ui.PaintedLabel(
-            u' Add Asset', color=common.TEXT, size=common.LARGE_FONT_SIZE(), parent=self)
-        row.layout().addWidget(label, 0)
-        row.layout().addStretch(1)
-
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
@@ -89,7 +85,37 @@ class AddAssetWidget(QtWidgets.QDialog):
             description=u'Hide',
             parent=row
         )
+
+
+        bookmark = u'{}/{}/{}'.format(self.server, self.job, self.root)
+        source = images.get_thumbnail_path(
+            self.server,
+            self.job,
+            self.root,
+            bookmark
+        )
+
+        pixmap = images.ImageCache.get_pixmap(source, row.height())
+        if not pixmap:
+            source = images.get_placeholder_path(bookmark, fallback=u'thumb_bookmark_gray')
+            pixmap = images.ImageCache.get_pixmap(source, row.height())
+
+        if pixmap:
+            thumbnail = QtWidgets.QLabel(parent=self)
+            thumbnail.setPixmap(pixmap)
+            row.layout().addWidget(thumbnail, 0)
+            row.layout().addSpacing(o * 0.5)
+
+        text = u'{}  |  {}'.format(
+            self.job.upper(), self.root.upper())
+        label = common_ui.PaintedLabel(
+            text, size=common.LARGE_FONT_SIZE())
+
+        row.layout().addWidget(label)
+        row.layout().addStretch(1)
         row.layout().addWidget(self.hide_button, 0)
+
+        # *****************************************
 
         self.templates_widget = managebookmarks.TemplatesWidget(
             u'asset', parent=self)
@@ -103,45 +129,8 @@ Ideally, both the template and the preferences should define the same folders.'.
             H=common.rgb(common.TEXT_SELECTED),
         )
         common_ui.add_description(s, label='hint', parent=self)
-
-        # scroll_area = QtWidgets.QScrollArea(parent=self)
-        # scroll_area.setWidgetResizable(True)
-        # self.layout().addWidget(scroll_area)
-        # w = preferenceswidget.SaverSettingsWidget(parent=self)
-        # w.setSizePolicy(
-        #     QtWidgets.QSizePolicy.Minimum,
-        #     QtWidgets.QSizePolicy.Maximum,
-        # )
-        # scroll_area.setSizePolicy(
-        #     QtWidgets.QSizePolicy.Minimum,
-        #     QtWidgets.QSizePolicy.Maximum,
-        # )
-        # w.setEnabled(False)
-        # scroll_area.setWidget(w)
         self.layout().addStretch(1)
-
-    def paintEvent(self, event):
-        """Paint a custom rounded background."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        o = common.INDICATOR_WIDTH()
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR())
-        painter.setPen(pen)
-        painter.setBrush(common.BACKGROUND)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.drawRoundedRect(
-            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
-        painter.end()
 
     def sizeHint(self):
         """Custom size hint"""
         return QtCore.QSize(common.WIDTH(), common.HEIGHT())
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    w = AddAssetWidget(None)
-    w.exec_()

@@ -22,6 +22,7 @@ import zipfile
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 from bookmarks._scandir import scandir as scandir_it
@@ -32,6 +33,8 @@ import bookmarks.settings as settings
 
 AddMode = 0
 RemoveMode = 1
+
+_widget_instance = None
 
 
 class ComboBox(QtWidgets.QComboBox):
@@ -101,7 +104,6 @@ class TemplateContextMenu(BaseContextMenu):
                 common_ui.ErrorBox(
                     u'Could not remove the template.',
                     u'An unknown error occured.',
-                    parent=self
                 ).open()
 
         menu_set[u'Delete'] = {
@@ -175,11 +177,6 @@ class TemplateListWidget(QtWidgets.QListWidget):
             QtWidgets.QAbstractItemView.EditKeyPressed
         )
 
-        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
 
         self.installEventFilter(self)
@@ -241,11 +238,10 @@ class TemplateListWidget(QtWidgets.QListWidget):
         if res:
             self.load_templates()
         else:
-            common.Log.error('Could not copy the template')
+            log.error('Could not copy the template')
             common_ui.ErrorBox(
                 u'Error saving the template.',
                 u'Could not copy the template file, an unknown error occured.',
-                parent=self
             ).open()
 
     def eventFilter(self, widget, event):
@@ -531,30 +527,26 @@ class TemplatesWidget(QtWidgets.QWidget):
         if not self.path():
             common_ui.ErrorBox(
                 h, u'Destination has selected!',
-                parent=self
             ).open()
-            return
+            raise RuntimeError(h)
 
         file_info = QtCore.QFileInfo(self.path())
         if not file_info.exists():
             common_ui.ErrorBox(
                 h, u'Destination folder "{}" does not exist!'.format(
                     file_info.filePath()),
-                parent=self
             ).open()
             return
         if not file_info.isWritable():
             common_ui.ErrorBox(
                 h, u'Destination folder "{}" is not writable!'.format(
                     file_info.filePath()),
-                parent=self
             ).open()
             return
 
         if not self.name_widget.text():
             common_ui.ErrorBox(
                 h, u'Enter a name and try again.',
-                parent=self
             ).open()
             return
 
@@ -564,7 +556,6 @@ class TemplatesWidget(QtWidgets.QWidget):
         if file_info.exists():
             common_ui.ErrorBox(
                 h, u'"{}" already exists!'.format(self.name_widget.text()),
-                parent=self
             ).open()
             return
 
@@ -573,7 +564,6 @@ class TemplatesWidget(QtWidgets.QWidget):
             common_ui.ErrorBox(
                 h, u'Select {} folder template and try again'.format(
                     self.mode()),
-                parent=self
             ).open()
             return
 
@@ -592,9 +582,8 @@ class TemplatesWidget(QtWidgets.QWidget):
                 self.mode(), err)
             common_ui.ErrorBox(
                 h, s,
-                parent=self
             ).open()
-            common.Log.error(s)
+            log.error(s)
             raise
         finally:
             self.name_widget.setText(u'')
@@ -655,11 +644,10 @@ class TemplatesWidget(QtWidgets.QWidget):
             if res:
                 self.template_list_widget.load_templates()
             else:
-                common.Log.error(u'Could not copy the template')
+                log.error(u'Could not copy the template')
                 common_ui.ErrorBox(
                     u'Error saving the template.',
                     u'Could not copy the template file, an unknown error occured.',
-                    parent=self
                 ).open()
 
     @QtCore.Slot()
@@ -826,6 +814,9 @@ class ServerEditor(QtWidgets.QWidget):
 
 
 class BookmarksWidget(QtWidgets.QListWidget):
+    """List of found bookmarks in the current job.
+
+    """
     bookmarkAdded = QtCore.Signal(tuple)
     bookmarkRemoved = QtCore.Signal(tuple)
 
@@ -836,8 +827,6 @@ class BookmarksWidget(QtWidgets.QListWidget):
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.MinimumExpanding,
         )
-        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setLayoutDirection(QtCore.Qt.RightToLeft)
         self.itemPressed.connect(self.toggle_state)
         self.installEventFilter(self)
@@ -932,19 +921,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(ManageBookmarksWidget, self).__init__(parent=parent)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred,
-            QtWidgets.QSizePolicy.Preferred,
-        )
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
-        self.setWindowFlags(QtCore.Qt.Widget)
-
         self.init_timer = QtCore.QTimer(parent=self)
         self.init_timer.setInterval(1000)
         self.init_timer.setSingleShot(True)
         self.init_timer.timeout.connect(self.init_server_combobox)
 
+        self.bookmark_grp = None
         self._create_UI()
 
         self.progressUpdate.connect(self.progress_widget.setText)
@@ -953,15 +935,19 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
     def _create_UI(self):
         @QtCore.Slot()
         def toggle_server_editor():
-            is_hidden = self.server_editor.isHidden()
-            if is_hidden:
-                self.server_editor.setHidden(False)
+            hidden = self.server_editor.isHidden()
+            if hidden:
+                self.server_editor.setHidden(not hidden)
+                self.server_combobox.setHidden(hidden)
+
                 self.widgetShown.emit(self.server_editor)
                 if not self.templates_widget.isHidden():
                     self.add_template_button.clicked.emit()
                 return
 
-            self.server_editor.hide()
+            self.server_editor.setHidden(not hidden)
+            self.server_combobox.setHidden(hidden)
+
             self.init_server_combobox()
 
         @QtCore.Slot()
@@ -988,16 +974,21 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         def toggle_template_editor():
             if self.server_combobox.currentIndex() < 0:
                 return
-            is_hidden = self.templates_widget.isHidden()
-            if is_hidden:
-                self.templates_widget.setHidden(False)
+            hidden = self.templates_widget.isHidden()
+            if hidden:
+                self.templates_widget.setHidden(not hidden)
+                self.job_combobox.setHidden(hidden)
+                self.bookmark_grp.setHidden(hidden)
+
                 self.widgetShown.emit(self.templates_widget)
 
                 if not self.server_editor.isHidden():
                     self.edit_servers_button.clicked.emit()
                 return
 
-            self.templates_widget.hide()
+            self.templates_widget.setHidden(not hidden)
+            self.job_combobox.setHidden(hidden)
+            self.bookmark_grp.setHidden(hidden)
             self.init_job_combobox(self.server_combobox.currentIndex())
 
         @QtCore.Slot()
@@ -1045,7 +1036,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setSpacing(common.INDICATOR_WIDTH())
-        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel(parent=self)
@@ -1074,8 +1065,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         o = common.MEDIUM_FONT_SIZE()
         label.setContentsMargins(o, o, o, o)
 
-        s = u'Click the plus icons to add a server, job or a bookmark.'.format(
-            common.PRODUCT)
+        s = u'Click the plus icons to add a server, job or a bookmark.'
 
         label.setText(s)
         label.setStyleSheet(u'color: rgba({});'.format(
@@ -1126,6 +1116,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row.layout().addWidget(self.edit_servers_button, 0)
         _row.layout().addSpacing(common.INDICATOR_WIDTH())
         _row.layout().addWidget(label)
+        _row.layout().addStretch(1)
         _row.layout().addWidget(self.server_combobox, 1)
         _row.layout().addWidget(self.reveal_server_button, 0)
 
@@ -1163,6 +1154,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row.layout().addWidget(self.add_template_button, 0)
         _row.layout().addSpacing(common.INDICATOR_WIDTH())
         _row.layout().addWidget(label)
+        _row.layout().addStretch(1)
         _row.layout().addWidget(self.job_combobox, 1)
         _row.layout().addWidget(self.reveal_job_button, 0)
 
@@ -1180,7 +1172,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             parent=row
         )
 
-        row = common_ui.get_group(parent=grp)
+        self.bookmark_grp = common_ui.get_group(parent=grp)
         row.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.Maximum,
@@ -1188,7 +1180,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         )
 
         _row = common_ui.add_row(
-            None, padding=0, height=None, parent=row)
+            None, padding=0, height=None, parent=self.bookmark_grp)
         label = common_ui.PaintedLabel(
             u'Bookmarks:', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
         label.setFixedWidth(common.MARGIN() * 4.5)
@@ -1246,30 +1238,30 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             idx = self.server_combobox.currentIndex()
             if idx < 0:
                 s = u'Error saving the bookmark'
-                common.Log.error(s)
-                common_ui.ErrorBox(s, u'Server not selected', parent=self).open()
+                log.error(s)
+                common_ui.ErrorBox(s, u'Server not selected').open()
                 raise RuntimeError(s)
 
             server = self.server_combobox.itemData(
                 idx, role=QtCore.Qt.DisplayRole)
             if not server:
                 s = u'Error saving the bookmark'
-                common.Log.error(s)
-                common_ui.ErrorBox(s, u'Invalid server value', parent=self).open()
+                log.error(s)
+                common_ui.ErrorBox(s, u'Invalid server value').open()
                 raise RuntimeError(s)
 
             idx = self.job_combobox.currentIndex()
             if idx < 0:
                 s = u'Error saving the bookmark'
-                common.Log.error(s)
-                common_ui.ErrorBox(s, u'Job not selected', parent=self).open()
+                log.error(s)
+                common_ui.ErrorBox(s, u'Job not selected').open()
                 raise RuntimeError(s)
 
             job = self.job_combobox.itemData(idx, role=QtCore.Qt.DisplayRole)
             if not job:
                 s = u'Error saving the bookmark'
-                common.Log.error(s)
-                common_ui.ErrorBox(s, u'Invalid job value', parent=self).open()
+                log.error(s)
+                common_ui.ErrorBox(s, u'Invalid job value').open()
                 raise RuntimeError(s)
 
             # To get the root path, let's remove the server and job segment
@@ -1279,11 +1271,13 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             )
             root = root_path.lower().replace(s.lower(), u'').strip(u'/')
 
-            res = u'{}/{}/{}'.format(server.rstrip(u'/'), job.strip(u'/'), root).lower()
-            if  res != root_path.lower():
+            res = u'{}/{}/{}'.format(server.rstrip(u'/'),
+                                     job.strip(u'/'), root).lower()
+            if res != root_path.lower():
                 s = u'Error saving the bookmark'
-                common.Log.error(s)
-                common_ui.ErrorBox(s, u'Inconsistent bookmark path', parent=self).open()
+                log.error(s)
+                common_ui.ErrorBox(
+                    s, u'Inconsistent bookmark path').open()
                 raise RuntimeError(s)
 
             if mode == AddMode:
@@ -1344,7 +1338,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             return val
 
         s = u'invalid bookmark format in local settings'
-        common.Log.error(s)
+        log.error(s)
         raise TypeError(s)
 
     def get_saved_bookmarks(self):
@@ -1367,7 +1361,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         k = self.key(server, job, root)
         if add_config_dir:
             if not QtCore.QDir(k).mkpath(u'.bookmark'):
-                common.Log.error(u'Could not create "{}/.bookmark"'.format(k))
+                log.error(u'Could not create "{}/.bookmark"'.format(k))
 
         d = self._get_saved_bookmarks()
         d[k] = {
@@ -1471,14 +1465,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             self.job_combobox.blockSignals(False)
             common_ui.ErrorBox(
                 u'Error.', u'"{}" does not exist'.format(server),
-                parent=self
             ).open()
             return
         if not file_info.isReadable():
             self.job_combobox.blockSignals(False)
             common_ui.ErrorBox(
                 u'Error.', u'"{}" is not readable'.format(server),
-                parent=self
             ).open()
             return
 
@@ -1600,84 +1592,73 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.bookmark_list.blockSignals(False)
 
-    def sizeHint(self):
-        return QtCore.QSize(common.WIDTH() * 0.5, common.HEIGHT() * 0.5)
-
     def showEvent(self, event):
         self.init_timer.start()
 
 
-class ManageBookmarks(QtWidgets.QScrollArea):
+class ManageBookmarks(QtWidgets.QDialog):
     """The main widget to manage servers, jobs and bookmarks.
 
     """
+    bookmarkAdded = QtCore.Signal(tuple)
+    bookmarkRemoved = QtCore.Signal(tuple)
 
     def __init__(self, parent=None):
+        global _widget_instance
+        _widget_instance = self
+
         super(ManageBookmarks, self).__init__(parent=parent)
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         if not self.parent():
             common.set_custom_stylesheet(self)
 
         self.setWindowTitle(u'Manage Bookmarks')
-        self.installEventFilter(self)
+        self.setObjectName(u'ManageBookmarks')
+
+        self.scrollarea = None
+
+        self._create_UI()
+        self._connect_signals()
+
+    def _create_UI(self):
+        QtWidgets.QVBoxLayout(self)
+        o = common.MARGIN()
+
+        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setSpacing(o)
+
         widget = ManageBookmarksWidget(parent=self)
-
-        @QtCore.Slot(QtWidgets.QWidget)
-        def e(w):
-            self.ensureWidgetVisible(w, xmargin=0, ymargin=200)
-
-        widget.widgetShown.connect(e)
-        widget.hide_button.clicked.connect(self.hide)
-
-        self.setWidget(widget)
-        self.setWidgetResizable(True)
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum,
-            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
         )
+        self.scrollarea = QtWidgets.QScrollArea(parent=self)
+        self.scrollarea.setWidget(widget)
+        self.scrollarea.setWidgetResizable(True)
+        self.layout().addWidget(self.scrollarea, 1)
 
-    def showEvent(self, event):
-        self.setFocus(QtCore.Qt.PopupFocusReason)
+    def _connect_signals(self):
+        self.scrollarea.widget().widgetShown.connect(self.ensure_visible)
+        self.scrollarea.widget().hide_button.clicked.connect(self.hide)
+        self.scrollarea.widget().bookmark_list.bookmarkAdded.connect(self.bookmarkAdded)
+        self.scrollarea.widget().bookmark_list.bookmarkRemoved.connect(self.bookmarkRemoved)
+
+    @QtCore.Slot(QtWidgets.QWidget)
+    def ensure_visible(self, w):
+        self.scrollarea.ensureWidgetVisible(w, xmargin=0, ymargin=200)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
-            self.widget()._interrupt_requested = True
+            self.scrollarea.widget()._interrupt_requested = True
 
-    def eventFilter(self, widget, event):
-        if widget != self:
-            return False
+    def sizeHint(self):
+        return QtCore.QSize(common.HEIGHT(), common.WIDTH())
 
-        if event.type() == QtCore.QEvent.Paint:
-            painter = QtGui.QPainter()
-            painter.begin(widget)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
-            pen = QtGui.QPen(common.SEPARATOR)
-            pen.setWidth(common.ROW_SEPARATOR())
-            painter.setPen(pen)
-            painter.setBrush(common.BACKGROUND)
-
-            o = common.MARGIN() * 0.5
-            rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
-
-            painter.setOpacity(0.95)
-            o = common.INDICATOR_WIDTH() * 1.5
-            painter.drawRoundedRect(rect, o, o)
-            painter.end()
-            return True
-
-        return False
 
 if __name__ == '__main__':
     import bookmarks.standalone as standalone
     app = standalone.StandaloneApp([])
     # widget = TemplateListWidget('job')
     widget = ManageBookmarks()
-    widget.show()
+    widget.open()
     app.exec_()

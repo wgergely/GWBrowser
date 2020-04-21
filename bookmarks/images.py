@@ -26,6 +26,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+import uuid
 import os
 import functools
 import numpy as np
@@ -33,82 +34,284 @@ import OpenImageIO
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks._scandir as _scandir
 import bookmarks.defaultpaths as defaultpaths
 
 
 oiio_cache = OpenImageIO.ImageCache(shared=True)
-oiio_cache.attribute('max_memory_MB', 4096.0)
-oiio_cache.attribute('max_open_files', 0)
-oiio_cache.attribute('trust_file_extensions', 1)
+oiio_cache.attribute(u'max_memory_MB', 4096.0)
+oiio_cache.attribute(u'max_open_files', 100)
+oiio_cache.attribute(u'trust_file_extensions', 1)
 
 
-def verify_index(func):
-    """Decorator to create a menu set."""
-    @functools.wraps(func)
-    def func_wrapper(cls, index, **kwargs):
-        """Wrapper for function."""
-        if not index.isValid():
-            return None
-        if not index.data(common.FileInfoLoaded):
-            return None
-        if hasattr(index.model(), 'sourceModel'):
-            index = index.model().mapToSource(index)
+BufferType = QtCore.Qt.UserRole
+PixmapType = BufferType + 1
+ImageType = PixmapType + 1
+ResourcePixmapType = ImageType + 1
 
-        return func(cls, index, **kwargs)
-    return func_wrapper
+_capture_widget = None
+__library_widget = None
+_filedialog_widget = None
+_viewer_widget = None
 
 
-def oiio_get_buf(source):
-    """Check the given file for compatibility.
+@QtCore.Slot(QtCore.QModelIndex)
+@QtCore.Slot(unicode)
+def set_from_source(index, source):
+    """Method used to load a resource from source and cache to `ImageCache`.
+
+    """
+    if not index.isValid():
+        return
+
+    destination = get_thumbnail_path(
+        index.data(common.ParentPathRole)[0],
+        index.data(common.ParentPathRole)[1],
+        index.data(common.ParentPathRole)[2],
+        index.data(QtCore.Qt.StatusTipRole)
+    )
+    if QtCore.QFileInfo(destination).exists():
+        if not QtCore.QFile(destination).remove():
+            import bookmarks.common_ui as common_ui
+            s = u'Error removing the previous thumbnail file'
+            log.error(s)
+            common_ui.ErrorBox(s, u'').open()
+            raise RuntimeError(s)
+
+    res = ImageCache.oiio_make_thumbnail(
+        source,
+        destination,
+        common.THUMBNAIL_IMAGE_SIZE
+    )
+    if not res:
+        import bookmarks.common_ui as common_ui
+        s = u'Failed to make thumbnail.'
+        log.error(s)
+        common_ui.ErrorBox(s, u'').open()
+        raise RuntimeError(s)
+
+    # Flush and re-cache
+    size = int(index.data(QtCore.Qt.SizeHintRole).height())
+    ImageCache.flush(destination)
+    ImageCache.get_image(destination, size)
+
+    if hasattr(index.model(), 'updateIndex'):
+        index.model().updateIndex.emit(index)
+    else:
+        index.model().sourceModel().updateIndex.emit(index)
+
+
+@QtCore.Slot(QtCore.QModelIndex)
+def capture(index):
+    """Used to capture and save and cache a thumbnail.
 
     Args:
-        source (unicode): Path to an OpenImageIO compatible image file.
+        index (QtCore.QModelIndex):     An index associated with a file.
+
+    """
+    if not isinstance(index, QtCore.QModelIndex):
+        s = u'Expected <type \'QModelIndex\'>, got {}'.format(type(index))
+        log.error(s)
+        raise TypeError(s)
+
+    if not index.isValid():
+        return
+
+    widget = ScreenCapture()
+    widget.captureFinished.connect(functools.partial(set_from_source, index))
+    widget.open()
+
+
+@QtCore.Slot(QtCore.QModelIndex)
+def pick(index):
+    """Prompts the user to select and image on the computer.
+
+    Args:
+        index (QtCore.QModelIndex):     A valid model index.
+
+    """
+    if not index.isValid():
+        return
+
+    global _filedialog_widget
+    _filedialog_widget = QtWidgets.QFileDialog()
+    _filedialog_widget.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+    _filedialog_widget.setViewMode(QtWidgets.QFileDialog.List)
+    _filedialog_widget.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+    _filedialog_widget.setNameFilter(common.get_oiio_namefilters())
+    _filedialog_widget.setFilter(
+        QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+    _filedialog_widget.setLabelText(
+        QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
+    # _filedialog_widget.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+    _filedialog_widget.fileSelected.connect(
+        functools.partial(set_from_source, index))
+    _filedialog_widget.open()
+
+
+@QtCore.Slot(QtCore.QModelIndex)
+def remove(index):
+    """Deletes the thumbnail file and the cached entries associated
+    with it.
+
+    """
+    if not index.isValid():
+        return
+    source = get_thumbnail_path(
+        index.data(common.ParentPathRole)[0],
+        index.data(common.ParentPathRole)[1],
+        index.data(common.ParentPathRole)[2],
+        index.data(QtCore.Qt.StatusTipRole),
+    )
+    ImageCache.flush(source)
+
+    if QtCore.QFile(source).exists():
+        if not QtCore.QFile(source).remove():
+            import bookmarks.common_ui as common_ui
+            s = u'Could not remove the thumbnail'
+            log.error(s)
+            common_ui.ErrorBox(u'Error.', s).open()
+            raise RuntimeError(s)
+
+    data = index.model().model_data()[index.row()]
+    data[common.ThumbnailLoaded] = False
+    index.model().updateIndex.emit(index)
+
+
+@QtCore.Slot(QtCore.QModelIndex)
+def pick_from_library(index):
+    global _filedialog_widget
+    widget = ThumbnailLibraryWidget()
+    widget.thumbnailSelected.connect(functools.partial(set_from_source, index))
+    widget.open()
+
+
+def get_thumbnail_path(server, job, root, file_path):
+    """Returns the path of a thumbnail.
+
+    If the `file_path` is a sequence, we will use the sequence's first
+    item as our thumbnail.
+
+    Args:
+        server (unicode):       The `server` segment of the file path.
+        job (unicode):          The `job` segment of the file path.
+        root (unicode):         The `root` segment of the file path.
+        file_path (unicode):    The full file path.
+
+    Returns:
+        unicode:                The resolved thumbnail path.
+
+    """
+    file_path = common.proxy_path(file_path)
+    name = common.get_hash(file_path) + u'.' + common.THUMBNAIL_FORMAT
+    return (server + u'/' + job + u'/' + root + u'/.bookmark/' + name).lower()
+
+
+def get_placeholder_path(file_path, fallback=None):
+    """Returns an image path to use a generat thumbnail for the item.
+
+    When an item has no generated or user-set thumbnail, we'll try and find
+    a general one based on the file's type.
+
+    Args:
+        file_path (unicode): Path to a file or folder.
+
+    Returns:
+        unicode: Path to the placehoder image.
+
+    """
+    if not isinstance(file_path, unicode):
+        raise TypeError(
+            u'Invalid type. Expected <type \'unicode\', got {}'.format(type(file_path)))
+
+    file_info = QtCore.QFileInfo(file_path)
+    suffix = file_info.suffix().lower()
+    if suffix:
+        for ext in defaultpaths.get_extensions(
+            defaultpaths.SceneFilter |
+            defaultpaths.ExportFilter |
+            defaultpaths.MiscFilter |
+            defaultpaths.AdobeFilter
+        ):
+            if ext.lower() == suffix:
+                return common.rsc_path(__file__, ext)
+    if not fallback:
+        fallback = u'placeholder'
+    return common.rsc_path(__file__, fallback)
+
+
+def oiio_get_buf(source, hash=None, force=False):
+    """Check and load a source image with OpenImageIO's format reader.
+
+    Args:
+        source (unicode):   Path to an OpenImageIO compatible image file.
+        hash (str):         Defaults to `None`.
+        force (bool):       When true, forces the buffer to be re-cached.
 
     Returns:
         ImageBuf: An `ImageBuf` instance or `None` if the file is invalid.
 
     """
-    ext = source.split(u'.').pop().lower()
-    if not ext:
-        return None
+    if not isinstance(source, unicode):
+        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(source)))
+    if hash is None:
+        hash = common.get_hash(source)
 
+    if not force and ImageCache.contains(hash, BufferType):
+        return ImageCache.value(hash, BufferType)
+
+    # We use the extension to initiate an ImageInput with a format
+    # which in turn is used to check the source's validity
+    if u'.' not in source:
+        return None
+    ext = source.split(u'.').pop().lower()
     i = OpenImageIO.ImageInput.create(ext)
     if not i:
-        common.Log.error(OpenImageIO.geterror())
+        log.error(OpenImageIO.geterror())
         return None
-
     if not i.valid_file(source):
         i.close()
-        common.Log.error(u'{} is invalid'.format(source))
         return None
 
+    # If all went well, we can initiate an ImageBuf
     i.close()
-
     buf = OpenImageIO.ImageBuf()
     buf.reset(source, 0, 0)
-
     if buf.has_error:
-        common.Log.error(buf.geterror())
+        oiio_cache.invalidate(source, force=True)
+        log.error(buf.geterror())
         return None
 
+    ImageCache.setValue(hash, buf, BufferType)
+    oiio_cache.invalidate(source, force=True)
     return buf
 
 
-def oiio_get_qimage(path):
+def oiio_get_qimage(path, buf=None, force=False):
     """Load the pixel data using OpenImageIO and return it as a
     `RGBA8888` / `RGB888` QImage.
 
     Args:
-        path (unicode): Path to an OpenImageIO readable image.
+        path (unicode):                 Path to an OpenImageIO readable image.
+        buf (OpenImageIO.ImageBuf):     When buf is valid ImageBuf instance it will be used
+                                        as the source instead of `path`. Defaults to `None`.
 
     Returns:
         QImage: An QImage instance or `None` if the image/path is invalid.
 
     """
-    buf = oiio_get_buf(path)
     if buf is None:
-        return None
+        buf = oiio_get_buf(path, force=force)
+        if buf is None:
+            return None
+
+    # Cache this would require some serious legwork
+    # Return the cached version if exists
+    # hash = common.get_hash(buf.name)
+    # if not force and hash in ImageCache.PIXEL_DATA:
+    #     return ImageCache.PIXEL_DATA[hash]
 
     spec = buf.spec()
     if not int(spec.nchannels):
@@ -127,9 +330,9 @@ def oiio_get_qimage(path):
             b = OpenImageIO.ImageBufAlgo.channels(
                 b, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
 
+    np_arr = buf.get_pixels(OpenImageIO.UINT8)
+    # np_arr = (np_arr / (1.0 / 255.0)).astype(np.uint8)
 
-    np_arr = buf.get_pixels()
-    np_arr = (np_arr / (1.0 / 255.0)).astype(np.uint8)
     if np_arr.shape[2] == 1:
         _format = QtGui.QImage.Format_Grayscale8
     if np_arr.shape[2] == 2:
@@ -149,34 +352,481 @@ def oiio_get_qimage(path):
         _format
     )
 
-    # As soon as the numpy array is garbage collected, the QImage becomes
-    # unuseable. By making a copy, the numpy array can safely be GC'd
-    # OpenImageIO.ImageCache().invalidate(path)
+
+    # The loaded pixel values are cached by OpenImageIO automatically.
+    # By invalidating the buf, we can ditch the cached data.
+    oiio_cache.invalidate(path, force=True)
+    oiio_cache.invalidate(buf.name, force=True)
+
+    # As soon as the numpy array is garbage collected, the data for QImage becomes
+    # unusable and Qt5 crashes. This could possibly be a bug, I would expect,
+    # the data to be copied automatically, but by making a copy
+    # the numpy array can safely be GC'd
     return image.copy()
 
 
-class CaptureScreen(QtWidgets.QDialog):
-    """A modal screen capture widget.
+class ImageCache(QtCore.QObject):
+    """Utility class for storing, and accessing image data.
 
-    Inspired by Shotgun's screen capture tool.
+    Data is associated with type, and hash values.
+    The hash values are generated by `common.get_hash` using inpout file-paths.
 
-    Example:
-
-    .. code-block:: python
-        :linenos:
-
-        w = CaptureScreen()
-        pixmap = w.exec_()
+    All cached images are stored in ``ImageCache.INTERNAL_DATA``. Loading image
+    resources using `get_image()`, `get_pixmap()` will automatically cache
+    values. To get and set values manually use the `value()` and `setValue()`
+    methods. Application resources are loaded by
+    ``ImageCache.get_rsc_pixmap()``.
 
     """
-    pixmapCaptured = QtCore.Signal(QtGui.QPixmap)
+    RESOURCE_DATA = common.DataDict()
+    PIXEL_DATA = common.DataDict()
+    INTERNAL_DATA = common.DataDict({
+        BufferType: common.DataDict(),
+        PixmapType: common.DataDict(),
+        ImageType: common.DataDict(),
+        ResourcePixmapType: common.DataDict(),
+    })
+
+    @classmethod
+    def contains(cls, hash, cache_type):
+        """Checks if the given hash exists in the database."""
+        return hash in cls.INTERNAL_DATA[cache_type]
+
+    @classmethod
+    def value(cls, hash, cache_type, size=None):
+        """Get a value from the ImageCache.
+
+        Args:
+            hash (str): A hash value generated by `common.get_hash`
+
+        """
+        if not cls.contains(hash, cache_type):
+            return None
+        if size is not None:
+            if size not in cls.INTERNAL_DATA[cache_type][hash]:
+                return None
+            return cls.INTERNAL_DATA[cache_type][hash][size]
+        return cls.INTERNAL_DATA[cache_type][hash]
+
+    @classmethod
+    def setValue(cls, hash, value, cache_type, size=None):
+        """Sets a value in the ImageCache using `hash` and the `cache_type`.
+
+        If force is `True`, we will flush the sizes stored in the cache before
+        setting the new value. This only applies to Image- and PixmapTypes.
+
+        """
+        if not cls.contains(hash, cache_type):
+            cls.INTERNAL_DATA[cache_type][hash] = common.DataDict()
+
+        if cache_type == BufferType:
+            if not isinstance(value, OpenImageIO.ImageBuf):
+                raise TypeError(
+                    u'Invalid type. Expected <type \'ImageBuf\'>, got {}'.format(type(value)))
+
+            cls.INTERNAL_DATA[cache_type][hash] = value
+            return
+
+        if cache_type == ImageType:
+            if not isinstance(value, QtGui.QImage):
+                raise TypeError(
+                    u'Invalid type. Expected <type \'QImage\'>, got {}'.format(type(value)))
+            if size is None:
+                raise TypeError(u'size not set.')
+
+            if not isinstance(size, int):
+                size = int(size)
+
+            cls.INTERNAL_DATA[cache_type][hash][size] = value
+            return
+
+        if cache_type == PixmapType or cache_type == ResourcePixmapType:
+            if not isinstance(value, QtGui.QPixmap):
+                raise TypeError(
+                    u'Invalid type. Expected <type \'QPixmap\'>, got {}'.format(type(value)))
+
+            if not isinstance(size, int):
+                size = int(size)
+
+            cls.INTERNAL_DATA[cache_type][hash][size] = value
+            return
+
+        raise TypeError('Invalid cache type.')
+
+    @classmethod
+    def flush(cls, source):
+        hash = common.get_hash(source)
+        for k in cls.INTERNAL_DATA:
+            if hash in cls.INTERNAL_DATA[k]:
+                del cls.INTERNAL_DATA[k][hash]
+
+    @classmethod
+    def get_pixmap(cls, source, size, hash=None, force=False):
+        """Loads, resizes `source` as a QPixmap and stores it for later use.
+
+        The resource will be stored as a QPixmap instance in
+        `INTERNAL_DATA[PixmapType][hash]`. The hash value is generated using
+        `source`'s value but this can be overwritten by explicitly setting
+        `hash`.
+
+        Note:
+            It is not possible to call this method outside the main gui thread.
+            Use `get_image` instead. This method is backed by `get_image()`
+            anyway!
+
+        Args:
+            source (unicode):   Path to an OpenImageIO compliant image file.
+            size (int):         The size of the requested image.
+            hash (str):         Use this hash key instead source to store the data.
+
+        Returns:
+            QPixmap: The loaded and resized QPixmap, or null pixmap if loading fails.
+
+        """
+        if not isinstance(source, unicode):
+            raise TypeError(u'Invalid type. Expected <type \'unicode\'>')
+
+        if QtWidgets.QApplication.instance().thread() != QtCore.QThread.currentThread():
+            s = u'Pixmaps can only be initiated in the main gui thread.'
+            log.error(s)
+            raise RuntimeError(s)
+
+        # Check the cache and return the previously stored value if exists
+        hash = common.get_hash(source)
+        contains = cls.contains(hash, PixmapType)
+        if not force and contains:
+            data = cls.value(hash, PixmapType, size=size)
+            if data:
+                return data
+
+        # We'll load a cache a QImage to use as the basis for the qpixmap. This
+        # is because of how the thread affinity of QPixmaps don't permit use
+        # outside the main gui thread
+        image = cls.get_image(source, size, hash=hash, force=force)
+        if not image:
+            return None
+
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image, flags=QtCore.Qt.ColorOnly)
+        if pixmap.isNull():
+            return None
+        cls.setValue(hash, pixmap, PixmapType, size=size)
+        return pixmap
+
+    @classmethod
+    def get_image(cls, source, size, hash=None, force=False):
+        """Loads, resizes `source` as a QImage and stores it for later use.
+
+        The resource will be stored as QImage instance at
+        `INTERNAL_DATA[ImageType][hash]`. The hash value is generated by default
+        using `source`'s value but this can be overwritten by explicitly
+        setting `hash`.
+
+        Args:
+            source (unicode):   Path to an OpenImageIO compliant image file.
+            size (int):         The size of the requested image.
+            hash (str):         Use this hash key instead source to store the data.
+
+        Returns:
+            QImage: The loaded and resized QImage, or `None` if loading fails.
+
+        """
+        if not isinstance(source, unicode):
+            raise TypeError(u'Invalid type. Expected <type \'unicode\'>')
+
+        if hash is None:
+            hash = common.get_hash(source)
+
+        # Check the cache and return the previously stored value
+        if not force and cls.contains(hash, ImageType):
+            data = cls.value(hash, ImageType, size=size)
+            if data:
+                return data
+
+        # If not yet stored, load and save the data
+        buf = oiio_get_buf(source, hash=hash, force=force)
+        if not buf:
+            return None
+
+        image = QtGui.QImage(source)
+        if image.isNull():
+            return None
+
+        # Let's resize...
+        image = cls.resize_image(image, size)
+        if image.isNull():
+            return None
+
+        # ...and store
+        cls.setValue(hash, image, ImageType, size=size)
+        return image
+
+    @staticmethod
+    def resize_image(image, size):
+        """Returns a scaled copy of the image that fits in size.
+
+        Args:
+            image (QImage): The image to rescale.
+            size (int): The size of the square to fit.
+
+        Returns:
+            QImage: The resized copy of the original image.
+
+        """
+        if not isinstance(size, (int, float)):
+            raise TypeError(u'Invalid size.')
+        if not isinstance(image, QtGui.QImage):
+            raise TypeError(
+                u'Expected a <type \'QtGui.QImage\'>, got {}.'.format(type(image)))
+
+        w = image.width()
+        h = image.height()
+        factor = float(size) / max(float(w), float(h))
+        w *= factor
+        h *= factor
+
+        return image.smoothScaled(int(w), int(h))
+
+    @classmethod
+    def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):
+        """Loads an image resource and returns it as a sized (and recolored) QPixmap.
+
+        Args:
+            name (str): Name of the resource without the extension.
+            color (QColor): The colour of the icon.
+            size (int): The size of pixmap.
+
+        Returns:
+            QPixmap: The loaded image
+
+        """
+        source = u'{}/../rsc/{}.png'.format(__file__, name)
+        file_info = QtCore.QFileInfo(source)
+
+        if get_path:
+            return file_info.absoluteFilePath()
+
+        k = u'rsc:{name}:{size}:{color}'.format(
+            name=name.lower(),
+            size=int(size),
+            color=u'null' if not color else color.name().lower()
+        )
+
+        if k in cls.RESOURCE_DATA:
+            return cls.RESOURCE_DATA[k]
+
+        if not file_info.exists():
+            return QtGui.QPixmap()
+
+        image = QtGui.QImage()
+        image.load(file_info.filePath())
+        if image.isNull():
+            return QtGui.QPixmap()
+
+        # Do a re-color pass on the source image
+        if color is not None:
+            painter = QtGui.QPainter()
+            painter.begin(image)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRect(image.rect())
+            painter.end()
+
+        image = cls.resize_image(image, size)
+
+        # Setting transparency
+        if opacity < 1.0:
+            _image = QtGui.QImage(image)
+            _image.fill(QtCore.Qt.transparent)
+
+            painter = QtGui.QPainter()
+            painter.begin(_image)
+            painter.setOpacity(opacity)
+            painter.drawImage(0, 0, image)
+            painter.end()
+            image = _image
+
+        # Finally, we'll convert the image to a pixmap
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image, flags=QtCore.Qt.ColorOnly)
+        cls.RESOURCE_DATA[k] = pixmap
+        return cls.RESOURCE_DATA[k]
+
+    @classmethod
+    def oiio_make_thumbnail(cls, source, destination, size, nthreads=4):
+        """Converts `source` to an sRGB image fitting the bounds of `size`.
+
+        Args:
+            source (unicode): Source image's file path.
+            destination (unicode): Destination of the converted image.
+            size (int): The bounds to fit the converted image (in pixels).
+            nthreads (int): Number of threads to use. Defaults to 4.
+
+        Returns:
+            bool: True if successfully converted the image.
+
+        """
+        log.debug(u'Converting {}...'.format(source), cls)
+
+        def get_scaled_spec(source_spec):
+            w = source_spec.width
+            h = source_spec.height
+            factor = float(size) / max(float(w), float(h))
+            w *= factor
+            h *= factor
+
+            s = OpenImageIO.ImageSpec(int(w), int(h), 4, OpenImageIO.UINT8)
+            s.channelnames = (u'R', u'G', u'B', u'A')
+            s.alpha_channel = 3
+            s.attribute(u'oiio:ColorSpace', u'sRGB')
+            s.attribute(u'oiio:Gamma', u'0.454545')
+            return s
+
+        def shuffle_channels(buf, source_spec):
+            if int(source_spec.nchannels) < 3:
+                buf = OpenImageIO.ImageBufAlgo.channels(
+                    buf,
+                    (source_spec.channelnames[0], source_spec.channelnames[0],
+                     source_spec.channelnames[0]),
+                    (u'R', u'G', u'B')
+                )
+            elif int(source_spec.nchannels) > 4:
+                if source_spec.channelindex(u'A') > -1:
+                    buf = OpenImageIO.ImageBufAlgo.channels(
+                        buf, (u'R', u'G', u'B', u'A'), (u'R', u'G', u'B', u'A'))
+                else:
+                    buf = OpenImageIO.ImageBufAlgo.channels(
+                        buf, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
+            return buf
+
+        def resize(buf, source_spec):
+            buf = OpenImageIO.ImageBufAlgo.resample(
+                buf, roi=destination_spec.roi, interpolate=True, nthreads=nthreads)
+            return buf
+
+        def flatten(buf, source_spec):
+            if source_spec.deep:
+                buf = OpenImageIO.ImageBufAlgo.flatten(buf, nthreads=nthreads)
+            return buf
+
+        def convert_color(buf, source_spec):
+            colorspace = source_spec.get_string_attribute(u'oiio:ColorSpace')
+            try:
+                if colorspace != u'sRGB':
+                    buf = OpenImageIO.ImageBufAlgo.colorconvert(
+                        buf, colorspace, u'sRGB')
+            except:
+                log.error(u'Could not convert the color profile')
+            return buf
+
+        buf = oiio_get_buf(source)
+        if not buf:
+            return False
+
+        source_spec = buf.spec()
+        accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4', u'gif')
+        codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
+        if source_spec.get_int_attribute(u'oiio:Movie') == 1:
+            # [BUG] Not all codec formats are supported by ffmpeg. There does
+            # not seem to be (?) error handling and an unsupported codec will
+            # crash ffmpeg and the rest of the app.
+            if not [f for f in accepted_codecs if f.lower() in codec_name.lower()]:
+                log.debug(
+                    u'Unsupported movie format: {}'.format(codec_name))
+
+                oiio_cache.invalidate(source, force=True)
+                return False
+
+        destination_spec = get_scaled_spec(source_spec)
+        buf = shuffle_channels(buf, source_spec)
+        buf = flatten(buf, source_spec)
+        # buf = convert_color(buf, source_spec)
+        buf = resize(buf, source_spec)
+
+        if buf.nchannels > 3:
+            background_buf = OpenImageIO.ImageBuf(destination_spec)
+            OpenImageIO.ImageBufAlgo.checker(
+                background_buf,
+                12, 12, 1,
+                (0.3, 0.3, 0.3),
+                (0.2, 0.2, 0.2)
+            )
+            buf = OpenImageIO.ImageBufAlgo.over(buf, background_buf)
+
+        spec = buf.spec()
+        buf.set_write_format(OpenImageIO.UINT8)
+
+        # There seems to be a problem with the ICC profile exported from Adobe
+        # applications and the PNG library. The sRGB profile seems to be out of
+        # date and pnglib crashes when encounters an invalid profile. Removing
+        # the ICC profile seems to fix the issue.
+        _spec = OpenImageIO.ImageSpec()
+        _spec.from_xml(spec.to_xml())  # this doesn't copy the extra attributes
+        for i in spec.extra_attribs:
+            if i.name.lower() == u'iccprofile':
+                continue
+            try:
+                _spec[i.name] = i.value
+            except:
+                continue
+        spec = _spec
+
+        # On some dpx images I'm getting "GammaCorrectedinf"
+        if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
+            spec[u'oiio:ColorSpace'] = u'sRGB'
+            spec[u'oiio:Gamma'] = u'0.454545'
+
+        # Initiating a new spec with the modified spec
+        _buf = OpenImageIO.ImageBuf(spec)
+        _buf.copy_pixels(buf)
+        _buf.set_write_format(OpenImageIO.UINT8)
+
+        if not QtCore.QFileInfo(QtCore.QFileInfo(destination).path()).isWritable():
+            oiio_cache.invalidate(source, force=True)
+            oiio_cache.invalidate(destination, force=True)
+            log.error(u'Destination path is not writable')
+            return False
+
+        success = _buf.write(destination, dtype=OpenImageIO.UINT8)
+
+        if not success:
+            s = u'{}\n{}'.format(
+                buf.geterror(),
+                OpenImageIO.geterror())
+            log.error(s)
+
+            if not QtCore.QFile(destination).remove():
+                log.error(u'Cleanup failed.')
+
+            oiio_cache.invalidate(source, force=True)
+            oiio_cache.invalidate(destination, force=True)
+            return False
+
+        oiio_cache.invalidate(source, force=True)
+        oiio_cache.invalidate(destination, force=True)
+        return True
+
+
+class ScreenCapture(QtWidgets.QDialog):
+    """A modal capture widget used to save a thumbnail.
+
+    Signals:
+        captureFinished (unicode): Emited with a filepath to the captured image.
+
+    """
+    captureFinished = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
-        super(CaptureScreen, self).__init__(parent=parent)
-        self._pixmap = None
+        global _capture_widget
+        _capture_widget = self
+        super(ScreenCapture, self).__init__(parent=parent)
 
         effect = QtWidgets.QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(effect)
+
+        self.capture_path = None
 
         self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
         self.fade_in.setStartValue(0.0)
@@ -196,6 +846,7 @@ class CaptureScreen(QtWidgets.QDialog):
         )
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setCursor(QtCore.Qt.CrossCursor)
 
         self.setMouseTracking(True)
@@ -203,12 +854,10 @@ class CaptureScreen(QtWidgets.QDialog):
 
         self.accepted.connect(self.capture)
 
-    def pixmap(self):
-        """The captured rectangle."""
-        return self._pixmap
-
     def _fit_screen_geometry(self):
-        # Compute the union of all screen geometries, and resize to fit.
+        """Compute the union of all screen geometries, and resize to fit.
+
+        """
         app = QtWidgets.QApplication.instance()
         try:
             workspace_rect = QtCore.QRect()
@@ -220,30 +869,71 @@ class CaptureScreen(QtWidgets.QDialog):
             rect = app.primaryScreen().availableGeometry()
             self.setGeometry(rect)
 
-    @classmethod
-    def _get_desktop_pixmap(cls, rect):
-        app = QtWidgets.QApplication.instance()
-        screen = app.screenAt(rect.center())
-        if not screen:
-            common.Log.error(u'Unable to find screen.')
-            return None
-        return screen.grabWindow(
-            app.screens().index(screen),
-            rect.x(),
-            rect.y(),
-            rect.width(),
-            rect.height()
-        )
-
     @QtCore.Slot()
     def capture(self):
-        """Slot called by the dialog's accepted signal.
-        Performs the capture operation and saves the resulting pixmap
-        to self._pixmap
+        """Capture the screen using the current `capture_rectangle`.
+
+        Saves the resulting pixmap as `png` and emits the `captureFinished`
+        signal with the file's path. The slot is called by the dialog's
+        accepted signal.
 
         """
-        self._pixmap = self._get_desktop_pixmap(self._capture_rect)
-        self.pixmapCaptured.emit(self._pixmap)
+        app = QtWidgets.QApplication.instance()
+        if not app:
+            return
+
+        screen = app.screenAt(self._capture_rect.center())
+        if not screen:
+            log.error(u'Unable to find screen.')
+            return
+
+        pixmap = screen.grabWindow(
+            app.screens().index(screen),
+            self._capture_rect.x(),
+            self._capture_rect.y(),
+            self._capture_rect.width(),
+            self._capture_rect.height()
+        )
+        if pixmap.isNull():
+            import bookmarks.common_ui as common_ui
+            s = u'Unknown error occured capturing the pixmap.'
+            log.error(s)
+            common_ui.ErrorBox(u'Capture failed', s).open()
+            raise RuntimeError(s)
+
+        destination = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.GenericDataLocation)
+        destination = u'{}/{}/temp/{}.{}'.format(
+            destination,
+            common.PRODUCT,
+            uuid.uuid1(),
+            common.THUMBNAIL_FORMAT
+        )
+        f = QtCore.QFileInfo(destination)
+        if not f.dir().exists():
+            if not f.dir().mkpath(u'.'):
+                import bookmarks.common_ui as common_ui
+                s = u'Could not create temp folder.'
+                log.error(s)
+                common_ui.ErrorBox(u'Capture failed', s).open()
+                raise RuntimeError(s)
+
+        res = pixmap.save(
+            destination,
+            format='png',
+            quality=100
+        )
+
+        if not res:
+            import bookmarks.common_ui as common_ui
+            s = u'Could not save the capture.'
+            log.error(s)
+            common_ui.ErrorBox(
+                s, u'Was trying to save to {}'.format(destination)).open()
+            raise RuntimeError(s)
+
+        self.capture_path = destination
+        self.captureFinished.emit(destination)
 
     def paintEvent(self, event):
         """Paint the capture window."""
@@ -296,23 +986,20 @@ class CaptureScreen(QtWidgets.QDialog):
     def keyPressEvent(self, event):
         """Cancel the capture on keypress."""
         if event.key() == QtCore.Qt.Key_Escape:
-            self.ignore()
+            self.reject()
 
     def mousePressEvent(self, event):
         """Start the capture"""
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        if event.button() == QtCore.Qt.LeftButton:
-            self._click_pos = event.globalPos()
-        if event.button() == QtCore.Qt.RightButton:
-            self.ignore()
+        self._click_pos = event.globalPos()
 
     def mouseReleaseEvent(self, event):
         """Finalise the caputre"""
         if not isinstance(event, QtGui.QMouseEvent):
             return
 
-        if event.button() == QtCore.Qt.LeftButton and self._click_pos is not None:
+        if event.button() != QtCore.Qt.NoButton and self._click_pos is not None and self._mouse_pos is not None:
             # End click drag operation and commit the current capture rect
             self._capture_rect = QtCore.QRect(
                 self._click_pos,
@@ -321,8 +1008,7 @@ class CaptureScreen(QtWidgets.QDialog):
             self._click_pos = None
             self._offset_pos = None
             self._mouse_pos = None
-
-        self.accept()
+            self.accept()
 
     def mouseMoveEvent(self, event):
         """Constrain and resize the capture window."""
@@ -378,436 +1064,11 @@ class CaptureScreen(QtWidgets.QDialog):
         self._fit_screen_geometry()
         self.fade_in.start()
 
-    def exec_(self):
-        super(CaptureScreen, self).exec_()
-        return self._pixmap
-
-
-class ImageCache(QtCore.QObject):
-    """Utility class for setting, capturing and editing thumbnail and resource
-    images.
-
-    All cached images are stored in ``ImageCache.INTERNAL_IMAGE_DATA`` `(dict)` object.
-    To add an image to the cache you can use the ``ImageCache.get()`` method.
-    Loading and caching ui resource items is done by ``ImageCache.get_rsc_pixmap()``.
-
-    """
-    # Data and instance container
-    INTERNAL_IMAGE_DATA = {}
-
-    @classmethod
-    def get(cls, path, height=None, overwrite=False):
-        """Returns a previously cached `QPixmap` if the image has already been
-        cached, otherwise it will read, resize and cache the image found at `path`.
-
-        Args:
-            path (unicode):    Path to an image file.
-            height (int):  The height of the image
-            overwrite (bool): Replaces the cached image with new data
-
-        Returns: QPixmap: The cached and resized QPixmap.
-
-        """
-        if not path:
-            return None
-
-        if height is not None:
-            try:
-                height = int(height)
-            except ValueError:
-                pass
-
-        path = path.lower()
-        k = path + u':' + unicode(height)
-        k = k.lower()
-
-        # Return cached item if exsits
-        if k in cls.INTERNAL_IMAGE_DATA and not overwrite:
-            return cls.INTERNAL_IMAGE_DATA[k]
-
-        if k in cls.INTERNAL_IMAGE_DATA and overwrite:
-            del cls.INTERNAL_IMAGE_DATA[k]
-
-        # A little leap of faith here as I'm using OpenImageIO to check if Qt5
-        # can load the image. My reasoning is that the performance of oiio is
-        # excellent and both qt5 and oiio use the same PNG library, hence if
-        # oiio can open it qt5 should be able to as well. I also get access to
-        # image properties this way
-        buf = oiio_get_buf(path)
-        if buf is None:
-            return None
-
-        if not height:
-            spec = buf.spec()
-            height = max((spec.height, spec.width))
-
-        image = QtGui.QPixmap(path)
-        if image.isNull():
-            return None
-
-        image = cls.resize_image(image, height)
-        cls.INTERNAL_IMAGE_DATA[k] = image
-        return cls.INTERNAL_IMAGE_DATA[k]
-
-    @staticmethod
-    def resize_image(image, size):
-        """Returns a scaled copy of the `QPixmap` fitting inside the square of
-        ``size``.
-
-        Args:
-            image (QPixmap): The image to rescale.
-            size (int): The width/height of the square.
-
-        Returns:
-            QPixmap: The resized copy of the original image.
-
-        """
-        if not isinstance(size, (int, float)):
-            return image
-
-        if isinstance(image, QtGui.QPixmap):
-            image = image.toImage()
-
-        w = image.width()
-        h = image.height()
-        factor = float(size) / max(float(w), float(h))
-        w *= factor
-        h *= factor
-
-        image = image.smoothScaled(w, h)
-        p = QtGui.QPixmap(w, h)
-        p.convertFromImage(image)
-        return p
-
-    @classmethod
-    @verify_index
-    def capture(cls, index):
-        """Save a custom screen-grab."""
-        thumbnail_path = index.data(common.ThumbnailPathRole)
-
-        w = CaptureScreen()
-        image = w.exec_()
-
-        if not image:
-            return
-        image = cls.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
-        if image.isNull():
-            return
-
-        f = QtCore.QFile(thumbnail_path)
-        if f.exists():
-            f.remove()
-
-        # Check if the folder is indeed writable
-        dirpath = QtCore.QFileInfo(thumbnail_path).path()
-        if not QtCore.QFileInfo(dirpath).isWritable():
-            common.Log.error('The output path is not writable.')
-            return
-
-        if not image.save(thumbnail_path):
-            return
-
-        image = cls.get(
-            thumbnail_path,
-            index.data(QtCore.Qt.SizeHintRole).height() -
-            common.ROW_SEPARATOR(),
-            overwrite=True
-        )
-
-        data = index.model().model_data()
-        data[index.row()][common.ThumbnailRole] = image
-        index.model().updateIndex.emit(index)
-
-    @classmethod
-    @verify_index
-    def remove(cls, index):
-        """Deletes the thumbnail file and the cached entries associated
-        with it.
-
-        """
-        data = index.model().model_data()[index.row()]
-        file_ = QtCore.QFile(data[common.ThumbnailPathRole])
-
-        if file_.exists():
-            if not file_.remove():
-                s = u'Could not remove {}'.format(
-                    data[common.ThumbnailPathRole])
-                common.Log.error(s)
-
-        keys = [k for k in cls.INTERNAL_IMAGE_DATA if data[common.ThumbnailPathRole].lower()
-                in k.lower()]
-        for key in keys:
-            del cls.INTERNAL_IMAGE_DATA[key]
-
-        data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
-        data[common.FileThumbnailLoaded] = False
-        index.model().updateIndex.emit(index)
-
-    @classmethod
-    @verify_index
-    def pick(cls, index, source=None, parent=None):
-        """Opens a file-dialog to select an OpenImageIO compliant file.
-
-        """
-        if not source:
-            dialog = QtWidgets.QFileDialog(parent=parent)
-            dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-            dialog.setViewMode(QtWidgets.QFileDialog.List)
-            dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-            dialog.setNameFilter(common.get_oiio_namefilters())
-            dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-            dialog.setLabelText(
-                QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
-            dialog.setDirectory(QtCore.QFileInfo(
-                index.data(QtCore.Qt.StatusTipRole)).filePath())
-
-            if not dialog.exec_():
-                return
-            if not dialog.selectedFiles():
-                return
-            source = dialog.selectedFiles()[0]
-
-        thumbnail_path = index.data(common.ThumbnailPathRole)
-        cls.remove(index)
-
-        if not QtCore.QFileInfo(QtCore.QFileInfo(thumbnail_path).path()).isWritable():
-            common.Log.error(u'Destination path is not writable.')
-            return
-
-        cls.oiio_make_thumbnail(
-            source,
-            thumbnail_path,
-            common.THUMBNAIL_IMAGE_SIZE,
-            nthreads=4)
-        image = cls.get(
-            thumbnail_path,
-            index.data(QtCore.Qt.SizeHintRole).height(),
-            overwrite=True)
-
-        data = index.model().model_data()
-        data[index.row()][common.ThumbnailRole] = image
-
-        index.model().updateIndex.emit(index)
-
-    @classmethod
-    def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):
-        """Loads a rescoure image and returns it as a re-sized and coloured QPixmap.
-
-        Args:
-            name (str): Name of the resource without the extension.
-            color (QColor): The colour of the icon.
-            size (int): The size of pixmap.
-
-        Returns:
-            QPixmap: The loaded image
-
-        """
-        path = u'{}/../rsc/{}.png'.format(__file__, name)
-
-        if get_path:
-            # path = os.path.normpath(path)
-            file_info = QtCore.QFileInfo(path)
-            return file_info.absoluteFilePath()
-
-        k = u'rsc:{name}:{size}:{color}'.format(
-            name=name.lower(),
-            size=int(size),
-            color=u'null' if not color else color.name().lower()
-        )
-
-        if k in cls.INTERNAL_IMAGE_DATA:
-            return cls.INTERNAL_IMAGE_DATA[k]
-
-        path = os.path.normpath(path)
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
-            return QtGui.QPixmap()
-
-        image = QtGui.QPixmap()
-        image.load(file_info.filePath())
-
-        if image.isNull():
-            return QtGui.QPixmap()
-
-        if color is not None:
-            painter = QtGui.QPainter()
-            painter.begin(image)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
-            painter.setBrush(QtGui.QBrush(color))
-            painter.drawRect(image.rect())
-            painter.end()
-
-        image = cls.resize_image(image, size)
-
-        # Setting transparency
-        if opacity < 1.0:
-            _image = QtGui.QPixmap(image.size())
-            _image.fill(QtCore.Qt.transparent)
-
-            painter = QtGui.QPainter()
-            painter.begin(_image)
-            painter.setOpacity(opacity)
-            painter.drawPixmap(0, 0, image)
-            painter.end()
-
-            image = _image
-
-        cls.INTERNAL_IMAGE_DATA[k] = image
-        return cls.INTERNAL_IMAGE_DATA[k]
-
-    @classmethod
-    @QtCore.Slot()
-    def reset_cache(cls):
-        """Clears the image-cache."""
-        for k in cls.INTERNAL_IMAGE_DATA.keys():
-            if u'rsc:' in k:
-                continue
-            del cls.INTERNAL_IMAGE_DATA[k]
-
-    @classmethod
-    def oiio_make_thumbnail(cls, source, dest, dest_size, nthreads=4):
-        """OpenImageIO wrapper converts `source` to an sRGB image fitting int the bounds of `dest_size`.
-
-        Args:
-            source (unicode): Source image's file path.
-            dest (unicode): Destination of the converted image.
-            dest_size (int): The bounds to fit the converted image (in pixels).
-            nthreads (int): Number of threads to use. Defaults to 4.
-
-        Returns:
-            bool: True if successfully converted the image.
-
-        """
-        common.Log.debug(u'Converting {}...'.format(source), cls)
-
-        def get_scaled_spec(source_spec):
-            w = source_spec.width
-            h = source_spec.height
-            factor = float(dest_size) / max(float(w), float(h))
-            w *= factor
-            h *= factor
-
-            s = OpenImageIO.ImageSpec(int(w), int(h), 4, OpenImageIO.UINT8)
-            s.channelnames = (u'R', u'G', u'B', u'A')
-            s.alpha_channel = 3
-            s.attribute(u'oiio:ColorSpace', u'sRGB')
-            s.attribute(u'oiio:Gamma', u'0.454545')
-            return s
-
-        def shuffle_channels(buf, source_spec):
-            if int(source_spec.nchannels) < 3:
-                buf = OpenImageIO.ImageBufAlgo.channels(
-                    buf,
-                    (source_spec.channelnames[0], source_spec.channelnames[0],
-                     source_spec.channelnames[0]),
-                    (u'R', u'G', u'B')
-                )
-            elif int(source_spec.nchannels) > 4:
-                if source_spec.channelindex(u'A') > -1:
-                    buf = OpenImageIO.ImageBufAlgo.channels(
-                        buf, (u'R', u'G', u'B', u'A'), (u'R', u'G', u'B', u'A'))
-                else:
-                    buf = OpenImageIO.ImageBufAlgo.channels(
-                        buf, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
-            return buf
-
-        def resize(buf, source_spec):
-            buf = OpenImageIO.ImageBufAlgo.resample(
-                buf, roi=dest_spec.roi, interpolate=True, nthreads=nthreads)
-            return buf
-
-        def flatten(buf, source_spec):
-            if source_spec.deep:
-                buf = OpenImageIO.ImageBufAlgo.flatten(buf, nthreads=nthreads)
-            return buf
-
-        def convert_color(buf, source_spec):
-            colorspace = source_spec.get_string_attribute(u'oiio:ColorSpace')
-            try:
-                if colorspace != u'sRGB':
-                    buf = OpenImageIO.ImageBufAlgo.colorconvert(
-                        buf, colorspace, u'sRGB')
-            except:
-                common.Log.error(u'Could not conver tthe color profile')
-            return buf
-
-        buf = oiio_get_buf(source)
-        if not buf:
-            return False
-
-        source_spec = buf.spec()
-        accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4', u'gif')
-        codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
-        if source_spec.get_int_attribute(u'oiio:Movie') == 1:
-            # [BUG] Not all codec formats are supported by ffmpeg. There does
-            # not seem to be (?) error handling and an unsupported codec will
-            # crash ffmpeg and the rest of the app.
-            if not [f for f in accepted_codecs if f.lower() in codec_name.lower()]:
-                common.Log.debug(
-                    u'Unsupported movie format: {}'.format(codec_name))
-                return False
-
-        dest_spec = get_scaled_spec(source_spec)
-        buf = shuffle_channels(buf, source_spec)
-        buf = flatten(buf, source_spec)
-        # buf = convert_color(buf, source_spec)
-        buf = resize(buf, source_spec)
-
-        if buf.nchannels > 3:
-            background_buf = OpenImageIO.ImageBuf(dest_spec)
-            OpenImageIO.ImageBufAlgo.checker(
-                background_buf,
-                12, 12, 1,
-                (0.3, 0.3, 0.3),
-                (0.2, 0.2, 0.2)
-            )
-            buf = OpenImageIO.ImageBufAlgo.over(buf, background_buf)
-
-        spec = buf.spec()
-        buf.set_write_format(OpenImageIO.UINT8)
-
-        # There seems to be a problem with the ICC profile exported from Adobe
-        # applications and the PNG library. The sRGB profile seems to be out of date
-        # and pnglib crashes when encounters an invalid profile.
-        # Removing the ICC profile seems to fix the issue. Annoying!
-        _spec = OpenImageIO.ImageSpec()
-        _spec.from_xml(spec.to_xml())  # this doesn't copy the extra attributes
-        for i in spec.extra_attribs:
-            if i.name.lower() == u'iccprofile':
-                continue
-            try:
-                _spec[i.name] = i.value
-            except:
-                common.Log.error(u'Error saving iccprofile. Continuing.')
-                continue
-        spec = _spec
-
-        # On some dpx images I'm getting "GammaCorrectedinf"
-        if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
-            spec[u'oiio:ColorSpace'] = u'sRGB'
-            spec[u'oiio:Gamma'] = u'0.454545'
-
-        # Initiating a new spec with the modified spec
-        _buf = OpenImageIO.ImageBuf(spec)
-        _buf.copy_pixels(buf)
-        _buf.set_write_format(OpenImageIO.UINT8)
-
-        if not QtCore.QFileInfo(QtCore.QFileInfo(dest).path()).isWritable():
-            common.Log.error(u'Destination path is not writable')
-            return
-
-        success = _buf.write(dest, dtype=OpenImageIO.UINT8)
-        if not success:
-            common.Log.error(buf.geterror())
-            common.Log.error(OpenImageIO.geterror())
-            QtCore.QFile(dest).remove()
-            return False
-        return True
-
 
 class Viewer(QtWidgets.QGraphicsView):
+    """The graphics view used to display an QPixmap read using OpenImageIO.
+
+    """
     def __init__(self, parent=None):
         super(Viewer, self).__init__(parent=parent)
         self.item = QtWidgets.QGraphicsPixmapItem()
@@ -903,7 +1164,7 @@ class Viewer(QtWidgets.QGraphicsView):
 
         pixmap = QtGui.QPixmap.fromImage(image)
         if pixmap.isNull():
-            common.Log.error('Could not convert QImage to QPixmap')
+            log.error('Could not convert QImage to QPixmap')
             return None
 
         self.item.setPixmap(pixmap)
@@ -913,7 +1174,7 @@ class Viewer(QtWidgets.QGraphicsView):
         size = self.item.pixmap().size()
         if size.height() > self.height() or size.width() > self.width():
             self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
-        self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
+        # self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
 
         return self.item
 
@@ -948,7 +1209,16 @@ class Viewer(QtWidgets.QGraphicsView):
 
 
 class ImageViewer(QtWidgets.QWidget):
+    """Used to view an image.
+
+    The image data is loaded using OpenImageIO and is then wrapped in a QGraphicsScene,
+    using a QPixmap. See ``Viewer``.
+
+    """
     def __init__(self, path, parent=None):
+        global _viewer_widget
+        _viewer_widget = self
+
         super(ImageViewer, self).__init__(parent=parent)
 
         if not isinstance(path, unicode):
@@ -957,12 +1227,15 @@ class ImageViewer(QtWidgets.QWidget):
 
         import bookmarks.common_ui as common_ui
 
+        if not self.parent():
+            common.set_custom_stylesheet(self)
+
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
             s = '{} does not exists.'.format(path)
             common_ui.ErrorBox(
-                u'Error previewing image.', s).exec_()
-            common.Log.error(s)
+                u'Error previewing image.', s).open()
+            log.error(s)
             self.deleteLater()
             raise RuntimeError(s)
 
@@ -1075,9 +1348,225 @@ class ImageViewer(QtWidgets.QWidget):
         self.load_timer.start()
 
 
-# if __name__ == '__main__':
-    # import bookmarks.standalone as standlone
-    # app = standlone.StandaloneApp([])
-    # w = ImageViewer(
-    #     ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
-    # w.exec_()
+class ThumbnailLibraryItem(QtWidgets.QLabel):
+    """Custom QLabel ssed by the ThumbnailLibraryWidget to display an image.
+
+    """
+    clicked = QtCore.Signal(unicode)
+
+    def __init__(self, path, parent=None):
+        super(ThumbnailLibraryItem, self).__init__(parent=parent)
+        self._path = path
+        self._pixmap = None
+
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setScaledContents(True)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
+        self.setMinimumSize(QtCore.QSize(
+            common.ROW_HEIGHT() * 2, common.ROW_HEIGHT() * 2))
+
+    def enterEvent(self, event):
+        self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self.clicked.emit(self._path)
+
+    def paintEvent(self, event):
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+        o = 1.0 if hover else 0.7
+        painter.setOpacity(o)
+
+        if not self._pixmap:
+            self._pixmap = ImageCache.get_pixmap(
+                self._path,
+                self.height(),
+                force=True
+            )
+            if not self._pixmap:
+                return
+
+        s = float(min((self.rect().height(), self.rect().width())))
+        longest_edge = float(
+            max((self._pixmap.width(), self._pixmap.height())))
+        ratio = s / longest_edge
+        w = self._pixmap.width() * ratio
+        h = self._pixmap.height() * ratio
+        _rect = QtCore.QRect(0, 0, w, h)
+        _rect.moveCenter(self.rect().center())
+        painter.drawPixmap(
+            _rect,
+            self._pixmap,
+        )
+        if not hover:
+            painter.end()
+            return
+
+        painter.setPen(common.TEXT)
+        rect = self.rect()
+        rect.moveTopLeft(rect.topLeft() + QtCore.QPoint(1, 1))
+
+        text = self._path.split(u'/').pop()
+        text = text.replace(u'thumb_', u'')
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+
+        common.draw_aliased_text(
+            painter,
+            font,
+            rect,
+            text,
+            QtCore.Qt.AlignCenter,
+            QtGui.QColor(0, 0, 0, 255),
+        )
+
+        rect = self.rect()
+        common.draw_aliased_text(
+            painter,
+            font,
+            rect,
+            text,
+            QtCore.Qt.AlignCenter,
+            common.TEXT_SELECTED,
+        )
+        painter.end()
+
+
+class ThumbnailLibraryWidget(QtWidgets.QDialog):
+    """The widget used to browser and select a thumbnai from a set of
+    predefined thumbnails.
+
+    The thumbnail files are stored in the ./rsc folder and are prefixed by
+    `thumb_*`.
+
+    """
+    thumbnailSelected = QtCore.Signal(unicode)
+    label_size = common.ASSET_ROW_HEIGHT()
+
+    def __init__(self, parent=None):
+
+        # Global binding to avoid the widget being garbage collected.
+        global _filedialog_widget
+        _filedialog_widget = self
+
+        super(ThumbnailLibraryWidget, self).__init__(parent=parent)
+        self.scrollarea = None
+        self.columns = 5
+
+        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowTitle(u'Select thumbnail')
+
+        self._create_UI()
+        self._add_thumbnails()
+
+    def _create_UI(self):
+        """Using scandir we will get all the installed thumbnail files from the rsc directory."""
+        import bookmarks.common_ui as common_ui
+
+        if not self.parent():
+            common.set_custom_stylesheet(self)
+
+        QtWidgets.QVBoxLayout(self)
+        o = common.MARGIN()
+
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(0)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        row = common_ui.add_row(None, height=common.ROW_HEIGHT(), padding=None, parent=self)
+        label = common_ui.PaintedLabel(
+            u'Select a thumbnail',
+            color=common.TEXT,
+            size=common.LARGE_FONT_SIZE(),
+            parent=self
+        )
+        row.layout().addWidget(label)
+
+        widget = QtWidgets.QWidget(parent=self)
+        widget.setStyleSheet(
+            u'background-color: rgba({})'.format(common.rgb(common.SEPARATOR)))
+
+        QtWidgets.QGridLayout(widget)
+        widget.layout().setAlignment(QtCore.Qt.AlignCenter)
+        widget.layout().setContentsMargins(
+            common.INDICATOR_WIDTH(),
+            common.INDICATOR_WIDTH(),
+            common.INDICATOR_WIDTH(),
+            common.INDICATOR_WIDTH())
+        widget.layout().setSpacing(common.INDICATOR_WIDTH())
+
+        self.scrollarea = QtWidgets.QScrollArea(parent=self)
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setWidget(widget)
+        self.layout().addWidget(self.scrollarea, 1)
+
+    def _add_thumbnails(self):
+        row = 0
+        path = u'{}/../rsc'.format(__file__)
+        path = os.path.normpath(os.path.abspath(path))
+
+        idx = 0
+        for entry in _scandir.scandir(path):
+            if not entry.name.startswith(u'thumb_'):
+                continue
+
+            label = ThumbnailLibraryItem(
+                entry.path.replace(u'\\', u'/'),
+                parent=self
+            )
+
+            column = idx % self.columns
+            if column == 0:
+                row += 1
+            self.scrollarea.widget().layout().addWidget(label, row, column)
+            label.clicked.connect(self.thumbnailSelected)
+            label.clicked.connect(self.close)
+
+            idx += 1
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setBrush(common.SEPARATOR)
+        pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 50))
+        pen.setWidth(common.ROW_SEPARATOR())
+        painter.setPen(pen)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        o = common.INDICATOR_WIDTH() * 2.0
+        painter.setOpacity
+        painter.drawRoundedRect(
+            self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)),
+            o, o
+        )
+        painter.end()
+
+    def showEvent(self, event):
+        self._resize_widget()
+
+    def _resize_widget(self):
+        app = QtWidgets.QApplication.instance()
+        rect = app.primaryScreen().availableGeometry()
+
+        w = rect.width() * 0.66
+        h = rect.height() * 0.66
+
+        _rect = QtCore.QRect(0, 0, int(w), int(h))
+        _rect.moveCenter(rect.center())
+        self.setGeometry(_rect)

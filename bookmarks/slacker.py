@@ -39,7 +39,8 @@ from slackclient import SlackClient
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from bookmarks import common
+import bookmarks.log as log
+import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 import bookmarks.settings as settings
@@ -78,7 +79,7 @@ class Client(SlackClient):
         if not response['ok']:
             s = u'Maybe a required scope is missing?.\nError: "{}"'.format(
                 response[u'error'])
-            common.Log.error(s)
+            log.error(s)
             if not silent:
                 common_ui.ErrorBox(u'Slack Token Error.', s).open()
             raise ValueError(s)
@@ -89,7 +90,7 @@ class Client(SlackClient):
         if not response['ok']:
             s = u'Maybe a required scope is missing?\nError: "{}"'.format(
                 response[u'error'])
-            common.Log.error(s)
+            log.error(s)
             if not silent:
                 common_ui.ErrorBox(u'Slack Token Error.', s).open()
             raise ValueError(s)
@@ -102,7 +103,7 @@ class Client(SlackClient):
                     response[u'error'])
                 if 'needed' in response:
                     s += '\nScope needed: "{}"'.format(response['needed'])
-                common.Log.error(s)
+                log.error(s)
                 if not silent:
                     common_ui.ErrorBox(u'Slack Token Error.', s).open()
                 raise ValueError(s)
@@ -121,7 +122,7 @@ class Client(SlackClient):
                     response[u'error'])
                 if 'needed' in response:
                     s += '\nScope needed: "{}"'.format(response['needed'])
-                common.Log.error(s)
+                log.error(s)
                 if not silent:
                     common_ui.ErrorBox(u'Slack Token Error.', s).open()
                 raise ValueError(s)
@@ -164,7 +165,7 @@ class Client(SlackClient):
                 response[u'error'])
             if 'needed' in response:
                 s += '\nScope needed: "{}"'.format(response['needed'])
-            common.Log.error(s)
+            log.error(s)
             if not silent:
                 common_ui.ErrorBox(u'Slack Token Error.', s).open()
             raise ValueError(s)
@@ -199,7 +200,7 @@ class Client(SlackClient):
         )
 
         if not response[u'ok']:
-            common.Log.error(u'Failed to send message')
+            log.error(u'Failed to send message')
             common_ui.ErrorBox(
                 u'Could not send message',
                 response['error']
@@ -242,7 +243,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                     ThumbnailUrlRole: None,
                 })
         except Exception as e:
-            common.Log.error(u'Could not get channels.')
+            log.error(u'Could not get channels.')
 
         try:
             for profile in sorted(profiles, key=self.get_pretty_name):
@@ -259,7 +260,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                 index = self.index(idx, 0)
                 self.get_icon(index)
         except Exception as e:
-            common.Log.error('Could not get profiles')
+            log.error('Could not get profiles')
 
         self.endResetModel()
 
@@ -333,7 +334,7 @@ class UsersModel(QtCore.QAbstractItemModel):
             url = index.data(ThumbnailUrlRole)
             response = urllib2.urlopen(url)
         except Exception as e:
-            common.Log.error('Could not save thumbnail')
+            log.error('Could not save thumbnail')
             return
 
         # Cache directory
@@ -523,7 +524,6 @@ class MessageWidget(QtWidgets.QSplitter):
         common_ui.OkBox(
             u'Sent!',
             u'Message sent to "{}".'.format(index.data(QtCore.Qt.DisplayRole)),
-            parent=self.parent()
         ).open()
 
 

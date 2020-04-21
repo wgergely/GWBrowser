@@ -67,14 +67,20 @@ class TestImports(unittest.TestCase):
 
 
 class TestSQLite(unittest.TestCase):
-    root_dir = None
     server = None
     job = None
+    root_dir = None
+    db = None
 
     @classmethod
     def setUpClass(cls):
         import uuid
+        import os
+
         from PySide2 import QtCore
+
+        import bookmarks.bookmark_db as bookmark_db
+
         tempdir = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
         _id = uuid.uuid4()
@@ -88,7 +94,21 @@ class TestSQLite(unittest.TestCase):
 
         cls.server = tempdir
         cls.job = u'testroot_{id}'.format(id=_id)
-        _dir.mkpath(u'./bookmark_a')
+        if not _dir.mkpath(u'./bookmark_a'):
+            cls.fail('Error making folders')
+
+        exists = os.path.exists(cls.root_dir)
+        if not exists:
+            cls.fail('Test directory does not exists')
+
+        try:
+            cls.db = bookmark_db.get_db(
+                cls.server,
+                cls.job,
+                u'bookmark_a'
+            )
+        except Exception as err:
+            raise
 
     @classmethod
     def tearDownClass(cls):
@@ -97,63 +117,32 @@ class TestSQLite(unittest.TestCase):
         if _dir.exists():
             _dir.removeRecursively()
 
-    def setUp(self):
-        import os
-        exists = os.path.exists(self.root_dir)
-        if not exists:
-            self.fail('Test directory does not exists')
+    def test_get_hash(self):
+        import bookmarks.common as common
+        self.assertEqual(common.get_hash(-1), -1)
+        self.assertEqual(common.get_hash(0), 0)
+        self.assertEqual(common.get_hash(1), 1)
 
-        try:
-            from PySide2 import QtCore
-            import bookmarks.bookmark_db as bookmark_db
-            from bookmarks.bookmark_db import BookmarkDB
+        a = common.get_hash(u'UPPERCASE')
+        b = common.get_hash(u'uppercase')
+        self.assertEqual(a, b)
+        self.assertIsInstance(a, str)
+        self.assertIsInstance(b, str)
 
-            self.db = bookmark_db.get_db(
-                QtCore.QModelIndex(),
-                server=self.server,
-                job=self.job,
-                root='bookmark_a'
-            )
-        except Exception as err:
-            self.fail('could not get the database: {}'.format(err))
+        a = common.get_hash(u'ŰNICÓDE')
+        b = common.get_hash(u'űnicóde')
+        self.assertEqual(a, b)
+        self.assertIsInstance(a, str)
+        self.assertIsInstance(b, str)
 
-        self.assertIsInstance(self.db, BookmarkDB)
-
-    def tearDown(self):
-        self.db.connection().close()
-        self.db.deleteLater()
-        self.db = None
-
-    def test_row_id(self):
-        self.assertEqual(self.db.row_id(-1), -1)
-        self.assertEqual(self.db.row_id(0), 0)
-        self.assertEqual(self.db.row_id(1), 1)
-
-        self.assertEqual(self.db.row_id(u'UPPERCASE'), u'uppercase')
-        self.assertIsInstance(self.db.row_id(u'UPPERCASE'), unicode)
-        self.assertEqual(self.db.row_id(u'ŰNICÓDE'), u'űnicóde')
-        self.assertIsInstance(self.db.row_id(u'ŰNICÓDE'), unicode)
-        self.assertEqual(self.db.row_id(u'A\\B'), u'a/b')
-        self.assertIsInstance(self.db.row_id(u'A\\B'), unicode)
+        a = common.get_hash(u'A\\B')
+        b = common.get_hash(u'a/b')
+        self.assertEqual(a, b)
+        self.assertIsInstance(a, str)
+        self.assertIsInstance(b, str)
 
         with self.assertRaises(TypeError):
-            self.db.row_id('string')
-
-    def test_thumbnail_path(self):
-        with self.assertRaises(TypeError):
-            self.db.row_id('string')
-
-        a = self.db.thumbnail_path(u'UPPERCASE')
-        b = self.db.thumbnail_path(u'uppercase')
-        self.assertEqual(a, b)
-        a = self.db.thumbnail_path(u'ŰNICÓDE')
-        b = self.db.thumbnail_path(u'űnicóde')
-        self.assertEqual(a, b)
-
-        a = self.db.thumbnail_path(u'A\\B')
-        b = self.db.thumbnail_path(u'A/B')
-        self.assertEqual(a, b)
-
+            common.get_hash('string')
 
     def test_set_get(self):
         k = 'description'
@@ -187,7 +176,7 @@ class TestSQLite(unittest.TestCase):
             self.db.setValue(None, k, id1)
 
     def test_db_key(self):
-        k = 'description'
+        k = u'description'
         id1 = u'ŰNICÓDE.key'
         self.db.setValue(id1, k, id1)
 
@@ -196,6 +185,48 @@ class TestSQLite(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.db.setValue(id1, 'bogustable', id1)
+
+    def test_bookmark_properties(self):
+        table = 'properties'
+        with self.db.transactions():
+            data = self.db.value(1, u'framerate', table=table)
+            self.assertEqual(data, None)
+
+            v = 24
+            self.db.setValue(1, u'framerate', v, table=table)
+            data = self.db.value(1, u'framerate', table=table)
+            self.assertEqual(v, data)
+
+            v = 24.976
+            self.db.setValue(1, u'framerate', v, table=table)
+            data = self.db.value(1, u'framerate', table=table)
+            self.assertEqual(v, data)
+
+            data = self.db.value(1, u'framerate', table=table)
+            self.db.setValue(1, u'framerate', u'24.976', table=table)
+            data = self.db.value(1, u'framerate', table=table)
+            self.assertEqual(v, data)
+
+            v = 1920
+            self.db.setValue(1, 'width', v, table=table)
+            data = self.db.value(1, u'width', table=table)
+            self.assertEqual(v, data)
+
+            v = 1080
+            self.db.setValue(1, u'height', v, table=table)
+            data = self.db.value(1, u'height', table=table)
+            self.assertEqual(v, data)
+
+            data = self.db.value(1, u'slacktoken', table=table)
+            self.assertEqual(data, None)
+
+            v = u'string'
+            self.db.setValue(1, u'slacktoken', v, table=table)
+            data = self.db.value(1, u'slacktoken', table=table)
+            self.assertEqual(v, data)
+
+        data = self.db.value(1, u'framerate', table=table)
+        self.assertNotEqual(data, None)
 
 
 class TestBookmarksWidget(unittest.TestCase):
@@ -273,21 +304,21 @@ class TestBookmarksWidget(unittest.TestCase):
         w.show()
 
         val = u'INVALID_SERVER'
-        w.widget().server_editor.add_server_lineeditor.setText(val)
-        w.widget().server_editor.add_server_button.clicked.emit()
-        v = w.widget().get_saved_servers()
+        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(val)
+        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
+        v = w.scrollarea.widget().get_saved_servers()
         self.assertEqual(v, [])
 
         val = self.server
-        w.widget().server_editor.add_server_lineeditor.setText(self.server)
-        w.widget().server_editor.add_server_button.clicked.emit()
-        v = w.widget().get_saved_servers()
+        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
+        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
+        v = w.scrollarea.widget().get_saved_servers()
         self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
         val = self.server.replace(u'/', u'\\')
-        w.widget().server_editor.add_server_lineeditor.setText(self.server)
-        w.widget().server_editor.add_server_button.clicked.emit()
-        v = w.widget().get_saved_servers()
+        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
+        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
+        v = w.scrollarea.widget().get_saved_servers()
         self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
     def test_read_jobs(self):
@@ -297,12 +328,12 @@ class TestBookmarksWidget(unittest.TestCase):
         w.show()
 
         val = self.server
-        w.widget().server_editor.add_server_lineeditor.setText(self.server)
-        w.widget().server_editor.add_server_button.clicked.emit()
-        v = w.widget().get_saved_servers()
+        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
+        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
+        v = w.scrollarea.widget().get_saved_servers()
         self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
-        idx = w.widget().job_combobox.findText(self.job.upper())
+        idx = w.scrollarea.widget().job_combobox.findText(self.job.upper())
         self.assertNotEqual(idx, -1)
 
 
@@ -352,7 +383,11 @@ class TestModules(unittest.TestCase):
     def test_addassetwidget(self):
         import bookmarks.addassetwidget as addassetwidget
         path = u'/'
-        w = addassetwidget.AddAssetWidget(path)
+        w = addassetwidget.AddAssetWidget(
+            self.server,
+            self.job,
+            u'bookmark_a',
+        )
         w.open()
 
     def test_addfilewidget(self):
@@ -374,62 +409,61 @@ class TestModules(unittest.TestCase):
         widget = basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
         widget.show()
 
-    def test_bookmark_properties(self):
+    def test_bookmark_properties_widget(self):
         from PySide2 import QtCore
         import bookmarks.bookmark_properties as bookmark_properties
         widget = bookmark_properties.BookmarkPropertiesWidget(
-            QtCore.QModelIndex(),
             server=self.server,
             job=self.job,
             root=u'bookmark_a'
         )
-        widget.show()
+        widget.open()
 
-    def test_baselistwidget(self):
+    def test_baselist_widget(self):
         import bookmarks.baselistwidget as baselistwidget
 
-    def test_bookmarkswidget(self):
+    def test_bookmarks_widget(self):
         import bookmarks.bookmarkswidget as bookmarkswidget
         widget = bookmarkswidget.BookmarksWidget()
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.show()
 
-    def test_taskfolderwidget(self):
+    def test_taskfolders_widget(self):
         import bookmarks.taskfolderwidget as taskfolderwidget
         widget = taskfolderwidget.TaskFolderWidget()
         widget.model().modelDataResetRequested.emit()
         widget.show()
 
-    def test_mainwidget(self):
+    def test_main_widget(self):
         import bookmarks.mainwidget as mainwidget
         widget = mainwidget.MainWidget()
         widget.show()
 
-    def test_favouriteswidget(self):
+    def test_favourites_widget(self):
         import bookmarks.favouriteswidget as favouriteswidget
         widget = favouriteswidget.FavouritesWidget()
         widget.show()
 
-    def test_preferenceswidget(self):
+    def test_preferences_widget(self):
         import bookmarks.preferenceswidget as preferenceswidget
         widget = preferenceswidget.PreferencesWidget()
         widget.show()
 
-    def test_slacker(self):
+    def test_slacker_widget(self):
         import bookmarks.slacker as slacker
         widget = slacker.SlackWidget(None, None)
         widget.show()
 
-    def test_standalone(self):
+    def test_standalon0e_widget(self):
         import bookmarks.standalone as standalone
         import bookmarks.mainwidget as mainwidget
-        if mainwidget.__instance__:
-            mainwidget.__instance__.deleteLater()
-            mainwidget.__instance__ = None
+        if mainwidget._instance:
+            mainwidget._instance.deleteLater()
+            mainwidget._instance = None
         widget = standalone.StandaloneMainWidget()
         widget.show()
 
-    def test_fileswidget(self):
+    def test_files_widget(self):
         import bookmarks.fileswidget as fileswidget
         widget = fileswidget.FilesWidget()
         widget.model().sourceModel().parent_path = (
@@ -559,10 +593,13 @@ class TestImages(unittest.TestCase):
     def test_oiio_get_buf(self):
         import bookmarks.images as images
         import OpenImageIO
-        buf = images.oiio_get_buf('bogus_path')
+        buf = images.oiio_get_buf(u'bogus_path')
         self.assertEqual(buf, None)
         buf = images.oiio_get_buf(self.source)
         self.assertIsInstance(buf, OpenImageIO.ImageBuf)
+
+        with self.assertRaises(TypeError):
+            buf = images.oiio_get_buf('wrong_type')
 
     def test_oiio_get_qimage(self):
         import bookmarks.images as images
@@ -572,25 +609,136 @@ class TestImages(unittest.TestCase):
         self.assertIsInstance(image, QtGui.QImage)
         self.assertNotEqual(image.isNull(), None)
 
-    def test_get(self):
+    def test_get_placeholder_path(self):
         import bookmarks.images as images
         from PySide2 import QtGui
 
-        image = images.ImageCache.get(self.source)
+        with self.assertRaises(TypeError):
+            images.get_placeholder_path('invalid/str/path')
 
+        image = images.get_placeholder_path(u'invalid/path')
+        self.assertIsInstance(image, unicode)
+
+        ext_image = images.get_placeholder_path(u'invalid/path.ma')
+        self.assertIsInstance(ext_image, unicode)
+
+        self.assertNotEqual(image, ext_image)
+
+    def test_get_thumbnail_path(self):
+        import bookmarks.images as images
+
+        a = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file.png')
+        self.assertIsInstance(a, unicode)
+        b = images.get_thumbnail_path(
+            u'server'.upper(),
+            u'job'.upper(),
+            u'root'.upper(),
+            u'server/job/root/folder/file.png'.upper())
+        self.assertIsInstance(b, unicode)
+
+        self.assertEqual(a, b)
+
+        a = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file_0001.exr')
+        b = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file_0002.exr')
+        self.assertNotEqual(a, b)
+
+        a = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file_[1-2].exr')
+        b = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file_[1-55].exr')
+        self.assertEqual(a, b)
+
+        a = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file_[1000,1001].exr')
+        b = images.get_thumbnail_path(
+            u'server',
+            u'job',
+            u'root',
+            u'server/job/root/folder/file_[2001,2002].exr'.upper())
+        self.assertEqual(a, b)
+
+    def test_get_image(self):
+        import bookmarks.images as images
+        from PySide2 import QtGui
+
+        image = images.ImageCache.get_image(self.source, 256)
+        self.assertIsInstance(image, QtGui.QImage)
+        self.assertNotEqual(image.isNull(), None)
+        self.assertEqual(image.width(), 256)
+
+        image2 = images.ImageCache.get_image(self.source, 256)
+        self.assertEqual(image, image2)
+
+        image = images.ImageCache.get_image(self.source, 128)
+        self.assertNotEqual(image.isNull(), None)
+        self.assertEqual(image.width(), 128)
+
+        with self.assertRaises(TypeError):
+            image = images.ImageCache.get_image('bogus/path', 128)
+
+        image = images.ImageCache.get_image(u'bogus/path', 128)
+        self.assertEqual(image, None)
+
+    def test_get_pixmap(self):
+        import bookmarks.images as images
+        from PySide2 import QtGui
+
+        image = images.ImageCache.get_pixmap(self.source, 256)
         self.assertIsInstance(image, QtGui.QPixmap)
         self.assertNotEqual(image.isNull(), None)
         self.assertEqual(image.width(), 256)
+
+        image2 = images.ImageCache.get_pixmap(self.source, 256)
+        self.assertEqual(image, image2)
+
+        image = images.ImageCache.get_pixmap(self.source, 128)
+        self.assertNotEqual(image.isNull(), None)
+        self.assertEqual(image.width(), 128)
+
+        with self.assertRaises(TypeError):
+            image = images.ImageCache.get_pixmap('bogus/path', 128)
+
+        image = images.ImageCache.get_pixmap(u'bogus/path', 128)
+        self.assertEqual(image, None)
 
     def test_resize_image(self):
         import bookmarks.images as images
         from PySide2 import QtGui
 
         height = 1024
-        image = images.ImageCache.get(self.source, 1024)
-        self.assertIsInstance(image, QtGui.QPixmap)
+        image = images.ImageCache.get_image(self.source, 1024)
+        self.assertIsInstance(image, QtGui.QImage)
         self.assertNotEqual(image.isNull(), None)
         self.assertEqual(image.width(), height)
+
+        height = 512
+        image2 = images.ImageCache.get_image(self.source, 512)
+        self.assertIsInstance(image2, QtGui.QImage)
+        self.assertNotEqual(image2.isNull(), None)
+        self.assertEqual(image2.width(), height)
+
+        self.assertNotEqual(image, image2)
 
     def test_get_rsc_pixmap(self):
         import bookmarks.images as images

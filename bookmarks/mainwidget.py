@@ -25,43 +25,44 @@ import functools
 import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
+import bookmarks.common as common
+import bookmarks.common_ui as common_ui
 import bookmarks.bookmark_db as bookmark_db
-from bookmarks.assetswidget import AssetsWidget
-from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.basecontextmenu import contextmenu
-from bookmarks.baselistwidget import StackedWidget
-from bookmarks.bookmarkswidget import BookmarksWidget
-from bookmarks.common_ui import ClickableIconButton, add_row
-from bookmarks.favouriteswidget import FavouritesWidget
-from bookmarks.fileswidget import FilesWidget
 import bookmarks.images as images
-from bookmarks.listcontrolwidget import ListControlWidget
 import bookmarks.settings as settings
 import bookmarks.threads as threads
-import bookmarks.common as common
+import bookmarks.basecontextmenu as basecontextmenu
+
+from bookmarks.assetswidget import AssetsWidget
+from bookmarks.baselistwidget import StackedWidget
+from bookmarks.bookmarkswidget import BookmarksWidget
+from bookmarks.favouriteswidget import FavouritesWidget
+from bookmarks.fileswidget import FilesWidget
+from bookmarks.listcontrolwidget import ListControlWidget
 
 
-__instance__ = None
+_instance = None
 
 
 @QtCore.Slot()
 def show_window():
     """Shows/reveal the main window if it is not visible."""
-    if not __instance__:
+    if not _instance:
         return
 
-    __instance__.showNormal()
-    __instance__.activateWindow()
-    common.move_widget_to_available_geo(__instance__)
+    _instance.showNormal()
+    _instance.activateWindow()
+    common.move_widget_to_available_geo(_instance)
 
-    w = __instance__.window()
+    w = _instance.window()
     h = w.windowHandle()
 
     if h:
         geo = h.screen().availableGeometry()
-        if __instance__.width() > geo.width() or __instance__.height() > geo.height():
+        if _instance.width() > geo.width() or _instance.height() > geo.height():
             o = common.MARGIN()
-            __instance__.setGeometry(
+            _instance.setGeometry(
                 geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
 
 
@@ -94,7 +95,7 @@ class StatusBar(QtWidgets.QStatusBar):
         painter.end()
 
 
-class TrayMenu(BaseContextMenu):
+class TrayMenu(basecontextmenu.BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
 
     def __init__(self, parent=None):
@@ -107,7 +108,7 @@ class TrayMenu(BaseContextMenu):
         self.add_show_menu()
         self.add_visibility_menu()
 
-    @contextmenu
+    @basecontextmenu.contextmenu
     def add_visibility_menu(self, menu_set):
         """Actions associated with the visibility of the widget."""
 
@@ -140,7 +141,7 @@ class TrayMenu(BaseContextMenu):
         }
         return menu_set
 
-    @contextmenu
+    @basecontextmenu.contextmenu
     def add_show_menu(self, menu_set):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
@@ -152,7 +153,7 @@ class TrayMenu(BaseContextMenu):
         return menu_set
 
 
-class MinimizeButton(ClickableIconButton):
+class MinimizeButton(common_ui.ClickableIconButton):
     """Custom QLabel with a `clicked` signal."""
 
     def __init__(self, parent=None):
@@ -165,7 +166,7 @@ class MinimizeButton(ClickableIconButton):
         )
 
 
-class CloseButton(ClickableIconButton):
+class CloseButton(common_ui.ClickableIconButton):
     """Button used to close/hide a widget or window."""
 
     def __init__(self, parent=None):
@@ -228,7 +229,7 @@ class HeaderWidget(QtWidgets.QWidget):
             self.geometry().topLeft())
 
     def mouseMoveEvent(self, event):
-        """The custom mouse move event responsbiel for moving the parent window.
+        """Moves the the parent window when clicked.
 
         """
         if not isinstance(event, QtGui.QMouseEvent):
@@ -368,10 +369,10 @@ class MainWidget(QtWidgets.QWidget):
     resized = QtCore.Signal(QtCore.QRect)
 
     def __init__(self, parent=None):
-        global __instance__
-        if __instance__ is not None:
+        global _instance
+        if _instance is not None:
             raise RuntimeError(u'MainWidget cannot be initiated twice.')
-        __instance__ = self
+        _instance = self
 
         super(MainWidget, self).__init__(parent=parent)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -447,7 +448,7 @@ class MainWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.stackedwidget)
 
         height = common.MARGIN() + (common.INDICATOR_WIDTH() * 2)
-        row = add_row(None, padding=0, height=height, parent=self)
+        row = common_ui.add_row(None, padding=0, height=height, parent=self)
         row.layout().setSpacing(0)
         row.layout().setContentsMargins(0, 0, 0, 0)
 
@@ -506,14 +507,10 @@ class MainWidget(QtWidgets.QWidget):
 
         emit_saved_states()
 
-        settings.local_settings.sync_timer.start()
         b.sourceModel().modelDataResetRequested.emit()
 
         if settings.local_settings.value(u'firstrun') is None:
             settings.local_settings.setValue(u'firstrun', False)
-        #
-        # idx = settings.local_settings.value(u'widget/mode')
-        # self.listcontrolwidget.listChanged.emit(idx)
 
         @QtCore.Slot(QtCore.QModelIndex)
         def update_window_title(index):
@@ -541,7 +538,7 @@ class MainWidget(QtWidgets.QWidget):
     def screenChanged(self):
         screen = self.window().windowHandle().screen()
         dpi = screen.logicalDotsPerInch()
-        common.Log.success(u'{}'.format(dpi))
+        log.success(u'{}'.format(dpi))
 
     @QtCore.Slot()
     def terminate(self):
@@ -550,7 +547,6 @@ class MainWidget(QtWidgets.QWidget):
 
         """
         def ui_teardown():
-            settings.local_settings.sync_timer.stop()
             settings.local_settings.server_mount_timer.stop()
 
             self.listcontrolwidget.bookmarks_button.timer.stop()
@@ -562,7 +558,6 @@ class MainWidget(QtWidgets.QWidget):
             self.assetswidget.timer.stop()
             self.fileswidget.timer.stop()
             self.favouriteswidget.timer.stop()
-            settings.local_settings.sync_timer.stop()
 
             self.hide()
             self.setUpdatesEnabled(False)
@@ -618,7 +613,7 @@ class MainWidget(QtWidgets.QWidget):
                     bookmark_db.DB_CONNECTIONS[k].connection().close()
                     bookmark_db.DB_CONNECTIONS[k].deleteLater()
             except Exception:
-                common.Log.error('Error closing the database')
+                log.error('Error closing the database')
 
         def quit_threads():
             _threads = threads.THREADS.values()
@@ -681,7 +676,7 @@ class MainWidget(QtWidgets.QWidget):
                     os.path.sep + 'bookmarks.exe'
                 subprocess.Popen(p)
         except KeyError:
-            common.Log.error(u'Could not open new instance')
+            log.error(u'Could not open new instance')
 
     def _add_shortcuts(self):
         lc = self.listcontrolwidget
@@ -792,12 +787,6 @@ class MainWidget(QtWidgets.QWidget):
         lc.taskFolderChanged.connect(f.model().sourceModel().taskFolderChanged)
         lc.taskFolderChanged.connect(lc.textChanged)
         f.model().sourceModel().taskFolderChanged.connect(lc.textChanged)
-        #####################################################
-        # settings.local_settings.active_monitor
-        settings.local_settings.activeBookmarkChanged.connect(
-            b.model().sourceModel().modelDataResetRequested)
-        settings.local_settings.activeAssetChanged.connect(
-            a.model().sourceModel().modelDataResetRequested)
         #####################################################
         b.activated.connect(
             lambda: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')

@@ -18,6 +18,7 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 from PySide2 import QtWidgets, QtCore, QtGui
 
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.settings as settings
 
@@ -136,7 +137,7 @@ class FavouritesWidget(FilesWidget):
         self.favouritesChanged.connect(
             self.model().sourceModel().modelDataResetRequested)
         self.favouritesChanged.connect(
-            lambda: common.Log.debug('favouritesChanged -> modelDataResetRequested', self))
+            lambda: log.debug('favouritesChanged -> modelDataResetRequested', self))
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -198,15 +199,3 @@ class FavouritesWidget(FilesWidget):
     def showEvent(self, event):
         super(FavouritesWidget, self).showEvent(event)
         self.model().sourceModel().modelDataResetRequested.emit()
-
-
-if __name__ == '__main__':
-    common.DEBUG_ON = True
-    import bookmarks.standalone as standalone
-    a = standalone.StandaloneApp([])
-    l = common.LogView()
-    l.show()
-    w = FavouritesWidget()
-    w.model().sourceModel().modelDataResetRequested.emit()
-    w.show()
-    a.exec_()

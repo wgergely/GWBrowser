@@ -18,11 +18,15 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import bookmarks.settings as settings
+import bookmarks.log as log
 import bookmarks.common as common
-import bookmarks.defaultpaths as defaultpaths
 import bookmarks.common_ui as common_ui
+import bookmarks.settings as settings
+import bookmarks.defaultpaths as defaultpaths
 import bookmarks.images as images
+
+
+_widget_instance = None
 
 
 def get_sections():
@@ -33,6 +37,8 @@ def get_sections():
             u'cls': SaverSettingsWidget},
         {u'name': u'Maya Plugin', u'description': u'Maya Plugin Settings',
             u'cls': MayaSettingsWidget},
+        {u'name': u'Console', u'description': u'Console',
+            u'cls': log.LogWidget},
     )
 
 
@@ -696,15 +702,23 @@ class PreferencesWidget(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super(PreferencesWidget, self).__init__(parent=parent)
-        if not parent:
+        global _widget_instance
+        if _widget_instance:
+            try:
+                _widget_instance.deleteLater()
+            except:
+                pass
+            _widget_instance = None
+        _widget_instance = self
+
+        if not self.parent():
             common.set_custom_stylesheet(self)
+
         self.sections_list_widget = None
         self.sections_stack_widget = None
+
         self.setWindowTitle(u'Preferences')
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoBackground)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowFlags(QtCore.Qt.Widget)
 
         self._create_UI()
         self._add_sections()
@@ -766,25 +780,6 @@ class PreferencesWidget(QtWidgets.QDialog):
         if not index.isValid():
             return
         self.sections_stack_widget.setCurrentIndex(index.row())
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
-        pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR())
-        painter.setBrush(common.BACKGROUND)
-        painter.setPen(pen)
-        o = common.MARGIN() * 0.4
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        painter.drawRoundedRect(
-            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
-        painter.end()
-
-    def showEvent(self, event):
-        if self.parent():
-            self.resize(self.parent().viewport().rect().size())
 
 
 if __name__ == '__main__':

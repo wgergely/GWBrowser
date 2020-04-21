@@ -31,10 +31,12 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 from PySide2 import QtCore, QtWidgets, QtGui
 import alembic
 
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 
+_viewer_instance = None
 
 class BaseNode(QtCore.QObject):
     def __init__(self, iobject, parentNode=None, parent=None):
@@ -339,7 +341,13 @@ class AlembicTree(QtWidgets.QTreeView):
 
 
 class AlembicView(QtWidgets.QWidget):
+    """Widget used  to display the contents of an alembic archive.
+
+    """
     def __init__(self, path, parent=None):
+        global _viewer_instance
+        _viewer_instance = self
+
         super(AlembicView, self).__init__(parent=parent)
         if not isinstance(path, unicode):
             raise ValueError(
@@ -349,8 +357,8 @@ class AlembicView(QtWidgets.QWidget):
         if not file_info.exists():
             s = '{} does not exists.'.format(path)
             common_ui.ErrorBox(
-                u'Error viewing the alembic contents.', s).exec_()
-            common.Log.error(s)
+                u'Error viewing the alembic contents.', s).open()
+            log.error(s)
             raise RuntimeError(s)
 
         self.path = path

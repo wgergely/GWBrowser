@@ -26,8 +26,9 @@ from bookmarks.baselistwidget import ThreadedBaseWidget
 from bookmarks.baselistwidget import BaseModel
 from bookmarks.baselistwidget import initdata
 
-import bookmarks._scandir as _scandir
+import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks._scandir as _scandir
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
 import bookmarks.defaultpaths as defaultpaths
@@ -86,18 +87,6 @@ class FilesModel(BaseModel):
     val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
     ROW_SIZE = QtCore.QSize(1, val)
 
-    def __init__(self, parent=None):
-        super(FilesModel, self).__init__(parent=parent)
-        # Only used to cache the thumbnails
-        self._extension_thumbnails = {}
-        self._extension_thumbnail_backgrounds = {}
-        self._defined_thumbnails = defaultpaths.get_extensions(
-            defaultpaths.SceneFilter |
-            defaultpaths.ExportFilter |
-            defaultpaths.MiscFilter |
-            defaultpaths.AdobeFilter
-        )
-
     def _entry_iterator(self, path):
         for entry in _scandir.scandir(path):
             if entry.is_dir():
@@ -150,8 +139,6 @@ class FilesModel(BaseModel):
             common.SequenceItem: common.DataDict(),
         })
 
-        thumbnails = self.get_default_thumbnails()
-
         favourites = settings.local_settings.favourites()
         sfavourites = set(favourites)
         activefile = settings.local_settings.value(u'activepath/file')
@@ -200,13 +187,6 @@ class FilesModel(BaseModel):
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
             seq = common.get_sequence(filepath)
 
-            if ext in thumbnails:
-                placeholder_image = thumbnails[ext]
-                default_thumbnail_image = thumbnails[ext]
-            else:
-                placeholder_image = thumbnails[u'placeholder']
-                default_thumbnail_image = thumbnails[u'placeholder']
-
             flags = dflags()
 
             if seq:
@@ -245,10 +225,7 @@ class FilesModel(BaseModel):
                 common.StartpathRole: None,
                 common.EndpathRole: None,
                 #
-                common.FileThumbnailLoaded: False,
-                common.DefaultThumbnailRole: default_thumbnail_image,
-                common.ThumbnailPathRole: None,
-                common.ThumbnailRole: placeholder_image,
+                common.ThumbnailLoaded: False,
                 #
                 common.TypeRole: common.FileItem,
                 #
@@ -288,10 +265,7 @@ class FilesModel(BaseModel):
                         common.StartpathRole: None,
                         common.EndpathRole: None,
                         #
-                        common.FileThumbnailLoaded: False,
-                        common.DefaultThumbnailRole: default_thumbnail_image,
-                        common.ThumbnailPathRole: None,
-                        common.ThumbnailRole: placeholder_image,
+                        common.ThumbnailLoaded: False,
                         #
                         common.TypeRole: common.SequenceItem,
                         common.SortByNameRole: common.namekey(seqpath),
@@ -370,7 +344,7 @@ class FilesModel(BaseModel):
         exist.
 
         """
-        common.Log.debug('set_task_folder({})'.format(val), self)
+        log.debug('set_task_folder({})'.format(val), self)
         try:
             k = u'activepath/location'
             stored_value = settings.local_settings.value(k)
@@ -435,7 +409,7 @@ class FilesModel(BaseModel):
             self._task_folder = val
             settings.local_settings.setValue(k, val)
         except:
-            common.Log.error(u'Could not set task folder')
+            log.error(u'Could not set task folder')
         finally:
             if not self.model_data():
                 self.__initdata__()
@@ -471,7 +445,7 @@ class FilesModel(BaseModel):
             """Adds the given path to the mime data."""
             if not isinstance(path, unicode):
                 s = u'Expected <type \'unicode\'>, got {}'.format(type(str))
-                common.Log.error(s)
+                log.error(s)
                 raise TypeError(s)
 
             path = QtCore.QFileInfo(path).absoluteFilePath()
@@ -629,17 +603,17 @@ class FilesWidget(ThreadedBaseWidget):
         super(FilesWidget, self).set_model(*args, **kwargs)
         model = self.model().sourceModel()
         model.modelReset.connect(
-            lambda: common.Log.debug('modelReset -> load_saved_filter_text', model))
+            lambda: log.debug('modelReset -> load_saved_filter_text', model))
         model.modelReset.connect(self.load_saved_filter_text)
 
     @QtCore.Slot(unicode)
     def load_saved_filter_text(self):
-        common.Log.debug('load_saved_filter_text()', self)
+        log.debug('load_saved_filter_text()', self)
 
         model = self.model().sourceModel()
         task_folder = model.task_folder()
         if not task_folder:
-            common.Log.error('load_saved_filter_text(): Data key not yet set')
+            log.error('load_saved_filter_text(): Data key not yet set')
             return
 
         cls = model.__class__.__name__
@@ -689,9 +663,7 @@ class FilesWidget(ThreadedBaseWidget):
         drag.setMimeData(model.mimeData([index, ]))
 
         # Setting our custom cursor icons
-        option = QtWidgets.QStyleOptionViewItem()
-        option.initFrom(self)
-        height = self.itemDelegate().sizeHint(option, index).height()
+        height = index.data(QtCore.Qt.SizeHintRole).height()
 
         def px(s):
             return images.ImageCache.get_rsc_pixmap(s, None, common.MARGIN())
@@ -710,17 +682,22 @@ class FilesWidget(ThreadedBaseWidget):
         shift_modifier = modifiers & QtCore.Qt.ShiftModifier
 
         # Set pixmap
-        pixmap = None
         path = index.data(QtCore.Qt.StatusTipRole)
+        source = images.get_thumbnail_path(
+            index.data(common.ParentPathRole)[0],
+            index.data(common.ParentPathRole)[1],
+            index.data(common.ParentPathRole)[2],
+            path
+        )
+        pixmap = images.ImageCache.get_pixmap(source, height)
+        if not pixmap:
+            source = images.get_placeholder_path(source)
+            pixmap = images.ImageCache.get_pixmap(source, height)
 
         bookmark = u'/'.join(index.data(common.ParentPathRole)[:3])
         path = path.replace(bookmark, u'')
         path = path.strip(u'/')
         if no_modifier:
-            pixmap = index.data(common.ThumbnailRole)
-            if not pixmap:
-                pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_endpath(path)
         elif alt_modifier and shift_modifier:
             pixmap = images.ImageCache.get_rsc_pixmap(
@@ -738,20 +715,21 @@ class FilesWidget(ThreadedBaseWidget):
             return
 
         self.update(index)
-        pixmap = DragPixmap.pixmap(pixmap, path)
-        drag.setPixmap(pixmap)
+        if pixmap and not pixmap.isNull():
+            pixmap = DragPixmap.pixmap(pixmap, path)
+            drag.setPixmap(pixmap)
 
         try:
             lc = self.parent().parent().listcontrolwidget
             lc.drop_overlay.show()
         except:
-            common.Log.error('')
+            log.error(u'Could not show drag overlay')
 
         drag.exec_(supported_actions)
 
         try:
             lc.drop_overlay.hide()
         except:
-            common.Log.error('')
+            log.error('')
 
         self.drag_source_index = QtCore.QModelIndex()

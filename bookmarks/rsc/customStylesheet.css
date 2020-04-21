@@ -253,32 +253,25 @@ QScrollBar {{
 	font-family: "{PRIMARY_FONT}";
 	font-size: {MEDIUM_FONT_SIZE}px;
 	background: rgba({SEPARATOR});
-	border: none;
-	border-radius: 0px;
-	width: {SMALL_FONT_SIZE}px;
+	border-radius: {RADIUS_SM}px;
+	width: {RADIUS}px;
 	height: {RADIUS}px;
-}}
-QScrollBar:vertical,
-QScrollBar:horizontal {{
-	background: rgba({SEPARATOR});
-	border: none;
 }}
 QScrollBar::handle {{
 	background: rgba({SECONDARY_BACKGROUND});
 	border: none;
 	border-radius: {RADIUS_SM}px;
-	border-left: {ROW_SEPARATOR}px solid rgba(0,0,0,20);
-	max-height: 180px;
 	min-height: {ROW_HEIGHT}px;
 }}
 
 QScrollBar::add-page,
-QScrollBar::sub-page,
 QScrollBar::add-line,
+QScrollBar::sub-page,
 QScrollBar::up-arrow,
 QScrollBar::down-arrow,
 QScrollBar::sub-line {{
-	background: rgba({SEPARATOR});
+	background: transparent;
+	/* background: rgba({SEPARATOR}); */
 	border: none;
 	border-radius: 0px;
 }}
@@ -573,4 +566,13 @@ BaseListView {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	margin: {RADIUS}px;
 	border-radius: {RADIUS}px;
+}}
+
+LogView {{
+		color: rgba({SECONDARY_TEXT});
+    margin: 0px;
+    padding: 0px;
+    border-radius: {RADIUS}px;
+    font-size: {SMALL_FONT_SIZE}px;
+    background-color: rgba(27,29,35,255);
 }}

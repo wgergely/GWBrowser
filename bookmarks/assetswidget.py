@@ -19,9 +19,11 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import re
 from PySide2 import QtCore, QtWidgets
 
+import bookmarks.log as log
+import bookmarks.common as common
+import bookmarks.common_ui as common_ui
 import bookmarks._scandir as _scandir
 import bookmarks.images as images
-import bookmarks.common as common
 from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.baselistwidget import ThreadedBaseWidget
 from bookmarks.baselistwidget import BaseModel
@@ -102,10 +104,6 @@ class AssetModel(BaseModel):
         task_folder = self.task_folder()
         dtype = self.data_type()
 
-        default_thumbnail_image = images.ImageCache.get(
-            common.rsc_path(__file__, u'placeholder'),
-            self.ROW_SIZE.height() - common.ROW_SEPARATOR())
-
         self.INTERNAL_MODEL_DATA[task_folder] = common.DataDict({
             common.FileItem: common.DataDict(),
             common.SequenceItem: common.DataDict()
@@ -118,17 +116,9 @@ class AssetModel(BaseModel):
         server, job, root = self.parent_path
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
-        try:
-            # Let's get the identifier from the bookmark database
-            db = bookmark_db.get_db(
-                QtCore.QModelIndex(),
-                server=server,
-                job=job,
-                root=root
-            )
-            ASSET_IDENTIFIER = db.value(0, u'identifier', table='properties')
-        except:
-            ASSET_IDENTIFIER = None
+        # Let's get the identifier from the bookmark database
+        db = bookmark_db.get_db(server, job, root)
+        ASSET_IDENTIFIER = db.value(1, u'identifier', table='properties')
 
         nth = 1
         c = 0
@@ -183,10 +173,7 @@ class AssetModel(BaseModel):
                 common.StartpathRole: None,
                 common.EndpathRole: None,
                 #
-                common.FileThumbnailLoaded: False,
-                common.DefaultThumbnailRole: default_thumbnail_image,
-                common.ThumbnailPathRole: None,
-                common.ThumbnailRole: default_thumbnail_image,
+                common.ThumbnailLoaded: False,
                 #
                 common.TypeRole: common.FileItem,
                 #

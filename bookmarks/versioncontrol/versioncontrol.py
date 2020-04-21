@@ -31,6 +31,7 @@ from PySide2 import QtWidgets, QtCore
 
 import bookmarks
 import bookmarks.versioncontrol.version as version
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 
@@ -120,14 +121,14 @@ def check():
             u'Could not check version',
             u'Internet connection seems to be down.',
         ).open()
-        common.Log.error(u'Internet connection seems to be down.')
+        log.error(u'Internet connection seems to be down.')
         raise
     except socket.timeout:
         common_ui.ErrorBox(
             u'Could not check version',
             u'Connection has timed out.',
         ).open()
-        common.Log.error(u'Connection has timed out.')
+        log.error(u'Connection has timed out.')
         raise
 
     try:
@@ -138,21 +139,21 @@ def check():
             u'Could not check version',
             u'{}'.format(err)
         ).open()
-        common.Log.error(u'Error checking the version.')
+        log.error(u'Error checking the version.')
         raise
     except socket.timeout as err:
         common_ui.ErrorBox(
             u'Could not check version',
             u'{}'.format(err)
         ).open()
-        common.Log.error(u'Error checking the version.')
+        log.error(u'Error checking the version.')
         raise
     except RuntimeError as err:
         common_ui.ErrorBox(
             u'Could not check version',
             u'{}'.format(err)
         ).open()
-        common.Log.error(u'Error checking the version.')
+        log.error(u'Error checking the version.')
         raise
 
     code = r.getcode()
@@ -163,7 +164,7 @@ def check():
             u'Could not check version',
             s
         ).open()
-        common.Log.error(s)
+        log.error(s)
         raise RuntimeError(s)
 
     # Convert json to dict
@@ -176,7 +177,7 @@ def check():
             u'Error occured loading the server response.\n{}'.format(err),
             s
         ).open()
-        common.Log.error(s)
+        log.error(s)
         raise
 
     tags = [(version.parse(f[u'tag_name']).release, f) for f in data]

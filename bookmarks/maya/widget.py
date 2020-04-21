@@ -28,12 +28,13 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-import bookmarks.settings as settings
+import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks.common_ui as common_ui
+import bookmarks.settings as settings
 import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 from bookmarks.mainwidget import MainWidget
-import bookmarks.common_ui as common_ui
 import bookmarks.addfilewidget as addfilewidget
 import bookmarks.defaultpaths as defaultpaths
 
@@ -45,7 +46,7 @@ CAPTURE_PATH = u'captures'
 maya_button = None
 """The bookmarks shortcut icon button. Set by the ``mBookmarks.py`` when the plugin is initializing."""
 
-__instance__ = None
+_instance = None
 """The bookmarks widget instance."""
 
 
@@ -113,7 +114,7 @@ def get_preference(k):
 
 
 def instance():
-    return __instance__
+    return _instance
 
 
 @QtCore.Slot()
@@ -217,7 +218,7 @@ def show():
             u'Could not show {}'.format(common.PRODUCT),
             u'{}'.format(err)
         ).open()
-        common.Log.error(u'Could not open Bookmarks window.')
+        log.error(u'Could not open Bookmarks window.')
         raise
 
 
@@ -366,7 +367,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             u'Alembic export failed.',
             s
         ).open()
-        common.Log.error('Unable to save the alembic file, {} does not exists.')
+        log.error('Unable to save the alembic file, {} does not exists.')
         raise OSError(s)
 
     if not _destination_dir_info.isReadable():
@@ -376,7 +377,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             u'Alembic export failed.',
             s
         ).open()
-        common.Log.error('Unable to save the alembic file, {} does not exists.')
+        log.error('Unable to save the alembic file, {} does not exists.')
         raise OSError(s)
 
     if not _destination_dir_info.isWritable():
@@ -386,7 +387,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             u'Alembic export failed.',
             s
         ).open()
-        common.Log.error('Unable to save the alembic file, {} does not exists.')
+        log.error('Unable to save the alembic file, {} does not exists.')
         raise OSError(s)
 
     # ======================================================
@@ -510,7 +511,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             u'An error occured exporting Alembic cache',
             u'{}'.format(err)
         ).open()
-        common.Log.error(u'Could not open the plugin window.')
+        log.error(u'Could not open the plugin window.')
         raise
 
     finally:
@@ -586,10 +587,10 @@ def capture_viewport(size=1.0):
     if panel is None or cmds.objectTypeUI(panel) != u'modelEditor':
         s = u'Activate a viewport before starting a capture.'
         common_ui.MessageBox(
-            'The active window is not a viewport.',
+            u'The active window is not a viewport.',
             s
         ).open()
-        common.Log.error(s)
+        log.error(s)
         raise RuntimeError(s)
 
     camera = cmds.modelPanel(panel, query=True, camera=True)
@@ -736,7 +737,7 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
                 u'Could not publish the capture',
                 s
             ).open()
-            common.Log.error(s)
+            log.error(s)
             raise OSError(s)
 
     if not QtCore.QFileInfo(latest_dir).isWritable():
@@ -745,7 +746,7 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
             u'Could not publish the capture',
             s
         ).open()
-        common.Log.error(s)
+        log.error(s)
         raise OSError(s)
 
     import bookmarks._scandir as _scandir
@@ -951,7 +952,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             self.update()
         else:
             s ='Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.'
-            common.Log.error(s)
+            log.error(s)
             print s
 
         # Unlocking showing widget
@@ -1187,8 +1188,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     terminated = QtCore.Signal()
 
     def __init__(self, parent=None):
-        global __instance__
-        __instance__ = self
+        global _instance
+        _instance = self
         super(MayaMainWidget, self).__init__(parent=parent)
 
         self._workspacecontrol = None
@@ -1213,8 +1214,6 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.mainwidget.initialized.connect(self.add_context_callbacks)
         self.mainwidget.initialized.connect(self.set_workspace)
         self.mainwidget.initialized.connect(self.workspace_timer.start)
-        # self.mainwidget.active_monitor.activeAssetChanged.connect(
-        #     self.active_changed)
 
         if maya_button is not None:
             maya_button.saveRequested.connect(self.save_scene)
@@ -1536,7 +1535,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 u'This might have happened because {} is not a valid Maya Workspace?'.format(
                     file_info.fileName())
             ).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     @QtCore.Slot()
@@ -1588,30 +1587,21 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         try:
             widget = self.mainwidget.stackedwidget.widget(0)
             model = widget.model().sourceModel()
-            if not model.active_index().isValid():
+            index = model.active_index()
+            if not index.isValid():
                 return
 
             t = u'properties'
             v = {}
-            db = None
-            n = 0
 
-            while db is None:
-                db = bookmark_db.get_db(model.active_index())
-                if db is None:
-                    n += 1
-                    time.sleep(0.1)
-                if n > 10:
-                    break
-
-            if not db:
-                s = u'Could not get the Bookmark Database'
-                common.Log.error(s)
-                raise RuntimeError(s)
-
+            db = bookmark_db.get_db(
+                index.data(common.ParentPathRole)[0],
+                index.data(common.ParentPathRole)[1],
+                index.data(common.ParentPathRole)[2]
+            )
             with db.transactions():
                 for _k in bookmark_db.KEYS[t]:
-                    v[_k] = db.value(0, _k, table=t)
+                    v[_k] = db.value(1, _k, table=t)
 
 
             if (v['width'] and v['height']):
@@ -1647,13 +1637,12 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             common_ui.OkBox(
                 u'Successfully applied the default scene settings:',
                 info,
-                parent=self
             ).open()
 
         except Exception as e:
             s = u'Could apply properties'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
 
@@ -1696,7 +1685,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.exists():
             s = u'Unable to save file: {} already exists.'.format(file_path)
             common.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -1709,7 +1698,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not save the scene.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     def open_scene(self, path):
@@ -1729,13 +1718,13 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.suffix().lower() not in (u'ma', u'mb', u'abc'):
             s = u'{} is not a valid scene.'.format(p)
             common_ui.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if not file_info.exists():
             s = u'{} does not exist.'.format(p)
             common_ui.ErrorBox(u'Could not import scene', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -1743,7 +1732,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 return
             cmds.file(file_info.filePath(), open=True, force=True)
 
-            common.Log.success(
+            log.success(
                 u'# Bookmarks: Scene opened {}\n'.format(file_info.filePath()))
             common_ui.OkBox(
                 u'Success.',
@@ -1753,7 +1742,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not open the scene.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     def import_scene(self, path):
@@ -1764,13 +1753,13 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.suffix().lower() not in (u'ma', u'mb'):
             s = u'{} is not a valid scene.'.format(p)
             common_ui.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if not file_info.exists():
             s = u'{} does not exist.'.format(p)
             common_ui.ErrorBox(u'Could not import scene', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -1793,7 +1782,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not open the scene.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     def import_referenced_scene(self, path):
@@ -1833,13 +1822,13 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.suffix().lower() not in (u'ma', u'mb'):
             s = u'{} is not a valid scene.'.format(p)
             common_ui.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if not file_info.exists():
             s = u'{} does not exist.'.format(p)
             common_ui.ErrorBox(u'Could not reference scene', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -1889,7 +1878,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not reference the scene.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     def open_alembic(self, path):
@@ -1903,13 +1892,13 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.suffix().lower() not in (u'abc',):
             s = u'{} is not a valid alembic.'.format(p)
             common_ui.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if not file_info.exists():
             s = u'{} does not exist.'.format(p)
             common_ui.ErrorBox(u'Could not open alembic.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -1924,7 +1913,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not reference the scene.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     def import_alembic(self, path):
@@ -1938,13 +1927,13 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.suffix().lower() not in (u'abc',):
             s = u'{} is not a valid alembic.'.format(p)
             common_ui.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if not file_info.exists():
             s = u'{} does not exist.'.format(p)
             common_ui.ErrorBox(u'Could not import alembic.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -1986,7 +1975,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not import alembic.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     def import_referenced_alembic(self, path):
@@ -2000,13 +1989,13 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.suffix().lower() not in (u'abc',):
             s = u'{} is not a valid alembic.'.format(p)
             common_ui.ErrorBox(u'Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if not file_info.exists():
             s = u'{} does not exist.'.format(p)
             common_ui.ErrorBox(u'Could not reference alembic.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         try:
@@ -2052,7 +2041,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not reference alembic.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
 
     @QtCore.Slot(unicode)
@@ -2106,7 +2095,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if file_info.exists():
             s = u'Unable to save alembic: {} already exists.'.format(file_path)
             common_ui.ErrorBox('Error.', s).open()
-            common.Log.error(s)
+            log.error(s)
             raise RuntimeError(s)
 
         if frame:
@@ -2132,7 +2121,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except Exception as e:
             s = u'Could not export alembic.'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            common.Log.error(s)
+            log.error(s)
             raise
         finally:
             if not state:

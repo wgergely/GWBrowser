@@ -128,33 +128,33 @@ class TestMaya(unittest.TestCase):
 
         maya.widget.show()
 
-        r = maya.widget.__instance__.save_scene()
+        r = maya.widget._instance.save_scene()
         r = self.assertIsInstance(r, unicode)
 
-        r = maya.widget.__instance__.save_scene(increment=True)
+        r = maya.widget._instance.save_scene(increment=True)
         r = self.assertIsInstance(r, unicode)
-        new_scene = maya.widget.__instance__.save_scene(increment=True, modal=False)
+        new_scene = maya.widget._instance.save_scene(increment=True, modal=False)
         self.assertIsInstance(new_scene, unicode)
         self.assertEqual(os.path.isfile(new_scene), True)
 
-        r = maya.widget.__instance__.open_scene(new_scene)
+        r = maya.widget._instance.open_scene(new_scene)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget.__instance__.open_scene('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.open_scene('BOGUS/SCENE/null.ma')
 
         cmds.file(newFile=True, force=True)
 
-        r = maya.widget.__instance__.import_scene(new_scene)
+        r = maya.widget._instance.import_scene(new_scene)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget.__instance__.import_scene('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_scene('BOGUS/SCENE/null.ma')
 
         cmds.file(newFile=True, force=True)
 
-        r = maya.widget.__instance__.import_referenced_scene(new_scene)
+        r = maya.widget._instance.import_referenced_scene(new_scene)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget.__instance__.import_scene('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_scene('BOGUS/SCENE/null.ma')
 
 
     def test_outliner_sets(self):
@@ -191,22 +191,22 @@ class TestMaya(unittest.TestCase):
         maya.widget.export_alembic(dest, sets[k], 1.0, 10.0, step=1.0)
         self.assertTrue(os.path.isfile(dest))
 
-        r = maya.widget.__instance__.open_alembic(dest)
+        r = maya.widget._instance.open_alembic(dest)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget.__instance__.open_alembic('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.open_alembic('BOGUS/SCENE/null.ma')
 
         cmds.file(newFile=True, force=True)
 
-        r = maya.widget.__instance__.import_alembic(dest)
+        r = maya.widget._instance.import_alembic(dest)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget.__instance__.import_alembic('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_alembic('BOGUS/SCENE/null.ma')
 
-        r = maya.widget.__instance__.import_referenced_alembic(dest)
+        r = maya.widget._instance.import_referenced_alembic(dest)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget.__instance__.import_referenced_alembic('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_referenced_alembic('BOGUS/SCENE/null.ma')
 
         os.remove(dest)
 
@@ -222,7 +222,7 @@ class TestMaya(unittest.TestCase):
         sets = maya.widget.outliner_sets()
         k = u'testMesh_geo_set'
 
-        r = maya.widget.__instance__.export_set_to_alembic(k, sets[k], frame=False)
+        r = maya.widget._instance.export_set_to_alembic(k, sets[k], frame=False)
         self.assertIsInstance(r, unicode)
         os.remove(r)
 
@@ -263,7 +263,7 @@ class TestMaya(unittest.TestCase):
         except ImportError as e:
             raise
 
-        maya.widget.__instance__.apply_settings()
+        maya.widget._instance.apply_settings()
 
 
 if __name__ == '__main__':

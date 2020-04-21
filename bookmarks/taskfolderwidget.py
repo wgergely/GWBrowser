@@ -27,6 +27,7 @@ from functools import partial
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks._scandir as _scandir
+import bookmarks.log as log
 import bookmarks.common as common
 
 from bookmarks.delegate import paintmethod
@@ -253,14 +254,11 @@ class TaskFolderModel(BaseModel):
                 QtCore.Qt.ToolTipRole: defaultpaths.get_description(entry.name),
                 QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                 #
-                common.DefaultThumbnailRole: default_thumbnail,
-                common.ThumbnailRole: default_thumbnail,
-                #
                 common.FlagsRole: flags,
                 common.ParentPathRole: self.parent_path,
                 #
                 common.FileInfoLoaded: False,
-                common.FileThumbnailLoaded: True,
+                common.ThumbnailLoaded: True,
                 common.TodoCountRole: 0,
             })
             thread = self.threads[common.InfoThread][0]

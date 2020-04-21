@@ -46,9 +46,10 @@ import functools
 import uuid
 from PySide2 import QtCore, QtWidgets, QtGui
 
+import bookmarks.log as log
+import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.settings as settings
-import bookmarks.common as common
 import bookmarks._scandir as _scandir
 import bookmarks.common_ui as common_ui
 from bookmarks.bookmarkswidget import BookmarksModel
@@ -272,11 +273,13 @@ class SelectButton(QtWidgets.QLabel):
 
     def hideEvent(self, event):  # pylint: disable=W0613
         self.view().hide()
-        self.update_timer.stop()
+        if self.update_timer.isActive():
+            self.update_timer.stop()
 
     def showEvent(self, event):  # pylint: disable=W0613
         self.view().hide()
-        self.update_timer.start()
+        if not self.update_timer.isActive():
+            self.update_timer.start()
 
     def resizeEvent(self, event):  # pylint: disable=W0613
         self.widgetMoved.emit(self.rect())
@@ -581,7 +584,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.header().setDefaultSectionSize(common.WIDTH() * 0.5)
         self.header().setDefaultSectionSize(common.WIDTH() * 0.5)
 
-        self.header().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
+        self.header().setSectionResizeMode(1, QtWidgets.QHeaderView.Fixed)
         self.header().setSectionResizeMode(1, QtWidgets.QHeaderView.Fixed)
         self.header().setSectionResizeMode(2, QtWidgets.QHeaderView.Fixed)
         self.header().setSectionResizeMode(3, QtWidgets.QHeaderView.Fixed)
@@ -657,11 +660,10 @@ class SelectFolderView(QtWidgets.QTreeView):
             if mbox.exec_() == QtWidgets.QMessageBox.Yes:
                 if not QtCore.QDir(folder_root_path).mkpath(path):
                     s = u'Error making folder'
-                    common.Log.error(s)
+                    log.error(s)
                     common_ui.ErrorBox(
                         s,
                         u'An unknown error occured',
-                        parent=self
                     ).open()
                     raise RuntimeError(s)
 
@@ -856,7 +858,7 @@ class ThumbnailContextMenu(BaseContextMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
-        capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
+        capture_pixmap = images.ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
         pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
@@ -864,13 +866,8 @@ class ThumbnailContextMenu(BaseContextMenu):
             u'remove', common.FAVOURITE, common.MARGIN())
 
         menu_set[u'Capture thumbnail'] = {
-            u'icon': capture_thumbnail_pixmap,
-            u'action': self.parent().capture_thumbnail
-        }
-        menu_set['Add from library...'] = {
-            u'text': 'Add from library...',
-            u'icon': pick_thumbnail_pixmap,
-            u'action': self.parent().show_thumbnail_picker
+            u'icon': capture_pixmap,
+            u'action': self.parent().capture
         }
         menu_set[u'Pick thumbnail'] = {
             u'icon': pick_thumbnail_pixmap,
@@ -885,7 +882,7 @@ class ThumbnailContextMenu(BaseContextMenu):
 
 
 class ThumbnailButton(common_ui.ClickableIconButton):
-    """Button used to select the thumbnail for this item."""
+    """Button used to select the thumbnail."""
 
     def __init__(self, size, description=u'', parent=None):
         super(ThumbnailButton, self).__init__(
@@ -895,16 +892,14 @@ class ThumbnailButton(common_ui.ClickableIconButton):
             description=description,
             parent=parent
         )
-        self.__pixmap = None
-        self.reset_thumbnail()
-        self.image = QtGui.QPixmap()
+        self.thumbnail = QtGui.QImage()
 
         tip = u'Right-click to add a thumbnail...'
         self.setToolTip(tip)
         self.setStatusTip(tip)
 
         self.doubleClicked.connect(self.pick_thumbnail)
-        self.clicked.connect(self.capture_thumbnail)
+        self.clicked.connect(self.capture)
 
     def contextMenuEvent(self, event):
         menu = ThumbnailContextMenu(parent=self)
@@ -917,119 +912,151 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         return True
 
     def reset_thumbnail(self):
-        self.setStyleSheet(
-            u'background-color: rgba({});'.format(common.rgb(common.BACKGROUND)))
-
-        self.image = QtGui.QPixmap()
+        self.thumbnail = QtGui.QImage()
+        self.update()
 
     def pixmap(self):
-        if self.image.isNull():
+        if self.thumbnail.isNull():
+            return images.ImageCache.get_rsc_pixmap('placeholder', None, self.rect().height(), opacity=0.2)
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(self.thumbnail)
+        if pixmap.isNull():
             return super(ThumbnailButton, self).pixmap()
-        pixmap = images.ImageCache.resize_image(
-            self.image, self.height())
         return pixmap
-
-    @QtCore.Slot()
-    def show_thumbnail_picker(self):
-        """Slot to show the dialog used to select a thumbnail from the
-        library."""
-
-        @QtCore.Slot(unicode)
-        def _add_thumbnail_from_library(path):
-            image = QtGui.QPixmap()
-            if not image.load(path):
-                return
-
-            self.image = image
-            self.update()
-
-        rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
-        widget = common_ui.ThumbnailsWidget(parent=self.parent())
-        widget.thumbnailSelected.connect(_add_thumbnail_from_library)
-        widget.show()
-        widget.setFocus(QtCore.Qt.PopupFocusReason)
-
-        wpos = QtCore.QPoint(widget.width() / 2.0, widget.height() / 2.0)
-        widget.move(rect.center() - wpos)
-        common.move_widget_to_available_geo(widget)
 
     @QtCore.Slot()
     def pick_thumbnail(self):
         """Prompt to select an image file."""
+
+        @QtCore.Slot(unicode)
+        def process_source(source):
+            """Processes and saves the selected source."""
+            destination = QtCore.QStandardPaths.writableLocation(
+                QtCore.QStandardPaths.GenericDataLocation)
+            destination = u'{}/{}/temp/{}.{}'.format(
+                destination,
+                common.PRODUCT,
+                uuid.uuid1(),
+                common.THUMBNAIL_FORMAT
+            )
+            f = QtCore.QFileInfo(destination)
+            if not f.dir().exists():
+                if not f.dir().mkpath(u'.'):
+                    s = u'Could not create temp folder.'
+                    log.error(s)
+                    common_ui.ErrorBox(u'Capture failed', s).open()
+                    raise RuntimeError(s)
+
+            res = images.ImageCache.oiio_make_thumbnail(
+                source,
+                destination,
+                common.THUMBNAIL_IMAGE_SIZE
+            )
+
+            s = u'Error converting the thumbnail.'
+            if not res:
+                log.error(s)
+                common_ui.ErrorBox(s, u'').open()
+                raise RuntimeError(s)
+            image = images.ImageCache.get_image(
+                destination,
+                common.THUMBNAIL_IMAGE_SIZE,
+                force=True
+            )
+            if not image:
+                log.error(s)
+                common_ui.ErrorBox(s, u'').open()
+                raise RuntimeError(s)
+
+            self.thumbnail = image
+            self.update()
+
         dialog = QtWidgets.QFileDialog(parent=self)
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         dialog.setViewMode(QtWidgets.QFileDialog.List)
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
         dialog.setNameFilter(common.get_oiio_namefilters())
+        dialog.setFilter(
+            QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dialog.setLabelText(
+            QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
 
-        # Setting the dialog's root path
-        dialog.setOption(
-            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
-
-        if not dialog.exec_():
-            return
-        if not dialog.selectedFiles():
-            return
-
-        temp_path = u'{}/browser_temp_thumbnail_{}.{}'.format(
-            QtCore.QDir.tempPath(), uuid.uuid1(), common.THUMBNAIL_FORMAT)
-
-        res = images.ImageCache.oiio_make_thumbnail(
-            next(f for f in dialog.selectedFiles()),
-            temp_path,
-            common.THUMBNAIL_IMAGE_SIZE
-        )
-        if not res:
-            return
-
-        image = QtGui.QPixmap()
-        image.load(temp_path)
-        if image.isNull():
-            return
-
-        self.image = image
-        self.update()
+        dialog.fileSelected.connect(process_source)
+        dialog.open()
 
     @QtCore.Slot()
-    def capture_thumbnail(self):
-        """Captures a thumbnail."""
+    def capture(self):
+        """Captures a thumbnail and save it as a QImage.
+
+        The capture is kept as `self.thumbnail` and saved to disk then the user
+        saves the new file.
+
+        """
         def move_widget_offscreen():
+            """We'll move the window off-screen before we do a capture."""
             app = QtWidgets.QApplication.instance()
-            top = []
-            left = []
-            width = []
-            height = []
+            t, l, w, h = (list(), ) * 4
             for screen in app.screens():
                 rect = screen.availableGeometry()
-                top.append(rect.top())
-                left.append(rect.left())
-                width.append(rect.width())
-                height.append(rect.height())
-            top = max(top)
-            left = max(left)
-            width = max(width)
-            height = max(height)
-            self.window().move(left + width, top + height)
+                t.append(rect.top())
+                l.append(rect.left())
+                w.append(rect.width())
+                h.append(rect.height())
+            t, l, w, h = [max(f) for f in (t, l, w, h)]
+            self.window().move(l + w, t + h)
 
-        opos = self.window().geometry().topLeft()
-        move_widget_offscreen()
-        try:
-            w = images.CaptureScreen()
-            pixmap = w.exec_()
+        @QtCore.Slot(unicode)
+        def process_capture(source):
+            images.ImageCache.flush(source)
+            image = images.ImageCache.get_image(
+                source,
+                common.THUMBNAIL_IMAGE_SIZE
+            )
+            if not image:
+                s = u'Error saving capture'
+                log.error(s)
+                common_ui.ErrorBox(s, u'').open()
+                raise RuntimeError(s)
 
-            if not pixmap:
-                return
-            if pixmap.isNull():
-                return
-            image = images.ImageCache.resize_image(
-                pixmap, common.THUMBNAIL_IMAGE_SIZE)
-            self.image = image
+            self.thumbnail = image
             self.update()
+
+        original_pos = self.window().geometry().topLeft()
+
+        try:
+            move_widget_offscreen()
+            widget = images.ScreenCapture()
+            widget.captureFinished.connect(process_capture)
+            widget.open()
         except:
+            s = u'Error saving capture'
+            log.error(s)
+            common_ui.ErroBox(s, u'').open()
             raise
         finally:
-            self.window().move(opos)
+            self.window().move(original_pos)
 
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+        pen = QtGui.QPen(common.SEPARATOR)
+        o = common.INDICATOR_WIDTH()
+        pen.setWidth(o * 0.5)
+        painter.setPen(pen)
+        painter.setBrush(common.SEPARATOR)
+
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
+        painter.setOpacity(0.5)
+        painter.drawRoundedRect(self.rect(), o * 2, o * 2)
+
+        painter.drawPixmap(
+            self.rect(), self.pixmap(), self.pixmap().rect())
+
+        painter.end()
 
 class DescriptionEditor(common_ui.LineEdit):
     """Editor widget to input the description of the file."""
@@ -1310,7 +1337,8 @@ class FilePathWidget(QtWidgets.QWidget):
             self.repaint()
 
     def showEvent(self, event):  # pylint: disable=W0613
-        self.display_timer.start()
+        if not self.display_timer.isActive():
+            self.display_timer.start()
 
     def hideEvent(self, event):  # pylint: disable=W0613
         self.display_timer.stop()
@@ -1392,6 +1420,7 @@ class AddFileWidget(QtWidgets.QDialog):
               widget.get_file_path()
 
     """
+    widgetMoved = QtCore.Signal(QtCore.QPoint)
 
     def __init__(self, extension, file=None, parent=None):
         super(AddFileWidget, self).__init__(parent=parent)
@@ -1409,8 +1438,11 @@ class AddFileWidget(QtWidgets.QDialog):
         self.initialize_timer.setSingleShot(True)
         self.initialize_timer.setInterval(300)
 
-        self._file_path = None
+        self.move_in_progress = False
+        self.move_start_position = None
+        self.move_start_widget_pos = None
 
+        self._file_path = None
         self._file_to_increment = None
         if file:
             self._file_to_increment = QtCore.QFileInfo(file)
@@ -1445,7 +1477,7 @@ class AddFileWidget(QtWidgets.QDialog):
 
     def _create_UI(self):
         self.thumbnail_widget = ThumbnailButton(
-            common.ROW_HEIGHT() * 3.0,
+            common.ROW_HEIGHT() * 5.0,
             description=u'Add thumbnail...',
             parent=self
         )
@@ -1631,22 +1663,28 @@ class AddFileWidget(QtWidgets.QDialog):
         t.toggled.connect(lambda x: self.name_custom_widget.setHidden(not x))
         t.toggled.connect(self.name_custom_widget.shown)
 
-        def set_prefix():
-            model = self.bookmark_widget.view().model().sourceModel()
-            index = model.active_index()
-            if not index.isValid():
-                return
+        # self.bookmark_widget.view().model().sourceModel().modelReset.connect(
+        #     self.set_prefix)
 
-            try:
-                db = bookmark_db.get_db(index)
-                prefix = db.value(0, u'prefix', table='properties')
-                self.name_prefix_widget.setText(prefix)
-            except:
-                common.Log.error(u'Failed to get the database')
+        self.bookmark_widget.view().selectionModel().currentChanged.connect(
+            self.set_prefix)
+        self.bookmark_widget.view().model().sourceModel().activeChanged.connect(
+            self.set_prefix)
 
-        self.bookmark_widget.view().model().sourceModel().modelReset.connect(
-            set_prefix
+    @QtCore.Slot()
+    def set_prefix(self, index):
+        """Sets the file-prefix based on the given bookmark selection.
+
+        """
+        if not index.isValid():
+            return
+        db = bookmark_db.get_db(
+            index.data(common.ParentPathRole)[0],
+            index.data(common.ParentPathRole)[1],
+            index.data(common.ParentPathRole)[2],
         )
+        prefix = db.value(1, u'prefix', table='properties')
+        self.name_prefix_widget.setText(prefix)
 
     def increment_file(self):
         """Increments the version number of the current file."""
@@ -1794,28 +1832,36 @@ class AddFileWidget(QtWidgets.QDialog):
         validity of the selections so there no need to do it again.
 
         """
-        b = self.bookmark_widget
+        index = self.bookmark_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
 
-        index = b.view().selectionModel().currentIndex()
+        file_path = self.get_file_path()
+        if not file_path:
+            return
 
-        # We don't have a QModelIndex to use but we can initiate a settings
-        # instance using a tuple of bookmark and path variables
         server, job, root = index.data(common.ParentPathRole)[0:3]
-        db = bookmark_db.get_db(
-            QtCore.QModelIndex(),
-            server=server,
-            job=job,
-            root=root
+        destination = images.get_thumbnail_path(
+            server, job, root,
+            file_path
         )
 
-        # Saving the thumbnail
-        file_path = self.get_file_path()
-        if not self.thumbnail_widget.image.isNull():
-            self.thumbnail_widget.image.save(db.thumbnail_path(file_path))
+        if not self.thumbnail_widget.thumbnail.isNull():
+            res = self.thumbnail_widget.thumbnail.save(
+                destination,
+                format=u'png',
+                quality=100
+            )
+            if not res:
+                s = u'Error saving the thumbnail'
+                log.error(s)
+                common_ui.ErrorBox(s, u'').open()
+                raise RuntimeError(s)
 
         # Saving the description
         description = self.description_editor_widget.text()
         if description:
+            db = bookmark_db.get_db(server, job, root)
             db.setValue(file_path, u'description', description)
 
     @QtCore.Slot()
@@ -1836,7 +1882,6 @@ class AddFileWidget(QtWidgets.QDialog):
             common_ui.MessageBox(
                 u'Asset not selected.',
                 u'Select an asset from the dropdown menu and try again.',
-                parent=self
             ).open()
             return
         # A folder selection is a must
@@ -1844,7 +1889,6 @@ class AddFileWidget(QtWidgets.QDialog):
             common_ui.MessageBox(
                 u'Asset not selected.',
                 u'Select an asset from the dropdown menu and try again.',
-                parent=self
             ).open()
             return
 
@@ -1853,7 +1897,6 @@ class AddFileWidget(QtWidgets.QDialog):
             common_ui.MessageBox(
                 u'Destination folder not set.',
                 u'Select a folder from the dropdown menu and try again.',
-                parent=self
             ).open()
             return
 
@@ -1862,7 +1905,6 @@ class AddFileWidget(QtWidgets.QDialog):
             common_ui.MessageBox(
                 u'Destination folder not selected.',
                 u'Select a folder from the dropdown menu and try again.',
-                parent=self
             ).open()
             return
         if index.column() != 0:
@@ -1877,7 +1919,6 @@ class AddFileWidget(QtWidgets.QDialog):
             common_ui.MessageBox(
                 u'The destination folder does not exist.',
                 u'Select another folder from the dropdown menu and try again.',
-                parent=self
             ).open()
             return
 
@@ -1885,7 +1926,6 @@ class AddFileWidget(QtWidgets.QDialog):
             common_ui.MessageBox(
                 u'The destination folder is not writable.',
                 u'Select another folder from the dropdown menu and try again.',
-                parent=self
             ).open()
             return
 
@@ -1895,17 +1935,31 @@ class AddFileWidget(QtWidgets.QDialog):
                 common_ui.MessageBox(
                     u'Enter a name and try again.',
                     u'',
-                    parent=self
                 ).open()
                 return
 
         if not self.toggle_custom_name_widget.isChecked():
             if not self.name_prefix_widget.text():
+                # We need to have a valid bookmark prefix to save a filename
+                # We can bring the editor up
                 common_ui.MessageBox(
-                    u'File prefix is not configured',
-                    u'Set the file prefix on the Bookmarks\' preferences page and try again.',
-                    parent=self
-                ).open()
+                    u'The bookmark\'s file prefix is not configured',
+                    u'Enter a prefix and try again.',
+                ).exec_()
+
+                import bookmarks.bookmark_properties as bookmark_properties
+
+                model = self.bookmark_widget.view().model().sourceModel()
+                index = model.active_index()
+                if not index.isValid():
+                    return
+
+                bookmark_properties.BookmarkPropertiesWidget(
+                    index.data(common.ParentPathRole)[0],
+                    index.data(common.ParentPathRole)[1],
+                    index.data(common.ParentPathRole)[2],
+                ).exec_()
+                self.set_prefix(index)
                 return
 
         # We should be good to go, but have to make sure we're not overwriting
@@ -1969,3 +2023,35 @@ class AddFileWidget(QtWidgets.QDialog):
         self.save_thumbnail_and_description()
 
         super(AddFileWidget, self).accept()
+
+    def mouseReleaseEvent(self, event):
+        self.move_in_progress = False
+        self.move_start_position = None
+        self.move_start_widget_pos = None
+
+    def mousePressEvent(self, event):
+        """Custom ``movePressEvent``.
+        We're setting the properties needed to moving the main window.
+
+        """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self.move_in_progress = True
+        self.move_start_position = QtGui.QCursor().pos()
+        self.move_start_widget_pos = self.geometry().topLeft()
+
+    def mouseMoveEvent(self, event):
+        """Moves the the parent window when clicked.
+
+        """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        if event.buttons() == QtCore.Qt.NoButton:
+            return
+        if not self.move_start_widget_pos:
+            return
+
+        pos = QtGui.QCursor().pos()
+        offset = self.move_start_position - pos
+        self.move(self.move_start_widget_pos - offset)
+        self.widgetMoved.emit(self.geometry().topLeft())

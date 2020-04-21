@@ -25,9 +25,10 @@ import re
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.bookmark_db as bookmark_db
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
+import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
 
 
@@ -913,24 +914,17 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if not self.index.data(common.FileInfoLoaded):
             return
 
-        try:
-            db = bookmark_db.get_db(self.index)
+        db = bookmark_db.get_db(
+            self.index.data(common.ParentPathRole)[0],
+            self.index.data(common.ParentPathRole)[1],
+            self.index.data(common.ParentPathRole)[2]
+        )
+        if self.index.data(common.TypeRole) == common.FileItem:
+            k = self.index.data(QtCore.Qt.StatusTipRole)
+        elif self.index.data(common.TypeRole) == common.SequenceItem:
+            k = common.proxy_path(self.index)
 
-            if self.index.data(common.TypeRole) == common.FileItem:
-                k = self.index.data(QtCore.Qt.StatusTipRole)
-            elif self.index.data(common.TypeRole) == common.SequenceItem:
-                k = common.proxy_path(self.index)
-
-            v = db.value(k, u'notes')
-        except Exception as e:
-            s = u'Error getting notes'
-            common_ui.ErrorBox(
-                s,
-                u'{}'.format(e)
-            )
-            common.Log.error(s)
-            raise
-
+        v = db.value(k, u'notes')
         if not v:
             return
 
@@ -938,7 +932,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             v = base64.b64decode(v)
             d = json.loads(v)
         except:
-            common.Log.error(u'Error decoding notes from JSON')
+            log.error(u'Error decoding notes from JSON')
             return
 
         if not v:
@@ -954,7 +948,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
                     checked=d[k][u'checked']
                 )
         except:
-            common.Log.error(u'Error adding notes')
+            log.error(u'Error adding notes')
             common_ui.ErrorBox(u'Error refreshing the data', u'').open()
             raise
 
@@ -1143,26 +1137,28 @@ class TodoEditorWidget(QtWidgets.QDialog):
             }
 
         k = common.proxy_path(self.index)
+        db = bookmark_db.get_db(
+            self.index.data(common.ParentPathRole)[0],
+            self.index.data(common.ParentPathRole)[1],
+            self.index.data(common.ParentPathRole)[2]
+        )
 
         try:
-            db = bookmark_db.get_db(self.index)
             v = json.dumps(data, ensure_ascii=False, encoding='utf-8')
             v = base64.b64encode(v.encode('utf-8'))
-            db.setValue(k, u'notes', v)
-        except Exception as e:
-            common.ErrorBox(
-                u'Failed to save ToDos',
-                u'{}'.format(e)
-            )
-            common.Log.error()
+        except:
+            s = u'Error saving notes.'
+            log.error(s)
+            common_ui.ErrorBox(u'Error saving notes.', s).open()
             raise
-        finally:
-            todo_count = len([k for k in data if not data[k][u'checked']])
-            self.index.model().setData(
-                self.index,
-                todo_count,
-                role=common.TodoCountRole
-            )
+
+        db.setValue(k, u'notes', v)
+        todo_count = len([k for k in data if not data[k][u'checked']])
+        self.index.model().setData(
+            self.index,
+            todo_count,
+            role=common.TodoCountRole
+        )
 
     def init_lock(self):
         """Creates a lock on the current file so it can't be edited by other users.

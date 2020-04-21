@@ -18,15 +18,18 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from bookmarks.mainwidget import MainWidget
+import bookmarks.log as log
 import bookmarks.common as common
+from bookmarks.mainwidget import MainWidget
 import bookmarks.settings as settings
 import bookmarks.images as images
 from bookmarks.mainwidget import TrayMenu
 
 
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseDesktopOpenGL, True)
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+# if QtWidgets.QApplication.testAttribute(QtCore.Qt.AA_UseOpenGLES):
+
 
 
 class StandaloneMainWidget(MainWidget):
@@ -103,7 +106,7 @@ class StandaloneMainWidget(MainWidget):
             if self.stackedwidget.widget(0).model().sourceModel().rowCount() == 0:
                 common_ui.MessageBox(
                     u'Bookmarks is not set up (yet!).',
-                    'To add a server, create new jobs and bookmark folders, right-click on the main window and select "Manage Bookmarks".',
+                    u'To add a server, create new jobs and bookmark folders, right-click on the main window and select "Manage Bookmarks".',
                     parent=self.stackedwidget.widget(0)
                 ).open()
 

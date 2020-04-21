@@ -12,10 +12,9 @@ code-block:: python
 
     import bookmarks.bookmark_db as bookmark_db
     db = bookmark_db.get_db(
-        index=QtCore.QModelIndex(), # invalid index
-        server='//SERVER',
-        job='MYJOB',
-        root='DATA/SHOTS'
+        u'//SERVER',
+        u'MYJOB',
+        u'DATA/SHOTS'
     )
     value = db.value(u
         u'//server/myjob/data/shots/sh0010/scene/myscene.ma',
@@ -38,7 +37,6 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import hashlib
 from contextlib import contextmanager
 import time
 import platform
@@ -47,6 +45,7 @@ from sqlite3 import Error
 
 from PySide2 import QtCore
 
+import bookmarks.log as log
 import bookmarks.common as common
 
 
@@ -60,37 +59,62 @@ DB_CONNECTIONS = {}
 """We will store our db connection instances here. They will be created per thread."""
 
 
-def get_db(index, server=None, job=None, root=None):
-    """Helper function to return the bookmark database connection associated
-    with an index. We will create the connection if it doesn't exists yet.
-    Connection instances cannot be shared between threads hence we will
-    create each instance _per thread_.
+def get_db(server, job, root):
+    """Creates a saver a database controller associated with a bookmark.
+
+    SQLite cannot share the same connection between different threads, hence we
+    will create and cache the controllers per thread.
 
     Args:
-        index (QModelIndex): A valid QModelIndex()
+        server (unicode): The name of the `server`.
+        job (unicode): The name of the `job`.
+        root (unicode): The name of the `root`.
 
     Returns:
-        BookmarkDB: A BookmarkDB instance that lives in the current thread.
+        BookmarkDB: Database controller instance.
+
+    Raises:
+        RuntimeError: If the database is locked or impossible to open.
 
     """
+    if not isinstance(server, unicode):
+        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(server)))
+    if not isinstance(job, unicode):
+        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(job)))
+    if not isinstance(root, unicode):
+        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(root)))
+
+    t = unicode(repr(QtCore.QThread.currentThread()))
+    key = (u'/'.join((server, job, root)) + t).lower()
+
     global DB_CONNECTIONS
-    try:
-        thread_id = repr(QtCore.QThread.currentThread())
+    if key in DB_CONNECTIONS:
+        return DB_CONNECTIONS[key]
 
-        if not index.isValid():
-            if not all((server, job, root)):
-                raise ValueError(u'Must provide valid server, job, and root')
-            args = (server, job, root)
-        else:
-            args = index.data(common.ParentPathRole)[0:3]
+    # The SQLite database can be locked for a brief period of time whilst it is
+    # being used by another controller isntance. This normally will raise an
+    # exception, but it is safe to wait on this a little and try again.
 
-        k = u'/'.join(args).lower() + thread_id
-        if k not in DB_CONNECTIONS:
-            DB_CONNECTIONS[k] = BookmarkDB(*args)
+    n = 0
+    while True:
+        if n > 100:
+            import bookmarks.common_ui as common_ui
+            # After 5 seconds we will give up and return `None`
+            s = u'Unable to get the database.'
+            s2 = u'{}/{}/{} might be locked'.format(server, job, root)
+            log.error(s)
+            common_ui.ErrorBox(s, s2).open()
+            raise RuntimeError(s)
 
-        return DB_CONNECTIONS[k]
-    except:
-        common.Log.error('Failed to get BookmarkDB')
+        try:
+            # Create and cache the instance
+            DB_CONNECTIONS[key] = BookmarkDB(server, job, root)
+            return DB_CONNECTIONS[key]
+        except RuntimeError:
+            # Wait a little and try again
+            n += 1
+            QtCore.QThread.msleep(50)
+
 
 
 def remove_db(index, server=None, job=None, root=None):
@@ -123,7 +147,7 @@ def remove_db(index, server=None, job=None, root=None):
             DB_CONNECTIONS[k].deleteLater()
             del DB_CONNECTIONS[k]
     except:
-        common.Log.error('Failed to remove BookmarkDB')
+        log.error('Failed to remove BookmarkDB')
 
 
 def reset():
@@ -158,7 +182,7 @@ class BookmarkDB(QtCore.QObject):
         if not QtCore.QFileInfo(_p).exists():
             if not QtCore.QDir(self._bookmark).mkpath(u'.bookmark'):
                 s = u'Unable to create folder "{}"'.format(_p)
-                common.Log.error(s)
+                log.error(s)
                 raise OSError(s)
 
         try:
@@ -177,49 +201,10 @@ class BookmarkDB(QtCore.QObject):
             raise RuntimeError(u'Unable to connect to the database at "{}"\n-> "{}"'.format(
                 self._database_path, e.message))
 
-    def row_id(self, k):
-        """Pass a valid filepath to retrieve database row number of the given
-        file. This should be a path wihtout any dynamic sequence numbers as
-        these do change over time, for instance when a sequence range increases.
-
-        Args:
-            k (unicode or int):  The key to use to store the data, usually filepath.
-
-        Returns:
-            int: The hashed value of `val`.
-
-        """
-        if isinstance(k, int):
-            return k
-        if not isinstance(k, unicode):
-            raise TypeError(
-                'expected <type \'unicode\'>, got {}'.format(type(str)))
-
-        k = k.lower()
-        k = k.replace(u'\\', u'/')
-        k = k.replace(u'\'', u'_')
-        if self._server in k:
-            k = k[len(self._server):len(k)]
-        k = k.strip(u'/')
-        return k
-
-    def thumbnail_path(self, path):
-        """Returns the item's thumbnail path.
-
-        """
-        if not isinstance(path, unicode):
-            s = u'Expected <type \'unicode\'>, got {}'.format(type(path))
-            common.Log.error(s)
-            raise TypeError(s)
-
-        k = self.row_id(path)
-        filename = hashlib.md5(k.encode('utf-8')).hexdigest() + u'.' + common.THUMBNAIL_FORMAT
-        p = self._bookmark + u'/.bookmark/' + filename
-        return p
-
     @contextmanager
     def transactions(self):
         """Simple context manager for controlling transactions.
+
         We're explicitly calling `BEGIN` before the `execute()`. We also roll
         changes back if an error has been encountered. The transactions are
         commited when the context manager goes out of scope.
@@ -245,9 +230,10 @@ class BookmarkDB(QtCore.QObject):
         whilst `info` contains information about the database itself.
 
         """
+        _cursor = self._connection.cursor()
         with self.transactions():
             # Main ``data`` table
-            self._connection.cursor().execute("""
+            _cursor.execute("""
 CREATE TABLE IF NOT EXISTS data (
     id TEXT PRIMARY KEY COLLATE NOCASE,
     description TEXT,
@@ -258,7 +244,7 @@ CREATE TABLE IF NOT EXISTS data (
 );
             """)
             # Single-row ``info`` table
-            self._connection.cursor().execute("""
+            _cursor.execute("""
 CREATE TABLE IF NOT EXISTS info (
     id TEXT PRIMARY KEY COLLATE NOCASE,
     server TEXT NOT NULL,
@@ -270,7 +256,7 @@ CREATE TABLE IF NOT EXISTS info (
 );
             """)
             # Adding info data to the ``info`` table
-            self._connection.execute("""
+            _cursor.execute("""
             INSERT OR IGNORE INTO info
                 (id, server, job, root, user, host, created)
             VALUES
@@ -284,7 +270,7 @@ CREATE TABLE IF NOT EXISTS info (
                 host=platform.node(),
                 created=time.time(),
             ))
-            self._connection.cursor().execute("""
+            _cursor.execute("""
                 CREATE TABLE IF NOT EXISTS properties (
                     id INTEGER PRIMARY KEY,
                     width REAL,
@@ -297,13 +283,13 @@ CREATE TABLE IF NOT EXISTS info (
                     slacktoken TEXT
                 );
             """)
+        _cursor.close()
 
-    def value(self, id, key, table=u'data'):
-        """Returns a value from the `bookmark.db` using the given filepath as
-        the key.
+    def value(self, source, key, table=u'data'):
+        """Returns a value from the `bookmark.db`.
 
         Args:
-            id (unicode): The database row key.
+            source (unicode): Path to a file or a row id.
             key (unicode): A column name.
             table (unicode): Optional table parameter, defaults to 'data'.
 
@@ -311,17 +297,22 @@ CREATE TABLE IF NOT EXISTS info (
             data: The requested value or None.
 
         """
-        if key not in KEYS[table]:
-            raise ValueError('Key "{}" is invalid. Expected one of "{}"'.format(
-                key, '", "'.join(KEYS[table])))
+        if not isinstance(source, (unicode, int)):
+            raise TypeError(u'Invalid type.')
 
-        id = self.row_id(id)
+        if key not in KEYS[table]:
+            raise ValueError(u'Key "{}" is invalid. Expected one of "{}"'.format(
+                key, u'", "'.join(KEYS[table])))
+
+        hash = common.get_hash(source, server=self._server)
+
         _cursor = self._connection.cursor()
-        kw = {'table': table, 'key': key, 'id': id}
+        kw = {u'table': table, u'key': key, u'id': hash}
         sql = u'SELECT {key} FROM {table} WHERE id=\'{id}\''.format(**kw)
         _cursor.execute(sql.encode('utf-8'))
-
         res = _cursor.fetchone()
+        _cursor.close()
+
         if not res:
             return None
         return res[0]
@@ -348,6 +339,8 @@ CREATE TABLE IF NOT EXISTS info (
 
         # Let's wrap the retrevied data into a more pythonic directory
         _data = _cursor.fetchall()
+        _cursor.close()
+
         data = {}
         if column == u'*':
             for v in _data:
@@ -365,31 +358,37 @@ CREATE TABLE IF NOT EXISTS info (
                 }
         return data
 
-    def setValue(self, id, key, value, table=u'data'):
+    def setValue(self, source, key, value, table=u'data'):
         """Sets a value in the database.
 
-        Pass the full file or folder path including the server, job and root.
-        The database uses the relative path as the row id, which is returned by
-        `row_id()`. The method will update existing row, or create a new one if the
-        row `id` does not exists yet.
+        The `source` is either a file name or a row number.
 
-        Note:
-            The method does NOT commit the transaction! Use the
-            ``transactions`` to issue a BEGIN statement. The
-            transactions will be commited once the context manager goes out of
-            scope.
+        The method does NOT commit the transaction! Use ``transactions`` context
+        manager to issue a BEGIN statement. The transactions will be commited
+        once the context manager goes out of scope.
+
+        Example:
+
+            .. code-block:: python
+
+            with db.transactions:
+                source = u'server/job/my/file.txt'
+                db.setValue(source, u'description', u'hello world')
 
         Args:
-            id (unicode or int): Row id.
+            source (unicode or int): A row id.
             key (unicode): A database column name.
             value (unicode or float): The value to set.
 
         """
-        if key not in KEYS[table]:
-            raise ValueError('Key "{}" is invalid. Expected one of {}'.format(
-                key, ', '.join(KEYS[table])))
+        if not isinstance(source, (unicode, int)):
+            raise TypeError(u'Invalid type.')
 
-        id = self.row_id(id)
+        if key not in KEYS[table]:
+            raise ValueError(u'Key "{}" is invalid. Expected one of {}'.format(
+                key, u', '.join(KEYS[table])))
+
+        hash = common.get_hash(source, server=self._server)
         values = []
 
         # Earlier versions of the SQLITE library lack `UPSERT` or `WITH`
@@ -400,16 +399,17 @@ CREATE TABLE IF NOT EXISTS info (
                 v = u'\n \'' + unicode(value) + u'\''
             else:
                 v = u'\n(SELECT ' + k + u' FROM ' + table + \
-                    u' WHERE id =\'' + unicode(id) + u'\')'
+                    u' WHERE id =\'' + unicode(hash) + u'\')'
             values.append(v)
 
         kw = {
-            'id': id,
+            'hash': hash,
             'allkeys': u', '.join(KEYS[table]),
             'values': u','.join(values),
             'table': table
         }
-        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{id}\', {values});'.format(
+        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{hash}\', {values});'.format(
             **kw)
         _cursor = self._connection.cursor()
         _cursor.execute(sql.encode('utf-8'))
+        _cursor.close()

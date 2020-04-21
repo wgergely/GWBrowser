@@ -23,9 +23,10 @@ import time
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
+import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
-import bookmarks.common as common
 import bookmarks._scandir as _scandir
 import bookmarks.baselistwidget as baselistwidget
 import bookmarks.basecontextmenu as basecontextmenu
@@ -188,10 +189,7 @@ class BookmarksModel(baselistwidget.BaseModel):
                 common.StartpathRole: None,
                 common.EndpathRole: None,
                 #
-                common.FileThumbnailLoaded: False,
-                common.DefaultThumbnailRole: placeholder_image,
-                common.ThumbnailPathRole: None,
-                common.ThumbnailRole: default_thumbnail_image,
+                common.ThumbnailLoaded: False,
                 #
                 common.TypeRole: common.FileItem,
                 #
@@ -206,23 +204,11 @@ class BookmarksModel(baselistwidget.BaseModel):
 
             db = None
             n = 0
-            while db is None:
-                db = bookmark_db.get_db(
-                    QtCore.QModelIndex(),
-                    server=v[u'server'],
-                    job=v[u'job'],
-                    root=v[u'root'],
-                )
-                if db is None:
-                    n += 1
-                    time.sleep(0.1)
-                if n > 10:
-                    break
-
-            if db is None:
-                common.Log.error(u'Error getting the database')
-                continue
-
+            db = bookmark_db.get_db(
+                v[u'server'],
+                v[u'job'],
+                v[u'root'],
+            )
             with db.transactions():
                 # Item flags
                 flags = data[idx][common.FlagsRole]
@@ -244,7 +230,7 @@ class BookmarksModel(baselistwidget.BaseModel):
                             n += len([k for k in d if not d[k]
                                       [u'checked'] and d[k][u'text']])
                         except (ValueError, TypeError):
-                            common.Log.error(u'Error decoding JSON notes')
+                            log.error(u'Error decoding JSON notes')
 
                 data[idx][common.TodoCountRole] = n
                 self.update_description(db, data[idx])
@@ -259,24 +245,16 @@ class BookmarksModel(baselistwidget.BaseModel):
         self.__initdata__()
         self.endResetModel()
 
-    def get_default_thumbnails(self, overwrite=False):
-        d = super(BookmarksModel, self).get_default_thumbnails(
-            overwrite=overwrite)
-        h = self.ROW_SIZE.height() - common.ROW_SEPARATOR()
-        d[u'placeholder'] = images.ImageCache.get_rsc_pixmap(
-            u'bookmark_sm', common.ADD, h)
-        return d
-
     def update_description(self, db, data):
         t = u'properties'
         v = {}
 
-        ASSET_IDENTIFIER = db.value(0, u'identifier', table=t)
+        ASSET_IDENTIFIER = db.value(1, u'identifier', table=t)
         data[common.AssetCountRole] = count_assets(
             data[QtCore.Qt.StatusTipRole], ASSET_IDENTIFIER)
 
         for _k in bookmark_db.KEYS[t]:
-            v[_k] = db.value(0, _k, table=t)
+            v[_k] = db.value(1, _k, table=t)
 
         info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
             w=u'{}'.format(int(v['width'])) if (
@@ -299,6 +277,7 @@ class BookmarksModel(baselistwidget.BaseModel):
             info=u'\n' + info if c else info,
         )
         data[common.DescriptionRole] = desc
+        data[QtCore.Qt.ToolTipRole] = desc
 
     def get_text_segments(self, text):
         """Returns a tuple of text and colour information to be used to mimick
@@ -348,24 +327,18 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
 
         self._background_icon = u'bookmark'
         self.manage_bookmarks = managebookmarks.ManageBookmarks(parent=self)
-        self.manage_bookmarks.hide()
 
         @QtCore.Slot(unicode)
         def _update(bookmark):
             self.model().sourceModel().__resetdata__()
 
-        self.manage_bookmarks.widget().bookmark_list.bookmarkAdded.connect(_update)
-        self.manage_bookmarks.widget().bookmark_list.bookmarkRemoved.connect(_update)
-        self.resized.connect(self.manage_bookmarks.setGeometry)
-
-    def showEvent(self, event):
-        self.manage_bookmarks.resize(self.viewport().geometry().size())
-        super(BookmarksWidget, self).showEvent(event)
+        self.manage_bookmarks.bookmarkAdded.connect(_update)
+        self.manage_bookmarks.bookmarkRemoved.connect(_update)
 
     def mousePressEvent(self, event):
         super(BookmarksWidget, self).mousePressEvent(event)
         self.reset_multitoggle()
-        
+
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
@@ -395,49 +368,48 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
         return 6
 
     def show_bookmark_properties_widget(self):
+        def update_description(index, res):
+            db = bookmark_db.get_db(
+                index.data(common.ParentPathRole)[0],
+                index.data(common.ParentPathRole)[1],
+                index.data(common.ParentPathRole)[2],
+            )
+            source_index = self.model().mapToSource(index)
+            data = source_index.model().model_data()[source_index.row()]
+            self.model().sourceModel().update_description(db, data)
+
         import bookmarks.bookmark_properties as bookmark_properties
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
 
         widget = bookmark_properties.BookmarkPropertiesWidget(
-            index, parent=self)
+            index.data(common.ParentPathRole)[0],
+            index.data(common.ParentPathRole)[1],
+            index.data(common.ParentPathRole)[2],
+            parent=self
+        )
+
         self.resized.connect(widget.setGeometry)
         widget.setGeometry(self.viewport().geometry())
         widget.open()
 
-        def update_description(index, res):
-            try:
-                db = bookmark_db.get_db(
-                    QtCore.QModelIndex(),
-                    server=index.data(common.ParentPathRole)[0],
-                    job=index.data(common.ParentPathRole)[1],
-                    root=index.data(common.ParentPathRole)[2],
-                )
-                source_index = self.model().mapToSource(index)
-                data = source_index.model().model_data()[source_index.row()]
-
-                self.model().sourceModel().update_description(db, data)
-            except:
-                common.Log.error('Could not update the description')
-
         widget.finished.connect(functools.partial(update_description, index))
 
     def show_add_asset_widget(self):
-        import bookmarks.addassetwidget as addassetwidget
-
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
-        bookmark = index.data(common.ParentPathRole)
-        bookmark = u'/'.join(bookmark)
-
         @QtCore.Slot(unicode)
         def show_and_select_added_asset(name):
-            self.parent().parent().listcontrolwidget.listChanged.emit(1)
+            """If adding items to the active bookmark, we will go ahead and show
+            the added item.
+
+            """
             view = self.parent().widget(1)
+            if self.selectionModel().currentIndex() != view.model().sourceModel().active_index():
+                return
+
             view.model().sourceModel().modelDataResetRequested.emit()
+            self.parent().parent().listcontrolwidget.listChanged.emit(1)
+
             for n in xrange(view.model().rowCount()):
                 index = view.model().index(n, 0)
                 file_info = QtCore.QFileInfo(
@@ -449,12 +421,20 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
                         index, QtWidgets.QAbstractItemView.PositionAtCenter)
                     break
 
-        widget = addassetwidget.AddAssetWidget(bookmark, parent=self)
+        import bookmarks.addassetwidget as addassetwidget
+
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        widget = addassetwidget.AddAssetWidget(
+            index.data(common.ParentPathRole)[0],
+            index.data(common.ParentPathRole)[1],
+            index.data(common.ParentPathRole)[2]
+        )
         widget.templates_widget.templateCreated.connect(
             show_and_select_added_asset)
-        self.resized.connect(widget.setGeometry)
-        widget.setGeometry(self.viewport().geometry())
-        widget.open()
+        widget.show()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -488,7 +468,7 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
             data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
             self.update_row(weakref.ref(data))
 
-            self.manage_bookmarks.widget().remove_saved_bookmark(
+            self.manage_bookmarks.scrollarea.widget().remove_saved_bookmark(
                 *index.data(common.ParentPathRole))
 
             bookmark_db.remove_db(index)

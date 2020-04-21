@@ -23,8 +23,8 @@ import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
 import bookmarks.common as common
-import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 import bookmarks.defaultpaths as defaultpaths
 
@@ -485,17 +485,17 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set['increase_row_size'] = {
             u'icon': increase_pixmap,
-            'text': u'Increase height',
+            'text': u'Make bigger',
             'action': self.parent().increase_row_size,
         }
         menu_set['decrease_row_size'] = {
             u'icon': decrease_pixmap,
-            'text': u'Decrease height',
+            'text': u'Make smaller',
             'action': self.parent().decrease_row_size,
         }
         menu_set['reset_row_size'] = {
             u'icon': reset_pixmap,
-            'text': u'Reset height',
+            'text': u'Reset size',
             'action': self.parent().reset_row_size,
         }
         return menu_set
@@ -528,7 +528,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'icon': quit_pixmap,
             }
         except:
-            common.Log.error('Quit menu not added')
+            log.error('Quit menu not added')
 
         return menu_set
 
@@ -552,12 +552,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu item resposible for general thumbnail operations."""
-        index = self.index
-        if not index.isValid() or not index.data(common.FileInfoLoaded):
-            menu_set['off'] = {
-                'text': 'File not loaded',
-                'disabled': True
-            }
+        if not self.index.isValid():
             return menu_set
 
         capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
@@ -568,15 +563,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
         remove_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
             u'remove', common.REMOVE, common.MARGIN())
-        refresh_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.ADD, common.MARGIN())
         show_thumbnail = images.ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.MARGIN())
-
-        source_index = index.model().mapToSource(index)
-        thumbnail_path = index.data(common.ThumbnailPathRole)
-        thumbnail_info = QtCore.QFileInfo(thumbnail_path)
-        exists = thumbnail_info.exists()
 
         menu_set[u'header'] = {
             u'text': 'Thumbnails',
@@ -584,68 +572,52 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
         menu_set[u'separator'] = {}
 
-        if exists:
-            menu_set[u'Show'] = {
-                u'icon': show_thumbnail,
-                u'action': self.parent().key_space
-            }
-            menu_set[u'separator'] = {}
-
-        menu_set[u'capture'] = {
-            u'text': 'Capture',
-            u'icon': capture_thumbnail_pixmap,
-            u'action': functools.partial(images.ImageCache.capture, source_index)}
-
-        def show_thumbnail_picker():
-            widget = common_ui.ThumbnailsWidget(parent=self.parent())
-
-            @QtCore.Slot(unicode)
-            def add_thumbnail_from_library(path):
-                images.ImageCache.pick(source_index, source=path)
-                widget.thumbnailSelected.disconnect()
-                widget.close()
-                widget.deleteLater()
-
-            widget.thumbnailSelected.connect(add_thumbnail_from_library)
-            self.parent().resized.connect(widget.setGeometry)
-            p = self.parent().viewport()
-            widget.show()
-            widget.setGeometry(p.geometry())
-            widget.move(p.geometry().topLeft())
-
-        menu_set[u'library'] = {
-            u'text': u'Pick from library...',
-            u'icon': pick_thumbnail_pixmap,
-            u'action': show_thumbnail_picker
+        thumbnail_path = images.get_thumbnail_path(
+            self.index.data(common.ParentPathRole)[0],
+            self.index.data(common.ParentPathRole)[1],
+            self.index.data(common.ParentPathRole)[2],
+            self.index.data(QtCore.Qt.StatusTipRole),
+        )
+        exists = QtCore.QFileInfo(thumbnail_path).exists()
+        menu_set[u'Show'] = {
+            u'icon': show_thumbnail,
+            u'action': self.parent().key_space
         }
+        menu_set[u'separator'] = {}
+
+        source_index = self.index.model().mapToSource(self.index)
+        menu_set[u'capture'] = {
+            u'text': 'Capture screen',
+            u'icon': capture_thumbnail_pixmap,
+            u'action': functools.partial(images.capture, source_index)}
+
 
         menu_set[u'file'] = {
-            u'text': u'Pick',
+            u'text': u'Select file...',
             u'icon': pick_thumbnail_pixmap,
-            u'action': functools.partial(images.ImageCache.pick, source_index)
+            u'action': functools.partial(
+                images.pick, source_index)
+        }
+
+        menu_set[u'library'] = {
+            u'text': u'Select from library...',
+            u'icon': pick_thumbnail_pixmap,
+            u'action': functools.partial(
+                images.pick_from_library, source_index)
         }
 
         menu_set[u'separator.'] = {}
-        ext = QtCore.QFileInfo(source_index.data(
-            QtCore.Qt.StatusTipRole)).suffix().lower()
-        valid = defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter)
 
-        model = self.parent().model().sourceModel()
-        if exists and model.generate_thumbnails_enabled() and valid:
-            menu_set[u'remove'] = {
-                u'text': u'Update thumbnail',
-                u'action': lambda: images.ImageCache.remove(source_index),
-                u'icon': refresh_thumbnail_pixmap
-            }
-        elif exists:
+        if exists:
             menu_set[u'remove'] = {
                 u'text': u'Remove',
-                u'action': lambda: images.ImageCache.remove(source_index),
+                u'action': functools.partial(
+                    images.remove, source_index),
                 u'icon': remove_thumbnail_pixmap
             }
         menu_set[u'separator_'] = {}
         menu_set[u'reveal'] = {
-            u'text': u'Show cache...',
+            u'text': u'Show cached image...',
             u'action': functools.partial(
                 common.reveal,
                 thumbnail_path,
@@ -660,7 +632,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Manage bookmarks'] = {
             u'text': u'Manage bookmarks',
             u'icon': pixmap,
-            u'action': self.parent().manage_bookmarks.show
+            u'action': self.parent().manage_bookmarks.open
         }
         return menu_set
 
@@ -677,7 +649,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         groupped = currenttype == common.SequenceItem
 
         menu_set[u'collapse'] = {
-            u'text': 'Show all files' if groupped else 'Group into sequence',
+            u'text': u'Expand sequences' if groupped else u'Group sequences',
             u'icon': expand_pixmap if groupped else collapse_pixmap,
             u'checkable': False,
             # u'checked': groupped,
@@ -781,73 +753,88 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'add', common.ADD, common.MARGIN())
 
         @QtCore.Slot(unicode)
+        def accepted(source):
+            open(os.path.normpath(source), 'a')
+
+        @QtCore.Slot(unicode)
         def show_widget(ext):
             import bookmarks.addfilewidget as addfilewidget
-
             widget = addfilewidget.AddFileWidget(ext, parent=self.parent())
-            res = widget.exec_()
+            widget.accepted.connect(lambda: accepted(widget.get_file_path()))
+            res = widget.open()
 
-            if res == QtWidgets.QDialog.Accepted:
-                with open(os.path.normpath(widget.get_file_path()), 'a') as f:
-                    pass
 
-        k = u'formats'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(k)] = add_pixmap
-        menu_set[u'{}:text'.format(k)] = u'Add template file'
+        menu_set[u'separator1'] = {}
 
-        menu_set[k][u'separator1'] = {}
-        menu_set[k][u'scene'] = {
+        # k = u'formats'
+        # menu_set[k] = collections.OrderedDict()
+        # menu_set[u'formats:icon'] = add_pixmap
+        # menu_set[u'formats:text'] = u'Add template file'
+
+
+        menu_set[u'scene'] = collections.OrderedDict()
+        menu_set[u'scene:icon'] = add_pixmap
+        menu_set[u'scene:text'] = u'Add scene template...'
+        menu_set[u'scene'][u'scenes'] = {
             u'disabled': True,
-            u'text': u'Scene'
+            u'text': u'Scenes'
         }
+
+        menu_set[u'export'] = collections.OrderedDict()
+        menu_set[u'export:icon'] = add_pixmap
+        menu_set[u'export:text'] = u'Add export template...'
+        menu_set[u'export'][u'exports'] = {
+            u'disabled': True,
+            u'text': u'Exports'
+        }
+
+        menu_set[u'Adobe'] = collections.OrderedDict()
+        menu_set[u'Adobe:icon'] = add_pixmap
+        menu_set[u'Adobe:text'] = u'Add Adobe template...'
+        menu_set[u'Adobe'][u'Adobe'] = {
+            u'disabled': True,
+            u'text': u'Adobe Creative Cloud'
+        }
+
+        menu_set[u'Misc'] = collections.OrderedDict()
+        menu_set[u'Misc:icon'] = add_pixmap
+        menu_set[u'Misc:text'] = u'Add other template...'
+        menu_set[u'Misc'][u'Misc'] = {
+            u'disabled': True,
+            u'text': u'Misc formats'
+        }
+
         for f in defaultpaths.get_extensions(defaultpaths.SceneFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[k][f] = {
+            menu_set[u'scene'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
             }
 
-        menu_set[k][u'separator2'] = {}
-        menu_set[k][u'export'] = {
-            u'disabled': True,
-            u'text': u'Export'
-        }
         for f in defaultpaths.get_extensions(defaultpaths.ExportFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[k][f] = {
+            menu_set[u'export'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
             }
 
-        menu_set[k][u'separator3'] = {}
-        menu_set[k][u'cc'] = {
-            u'disabled': True,
-            u'text': u'Adobe Creative Cloud',
-            u'action': functools.partial(show_widget, f)
-        }
         for f in defaultpaths.get_extensions(defaultpaths.AdobeFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[k][f] = {
+            menu_set[u'Adobe'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
             }
 
-        menu_set[k][u'separator4'] = {}
-        menu_set[k][u'misc'] = {
-            u'disabled': True,
-            u'text': u'Other'
-        }
         for f in defaultpaths.get_extensions(defaultpaths.MiscFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[k][f] = {
+            menu_set[u'Misc'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
@@ -862,16 +849,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         @QtCore.Slot()
         def show_widget():
-            import bookmarks.addassetwidget as addassetwidget
-
-            bookmarks_widget = self.parent().parent().parent().stackedwidget.widget(0)
-            index = bookmarks_widget.model().sourceModel().active_index()
-            if not index.isValid():
-                return
-
-            bookmark = index.data(common.ParentPathRole)
-            bookmark = u'/'.join(bookmark)
-
             @QtCore.Slot(unicode)
             def show_and_select_added_asset(view, name):
                 view.model().sourceModel().beginResetModel()
@@ -888,11 +865,23 @@ class BaseContextMenu(QtWidgets.QMenu):
                             index, QtWidgets.QAbstractItemView.PositionAtCenter)
                         break
 
-            widget = addassetwidget.AddAssetWidget(bookmark, parent=self.parent())
+            import bookmarks.addassetwidget as addassetwidget
+
+            bookmarks_widget = self.parent().parent().parent().stackedwidget.widget(0)
+            index = bookmarks_widget.model().sourceModel().active_index()
+            if not index.isValid():
+                return
+
+            bookmark = index.data(common.ParentPathRole)
+            bookmark = u'/'.join(bookmark)
+
+            widget = addassetwidget.AddAssetWidget(
+                index.data(common.ParentPathRole)[0],
+                index.data(common.ParentPathRole)[1],
+                index.data(common.ParentPathRole)[2],
+            )
             widget.templates_widget.templateCreated.connect(
                 functools.partial(show_and_select_added_asset, self.parent()))
-            self.parent().resized.connect(widget.setGeometry)
-            widget.setGeometry(self.parent().viewport().geometry())
             widget.open()
 
         menu_set[u'add_asset'] = {

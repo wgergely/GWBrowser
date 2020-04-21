@@ -22,10 +22,15 @@ import re
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import bookmarks.common_ui as common_ui
+import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks.common_ui as common_ui
+import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.bookmark_db as bookmark_db
+
+
+_widget_instance = None
 
 
 class RectanglesWidget(QtWidgets.QLabel):
@@ -115,12 +120,11 @@ class RectanglesWidget(QtWidgets.QLabel):
 
 class ScrollArea(QtWidgets.QScrollArea):
 
-    def __init__(self, index, server=None, job=None, root=None, parent=None):
+    def __init__(self, parent=None):
         super(ScrollArea, self).__init__(parent=parent)
-        self.index = index
-        self.server = server
-        self.job = job
-        self.root = root
+        self.server = self.parent().server
+        self.job = self.parent().job
+        self.root = self.parent().root
 
         self.save_button = None
 
@@ -140,8 +144,6 @@ class ScrollArea(QtWidgets.QScrollArea):
 
         self._create_UI()
         self._connect_signals()
-
-        self.init_database_values()
 
     def _create_UI(self):
         o = common.INDICATOR_WIDTH()
@@ -315,12 +317,7 @@ Slack Channels.<br><br>'.format(
 
     @QtCore.Slot()
     def suggest_prefix(self):
-        if self.index.isValid():
-            _, job, _ = self.index.data(common.ParentPathRole)
-        else:
-            job = self.job
-
-        substrings = re.sub(ur'[\_\-\s]+', u';', job).split(u';')
+        substrings = re.sub(ur'[\_\-\s]+', u';', self.job).split(u';')
         prefix = ''
         for s in substrings:
             prefix += s[0]
@@ -332,8 +329,14 @@ Slack Channels.<br><br>'.format(
         return u'preferences/{}'.format(name)
 
     def init_database_values(self, compare=False):
+        """Load the current settings from the database and apply them to the UI
+        controls.
+
+        """
         def set_saved(k):
-            v = db.value(0, k.replace(u'_editor', u''), table=u'properties')
+            v = db.value(1, k.replace(u'_editor', u''), table=u'properties')
+            if not v:
+                return
             if compare:
                 return v
             getattr(self, k).setText(unicode(v) if v else u'')
@@ -352,21 +355,11 @@ Slack Channels.<br><br>'.format(
             u'slacktoken_editor'
         )
 
-        try:
-            db = bookmark_db.get_db(
-                self.index,
-                server=self.server,
-                job=self.job,
-                root=self.root)
-        except:
-            s = u'Could not open the database.'
-            common_ui.ErrorBox(
-                u'Could not save the properties.',
-                s,
-                parent=self
-            ).open()
-            common.Log.error(s)
-            raise
+        db = bookmark_db.get_db(
+            self.server,
+            self.job,
+            self.root
+        )
 
         d = {}
         with db.transactions():
@@ -381,24 +374,24 @@ Slack Channels.<br><br>'.format(
                     u'Could not save the properties.',
                     u'There seems to be an error with the database:\n{}'.format(
                         e),
-                    parent=self
                 ).open()
-                common.Log.error(u'Error saving properties to the database')
+                log.error(u'Error saving properties to the database')
                 raise
 
         return d
 
     def save_values_to_database(self, compare=False):
-        def save(k):
+        """Save the current UI values to the database.
+
+        """
+        def save(k, db):
+            """Performs the save to the database."""
             v = getattr(self, k).text()
             if compare:
                 return v
-            db.setValue(
-                0,
-                k.replace(u'_editor', u''),
-                v,
-                table=u'properties'
-            )
+            k = k.replace(u'_editor', u'')
+            db.setValue(1, k, v, table=u'properties')
+            return None
 
         controls = (
             u'framerate_editor',
@@ -410,28 +403,18 @@ Slack Channels.<br><br>'.format(
             u'identifier_editor',
             u'slacktoken_editor'
         )
+
         db = bookmark_db.get_db(
-            self.index,
-            server=self.server,
-            job=self.job,
-            root=self.root
+            self.server,
+            self.job,
+            self.root
         )
 
         d = {}
         with db.transactions():
-            try:
-                for control in controls:
-                    d[control] = save(control)
-                return d
-            except Exception as e:
-                common_ui.ErrorBox(
-                    u'Could not save the properties.',
-                    u'There seems to be an error with the database:\n{}'.format(
-                        e),
-                    parent=self
-                ).open()
-                common.Log.error(u'Error saving properties to the database')
-                raise
+            for control in controls:
+                d[control] = save(control, db)
+        return d
 
     def test_slack_token(self):
         if not self.slacktoken_editor.text():
@@ -443,9 +426,8 @@ Slack Channels.<br><br>'.format(
             common_ui.ErrorBox(
                 u'Could not import SlackClient',
                 u'The Slack API python module was not loaded:\n{}'.format(err),
-                parent=self
             ).open()
-            common.Log.error('Slack import error.')
+            log.error('Slack import error.')
             raise
 
         client = slacker.Client(self.slacktoken_editor.text())
@@ -460,12 +442,14 @@ Slack Channels.<br><br>'.format(
         common_ui.OkBox(
             u'Token is valid.',
             pretty_response,
-            parent=self
         ).open()
 
     @QtCore.Slot(unicode)
     def feedback(self, v, w, type=float):
         pass
+
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH() * 0.8, common.HEIGHT() * 1.2)
 
 
 class BookmarkPropertiesWidget(QtWidgets.QDialog):
@@ -473,18 +457,26 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
     Bookmark properties.
 
     """
-    def __init__(self, index, server=None, job=None, root=None, parent=None):
+    def __init__(self, server, job, root, parent=None):
+        global _widget_instance
+        _widget_instance = self
+
         super(BookmarkPropertiesWidget, self).__init__(parent=parent)
+        if not self.parent():
+            common.set_custom_stylesheet(self)
+
         self.scrollarea = None
-        self.index = index
         self.server = server
         self.job = job
         self.root = root
 
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.Widget)
+        self.setWindowTitle(u'Bookmark Properties')
+        self.setObjectName(u'BookmarkProperties')
 
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
         self._create_UI()
 
     def _create_UI(self):
@@ -496,24 +488,41 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         height = common.ROW_HEIGHT() * 0.8
         # ********************************************
         row = common_ui.add_row(None, padding=None, parent=self)
-        label = common_ui.PaintedLabel(
-            u'Bookmark Properties', size=common.LARGE_FONT_SIZE())
         self.save_button = common_ui.ClickableIconButton(
             u'check',
             (common.ADD, common.ADD),
             height
         )
-        row.layout().addWidget(label, 1)
+
+        bookmark = u'{}/{}/{}'.format(self.server, self.job, self.root)
+        source = images.get_thumbnail_path(
+            self.server,
+            self.job,
+            self.root,
+            bookmark
+        )
+
+        pixmap = images.ImageCache.get_pixmap(source, row.height())
+        if not pixmap:
+            source = images.get_placeholder_path(bookmark, fallback=u'thumb_bookmark_gray')
+            pixmap = images.ImageCache.get_pixmap(source, row.height())
+
+        if pixmap:
+            thumbnail = QtWidgets.QLabel(parent=self)
+            thumbnail.setPixmap(pixmap)
+            row.layout().addWidget(thumbnail, 0)
+            row.layout().addSpacing(o * 0.5)
+
+        text = u'{}  |  {}'.format(
+            self.job.upper(), self.root.upper())
+        label = common_ui.PaintedLabel(
+            text, size=common.LARGE_FONT_SIZE())
+
+        row.layout().addWidget(label)
         row.layout().addStretch(1)
         row.layout().addWidget(self.save_button, 0)
 
-        self.scrollarea = ScrollArea(
-            self.index,
-            server=self.server,
-            job=self.job,
-            root=self.root,
-            parent=self
-        )
+        self.scrollarea = ScrollArea(parent=self)
         self.layout().addSpacing(o * 0.5)
         self.layout().addWidget(self.scrollarea)
 
@@ -553,20 +562,15 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
             super(BookmarkPropertiesWidget, self).done(
                 QtWidgets.QDialog.Accepted)
 
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(common.BACKGROUND)
-        pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR())
-        painter.setPen(pen)
-
-        o = common.MARGIN() * 0.5
-        painter.setOpacity(0.95)
-        painter.drawRoundedRect(self.rect().marginsRemoved(
-            QtCore.QMargins(o, o, o, o)), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
-        painter.end()
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH() * 0.8, common.HEIGHT() * 1.2)
 
     def showEvent(self, event):
         self.setFocus()
+        self.scrollarea.init_database_values()
+
+        app = QtWidgets.QApplication.instance()
+        r = app.primaryScreen().availableGeometry()
+        rect = self.geometry()
+        rect.moveCenter(r.center())
+        self.move(rect.topLeft())

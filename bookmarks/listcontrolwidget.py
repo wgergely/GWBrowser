@@ -19,14 +19,15 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
+import bookmarks.common as common
+import bookmarks.common_ui as common_ui
 from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.basecontextmenu import contextmenu
 from bookmarks.common_ui import ClickableIconButton
 from bookmarks.taskfolderwidget import TaskFolderWidget
 import bookmarks.images as images
 import bookmarks.settings as settings
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
 
 
 class BaseControlButton(ClickableIconButton):
@@ -49,7 +50,7 @@ class BaseControlButton(ClickableIconButton):
         try:
             return self.parent().parent().stackedwidget
         except:
-            common.Log.Error('Error getting stackedwidget')
+            log.Error('Error getting stackedwidget')
             return None
 
     def current_widget(self):
@@ -368,7 +369,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         try:
             return self.parent().parent().stackedwidget
         except:
-            common.Log.error(u'Error.')
+            log.error(u'Error.')
             return None
 
     def current_widget(self):
@@ -774,8 +775,8 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
             common_ui.ErrorBox(
                 u'Could not import SlackClient',
                 u'The Slack API python module was not loaded:\n{}'.format(err),
-            ).exec_()
-            common.Log.error('Slack import error.')
+            ).open()
+            log.error('Slack import error.')
             return
 
         if event.source() == self:

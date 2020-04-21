@@ -22,18 +22,17 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
 import re
-import time
 import zipfile
-import traceback
-import cStringIO
+import hashlib
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
 
 import bookmarks._scandir as _scandir
 
-DEBUG_ON = False
-STANDALONE = True  # Standalone
+
+font_db = None # Must be set before bookmarks is initialized
+STANDALONE = True  # The current mode of bookmarks
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks'
 
@@ -89,13 +88,10 @@ FileDetailsRole = TodoCountRole + 1
 SequenceRole = FileDetailsRole + 1  # SRE Match object
 FramesRole = SequenceRole + 1  # List of frame names
 FileInfoLoaded = FramesRole + 1
-FileThumbnailLoaded = FileInfoLoaded + 1
-StartpathRole = FileThumbnailLoaded + 1
+ThumbnailLoaded = FileInfoLoaded + 1
+StartpathRole = ThumbnailLoaded + 1
 EndpathRole = StartpathRole + 1
-ThumbnailRole = EndpathRole + 1
-ThumbnailPathRole = ThumbnailRole + 1
-DefaultThumbnailRole = ThumbnailPathRole + 1
-TypeRole = DefaultThumbnailRole + 1
+TypeRole = EndpathRole + 1
 EntryRole = TypeRole + 1
 IdRole = EntryRole + 1
 AssetCountRole = IdRole + 1
@@ -208,12 +204,61 @@ def psize(n):
     return (float(n) * (float(DPI) / 72.0)) * float(UI_SCALE)
 
 
+HASH_DATA = {}
+
+
+def get_hash(key, server=None):
+    """MD5 hash of a string.
+
+    The passed value is usually a file path and the resulting hash is used by
+    the ImageCache and BookmarkDB to store associated data. If `key` is not
+    unicode, it will be returned without modification.
+
+    Args:
+        key (unicode): A unicode string to calculate a md5 hash for.
+
+    Returns:
+        str: Value of the calculated md5 hexadecimal digest.
+
+    """
+    # Let's check wheter the key has already been saved
+    if server is None and key in HASH_DATA:
+        return HASH_DATA[key]
+
+    if isinstance(key, int):
+        return key
+
+    if not isinstance(key, (unicode)):
+        raise TypeError(
+            u'Expected <type \'unicode\'>, got {}'.format(type(key)))
+
+    # Sanitize the key and remove the server
+    key = key.lower()
+    if u'\\' in key:
+        key = key.replace(u'\\', u'/')
+    if server:
+        server = server.lower()
+        server = server.replace(u'\\', u'/')
+        if key.startswith(server):
+            key = key[len(server):]
+    key = key.encode('utf-8')
+
+    # ...and return it if already created
+    if key in HASH_DATA:
+        return HASH_DATA[key]
+
+    # Otherwise, we calculate, save and return the digest
+    HASH_DATA[key] = hashlib.md5(key).hexdigest()
+    return HASH_DATA[key]
+
+
 def proxy_path(v):
     """Encompasses the logic used to associate preferences with items.
 
-    Sequence items need ageneric key to save values as the sequence length might
-    change. Any `FileItem` will use their filepath as the key and
-    SequenceItems will use `[0]` in place of their frame-range.
+    Sequence items need a generic key to save values as the sequence notation
+    might change as files are added/removed to image seuquences. Any `FileItem`
+    will use their file path as the key and SequenceItems will use `[0]` in place
+    of their frame-range notation.
 
     Args:
         v (QModelIndex, dict or unicode): Data dict, index or filepath string.
@@ -247,8 +292,9 @@ def proxy_path(v):
         return m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
 
     if not (isinstance, unicode):
+        import bookmarks.log as log
         s = u'Invalid type. Expected `<type \'unicode\'>'
-        Log.error(s)
+        log.error(s)
         raise ValueError(s)
 
     m = is_collapsed(v)
@@ -256,10 +302,6 @@ def proxy_path(v):
         return m.group(1) + u'[0]' + m.group(3)
 
     return v
-
-
-def k(s):
-    return getattr(Log, s).replace(u'[', u'\\[')
 
 
 def rgb(color):
@@ -317,13 +359,7 @@ def export_favourites():
 
         favourites = settings.local_settings.favourites()
         server, job, root = get_favourite_parent_paths()
-        db = bookmark_db.get_db(
-            QtCore.QModelIndex(),
-            server=server,
-            job=job,
-            root=root
-        )
-
+        db = bookmark_db.get_db(server, job, root)
         zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
 
         # Make sure the temp folder exists
@@ -350,12 +386,13 @@ def export_favourites():
         reveal(destination)
 
     except Exception as e:
+        import bookmarks.log as log
         import bookmarks.common_ui as common_ui
         common_ui.ErrorBox(
             u'Could not save the favourites.',
             u'{}'.format(e)
         ).open()
-        Log.error(u'Exporting favourites failed.')
+        log.error(u'Exporting favourites failed.')
         raise
 
 
@@ -382,13 +419,14 @@ def import_favourites(source=None):
             namelist = [f.lower() for f in namelist]
 
             if u'favourites' not in namelist:
+                import bookmarks.log as log
                 import bookmarks.common_ui as common_ui
                 s = u'The favourites list is missing from the archive.'
                 common_ui.ErrorBox(
                     u'Invalid ".favourites" file',
                     s,
                 ).open()
-                Log.error(s)
+                log.error(s)
                 raise RuntimeError(s)
 
             with zip.open(u'favourites') as f:
@@ -396,13 +434,7 @@ def import_favourites(source=None):
                 favourites = [unicode(f).strip().lower() for f in favourites]
 
             server, job, root = get_favourite_parent_paths()
-            db = bookmark_db.get_db(
-                QtCore.QModelIndex(),
-                server=server,
-                job=job,
-                root=root
-            )
-
+            db = bookmark_db.get_db(server, job, root)
             for favourite in favourites:
                 file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
                 if file_info.fileName().lower() in namelist:
@@ -416,12 +448,13 @@ def import_favourites(source=None):
             settings.local_settings.setValue(u'favourites', current_favourites)
 
     except Exception as e:
+        import bookmarks.log as log
         import bookmarks.common_ui as common_ui
         common_ui.ErrorBox(
             u'Could not import the favourites.',
             u'{}'.format(e)
         ).open()
-        Log.error(u'Import favourites failed.')
+        log.error(u'Import favourites failed.')
         raise
 
 
@@ -560,9 +593,10 @@ def set_custom_stylesheet(widget):
                 u'branch_open', None, None, get_path=True)
         )
     except KeyError as err:
+        import bookmarks.log as log
         msg = u'Looks like there might be an error in the css file: {}'.format(
             err)
-        Log.error(msg)
+        log.error(msg)
         raise KeyError(msg)
     widget.setStyleSheet(qss)
 
@@ -864,7 +898,9 @@ def copy_path(path, mode=WindowsPath, first=True, copy=True):
 
     if copy:
         QtGui.QClipboard().setText(path)
-        Log.info(u'Copied {}'.format(path))
+
+        import bookmarks.log as log
+        log.success(u'Copied {}'.format(path))
 
     return path
 
@@ -957,8 +993,9 @@ def create_asset_template(source, dest, overwrite=False):
 def push_to_rv(path):
     """Uses `rvpush` to view a given footage."""
     import subprocess
-    import bookmarks.settings as settings
+    import bookmarks.log as log
     import bookmarks.common_ui as common_ui
+    import bookmarks.settings as settings
 
     def get_preference(k): return settings.local_settings.value(
         u'preferences/{}'.format(k))
@@ -969,7 +1006,7 @@ def push_to_rv(path):
             u'Shotgun RV not found.',
             u'To push footage to RV, set RV\'s path in Preferences.'
         ).open()
-        Log.error(u'RV not set')
+        log.error(u'RV not set')
         return
 
     rv_info = QtCore.QFileInfo(rv_path)
@@ -978,27 +1015,30 @@ def push_to_rv(path):
             u'Invalid Shotgun RV path set.',
             u'Make sure the currently set RV path is valid and try again!'
         ).open()
-        Log.error(u'Invalid RV path set')
+        log.error(u'Invalid RV path set')
         return
 
     if get_platform() == u'win':
         rv_push_path = u'{}/rvpush.exe'.format(rv_info.path())
         if QtCore.QFileInfo(rv_push_path).exists():
-            # cmd = u'"{}" -tag {} set "{}"'.format(rv_push_path, PRODUCT, path)
             cmd = u'"{RV}" -tag {PRODUCT} url \'rvlink:// -reuse 1 -inferSequence -l -play -fps 25 -fullscreen -nofloat -lookback 0 -nomb "{PATH}"\''.format(
                 RV=rv_push_path,
                 PRODUCT=PRODUCT,
-                PATH=path)
+                PATH=path
+            )
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
+            log.success(u'Footage sent to RV.')
+            log.success(u'Command used:')
+            log.success(cmd)
     else:
         common_ui.ErrorBox(
             u'Pushing to RV not yet implemented on this platform.',
             u'Sorry about this. Send me an email if you\'d like to see this work soon!'
         ).open()
-        Log.error(u'Function not implemented')
+        log.error(u'Function not implemented')
         return
 
 
@@ -1047,7 +1087,6 @@ class FontDatabase(QtGui.QFontDatabase):
         self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', font_size)
         self._fonts[k].setPixelSize(font_size)
 
-
         if self._fonts[k].family() != u'bmRobotoBold':
             raise RuntimeError(
                 u'Failed to add required font to the application')
@@ -1081,297 +1120,3 @@ class FontDatabase(QtGui.QFontDatabase):
 class DataDict(dict):
     """Subclassed dict type for weakref compatibility."""
     pass
-
-
-class Log:
-    stdout = cStringIO.StringIO()
-
-    HEADER = u'\033[95m'
-    OKBLUE = u'\033[94m'
-    OKGREEN = u'\033[92m'
-    WARNING = u'\033[93m'
-    FAIL = u'\033[91m'
-    ENDC = u'\033[0m'
-    BOLD = u'\033[1m'
-    UNDERLINE = u'\033[4m'
-
-    @classmethod
-    def success(cls, s):
-        if not DEBUG_ON:
-            return
-        t = u'{color}{ts} [Ok]:  {default}{message}'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            color=cls.OKGREEN,
-            default=cls.ENDC,
-            message=s
-        )
-        print >> cls.stdout, t
-        print t
-
-    @classmethod
-    def debug(cls, s, source=u''):
-        if not DEBUG_ON:
-            return
-        t = u'{color}{ts} [Debug]:{default}    {source}.{message}'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            color=cls.OKBLUE,
-            default=cls.ENDC,
-            message=s,
-            source=source.__class__.__name__
-        )
-        print >> cls.stdout, t
-        print t
-
-    @classmethod
-    def info(cls, s):
-        if not DEBUG_ON:
-            return
-        t = u'{color}{ts} [Info]:{default}    {message}'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            color=cls.OKBLUE,
-            default=cls.ENDC,
-            message=s
-        )
-        print >> cls.stdout, t
-        print t
-
-    @classmethod
-    def error(cls, s):
-        t = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}\n'.format(
-            ts=time.strftime(u'%H:%M:%S'),
-            fail=cls.FAIL,
-            underline=cls.UNDERLINE,
-            default=cls.ENDC,
-            message=s,
-            traceback=u'\n\033[91m'.join(
-                traceback.format_exc().strip(u'\n').split(u'\n'))
-        )
-        print >> cls.stdout, t
-        print t
-
-
-class LogViewHighlighter(QtGui.QSyntaxHighlighter):
-    """Class responsible for highlighting urls"""
-    HEADER = 0b000000001
-    OKBLUE = 0b000000010
-    OKGREEN = 0b000000100
-    WARNING = 0b000001000
-    FAIL = 0b000010000
-    FAIL_SUB = 0b000100000
-    ENDC = 0b001000000
-    BOLD = 0b010000000
-    UNDERLINE = 0b100000000
-
-    HIGHLIGHT_RULES = {
-        u'OKBLUE': {
-            u're': re.compile(
-                u'{}(.+?)(?:{})(.+)'.format(k('OKBLUE'), k('ENDC')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': OKBLUE
-        },
-        u'OKGREEN': {
-            u're': re.compile(
-                u'{}(.+?)(?:{})(.+)'.format(k('OKGREEN'), k('ENDC')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': OKGREEN
-        },
-        u'FAIL': {
-            u're': re.compile(
-                u'{}{}(.+?)(?:{})(.+)'.format(
-                    k('FAIL'), k('UNDERLINE'), k('ENDC')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': FAIL
-        },
-        u'FAIL_SUB': {
-            u're': re.compile(
-                u'{}(.*)'.format(k('FAIL')),
-                flags=re.IGNORECASE | re.UNICODE),
-            u'flag': FAIL_SUB
-        },
-    }
-
-    def highlightBlock(self, text):
-        font = QtGui.QFont('Monospace')
-        font.setStyleHint(QtGui.QFont.Monospace)
-        font.setPixelSize(1)
-
-        char_format = QtGui.QTextCharFormat()
-        char_format.setFont(font)
-        char_format.setForeground(QtGui.QColor(0, 0, 0, 0))
-
-        block_format = QtGui.QTextBlockFormat()
-        block_format.setLineHeight(
-            120, QtGui.QTextBlockFormat.ProportionalHeight)
-        self.setFormat(0, len(text), char_format)
-
-        _font = char_format.font()
-        _foreground = char_format.foreground()
-        _weight = char_format.fontWeight()
-        _psize = char_format.font().pixelSize()
-
-        flag = 0
-
-        position = self.currentBlock().position()
-        cursor = QtGui.QTextCursor(self.currentBlock())
-        cursor.mergeBlockFormat(block_format)
-        cursor = QtGui.QTextCursor(self.document())
-
-        for case in self.HIGHLIGHT_RULES.itervalues():
-            if case[u'flag'] == self.OKGREEN:
-                it = case[u're'].finditer(text)
-                for match in it:
-                    flag = flag | case['flag']
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-
-                    char_format.setForeground(QtGui.QColor(80, 230, 80, 255))
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
-
-                    self.setFormat(match.start(2), len(
-                        match.group(2)), char_format)
-                    cursor = self.document().find(match.group(2), position)
-                    cursor.mergeCharFormat(char_format)
-
-            if case[u'flag'] == self.OKBLUE:
-                it = case[u're'].finditer(text)
-                for match in it:
-                    flag = flag | case['flag']
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-                    char_format.setForeground(QtGui.QColor(80, 80, 200, 255))
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
-
-                    self.setFormat(match.start(2), len(
-                        match.group(2)), char_format)
-                    cursor = self.document().find(match.group(2), position)
-                    cursor.mergeCharFormat(char_format)
-
-            if case[u'flag'] == self.FAIL:
-                match = case[u're'].match(text)
-                if match:
-                    flag = flag | case['flag']
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
-                    char_format.setFontUnderline(True)
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
-
-                    self.setFormat(match.start(2), len(
-                        match.group(2)), char_format)
-                    cursor = self.document().find(match.group(2), position)
-                    cursor.mergeCharFormat(char_format)
-
-            if case[u'flag'] == self.FAIL_SUB:
-                # continue
-                it = case[u're'].finditer(text)
-                for match in it:
-                    if flag & self.FAIL:
-                        continue
-                    char_format.setFontUnderline(False)
-                    font.setPixelSize(MEDIUM_FONT_SIZE())
-                    char_format.setFont(font)
-                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
-
-                    self.setFormat(match.start(1), len(
-                        match.group(1)), char_format)
-                    cursor = self.document().find(match.group(1), position)
-                    cursor.mergeCharFormat(char_format)
-
-            char_format.setFont(_font)
-            char_format.setForeground(_foreground)
-            char_format.setFontWeight(_weight)
-
-
-class LogView(QtWidgets.QTextBrowser):
-
-    format_regex = u'({h})|({b})|({g})|({w})|({f})|({e})|({o})|({u})'
-    format_regex = format_regex.format(
-        h=Log.HEADER,
-        b=Log.OKBLUE,
-        g=Log.OKGREEN,
-        w=Log.WARNING,
-        f=Log.FAIL,
-        e=Log.ENDC,
-        o=Log.BOLD,
-        u=Log.UNDERLINE
-    )
-    format_regex = re.compile(format_regex.replace(u'[', '\\['))
-
-    def __init__(self, parent=None):
-        super(LogView, self).__init__(parent=parent)
-
-        if parent is None:
-            set_custom_stylesheet(self)
-
-        self.setMinimumWidth(WIDTH())
-        self.setUndoRedoEnabled(False)
-        self._cached = u''
-        self.highlighter = LogViewHighlighter(self.document())
-        self.timer = QtCore.QTimer(parent=self)
-        self.timer.setSingleShot(False)
-        self.timer.setInterval(666)
-        self.timer.timeout.connect(self.load_log)
-        self.timer.start()
-        self.setStyleSheet(
-            """
-* {{
-    padding: {m}px;
-    border-radius: {p}px;
-    font-size: {p}px;
-    background-color: rgba({c});
-}}
-""".format(
-                m=MARGIN(),
-                p=SMALL_FONT_SIZE(),
-                c=rgb(SEPARATOR)
-            ))
-
-    def showEvent(self, event):
-        self.timer.start()
-
-    def hideEvent(self, event):
-        self.timer.stop()
-
-    def load_log(self):
-        app = QtWidgets.QApplication.instance()
-        if app.mouseButtons() != QtCore.Qt.NoButton:
-            return
-
-        self.document().blockSignals(True)
-        v = Log.stdout.getvalue()
-        if self._cached == v:
-            return
-
-        self._cached = v
-        self.setText(v[-30000:])
-        self.highlighter.rehighlight()
-        v = self.format_regex.sub(u'', self.document().toHtml())
-        self.setHtml(v)
-        self.document().blockSignals(False)
-
-        m = self.verticalScrollBar().maximum()
-        self.verticalScrollBar().setValue(m)
-
-    def sizeHint(self):
-        return QtCore.QSize(WIDTH(), HEIGHT())
-
-
-font_db = None

@@ -20,6 +20,7 @@ import re
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.images as images
 
@@ -56,6 +57,7 @@ def paintmethod(func):
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     """Base delegate containing methods to draw our list items."""
+    fallback_thumb = u'placeholder'
 
     def __init__(self, parent=None):
         super(BaseDelegate, self).__init__(parent=parent)
@@ -217,12 +219,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     @paintmethod
     def paint_thumbnail(self, *args):
-        """Paints the thumbnails of asset and file-items.``"""
-        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        image = index.data(common.ThumbnailRole)
-        if image is None:
-            return
+        """Paints an item's thumbnail.
 
+        The underlying image data is stored in `ImageCache`. If the
+        requested QPixmap has never been drawn before we will create and store
+        it by calling `images.ImageCache.get_pixmap()`.
+
+        If no associated image data is available, we will use a generic thumbnail
+        associated with the item's type.
+
+        See the `images` module for implementation details.
+
+        """
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         # Background
@@ -233,19 +242,51 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         o = 1.0 if selected or active or hover else 0.9
         painter.setOpacity(o)
 
-        # Let's make sure the image is fully fitted in the thumbnail rectangle
-        # even if the image's size doesn't match the size of the rectangle
+        _p = index.data(common.ParentPathRole)
+        if not _p:
+            return
+
+        source = index.data(QtCore.Qt.StatusTipRole)
+        if not source:
+            return
+        if common.is_collapsed(source):
+            source = common.get_sequence_startpath(source)
+
+        thumbnail_path = images.get_thumbnail_path(
+            _p[0],
+            _p[1],
+            _p[2],
+            source
+        )
+
+        _h = index.data(QtCore.Qt.SizeHintRole)
+        if not _h:
+            return
+        size = _h.height()
+
+        pixmap = images.ImageCache.get_pixmap(thumbnail_path, size)
+        if not pixmap:
+            # Let's load a placeholder if there's not generated thumbnail
+            pixmap = images.ImageCache.get_pixmap(
+                images.get_placeholder_path(source, fallback=self.fallback_thumb),
+                size
+            )
+            if not pixmap:
+                return
+
+        # Let's make sure the image is fully fitted, even if the image's size
+        # doesn't match ThumbnailRect
         s = float(rectangles[ThumbnailRect].height())
-        longest_edge = float(max((image.width(), image.height())))
+        longest_edge = float(max((pixmap.width(), pixmap.height())))
         ratio = s / longest_edge
-        w = image.width() * ratio
-        h = image.height() * ratio
+        w = pixmap.width() * ratio
+        h = pixmap.height() * ratio
         if index.row() != (self.parent().model().rowCount() - 1):
             h = h + common.ROW_SEPARATOR()
 
         _rect = QtCore.QRect(0, 0, w, h)
         _rect.moveCenter(rectangles[ThumbnailRect].center())
-        painter.drawPixmap(_rect, image, image.rect())
+        painter.drawPixmap(_rect, pixmap, pixmap.rect())
 
     def paint_thumbnail_drop_indicator(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -520,9 +561,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
+    fallback_thumb = u'thumb_bookmark_gray'
 
     def paint(self, painter, option, index):
-        """Defines how the ``BookmarksWidgetItems`` should be painted."""
+        """Defines how the ``BookmarksWidget`` should be painted."""
         args = self.get_paint_arguments(
             painter, option, index, antialiasing=False)
         self.paint_background(*args)
@@ -638,57 +680,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
             painter.drawPath(path)
 
             offset += width
-
-        if self.parent().buttons_hidden():
-            return
-
-        rect.setLeft(_r.right())
-        font = common.font_db.secondary_font(
-            font_size=common.SMALL_FONT_SIZE())
-
-        painter.setFont(font)
-        o = common.MARGIN()
-
-        if hover or selected or active:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.75)
-
-        rect = rect.marginsRemoved(
-            QtCore.QMargins(o, common.INDICATOR_WIDTH(), o * 0.5, common.INDICATOR_WIDTH()))
-        metrics = QtGui.QFontMetrics(font)
-
-        lines = index.data(common.DescriptionRole).split(u'\n')
-
-        for n, text in enumerate(lines):
-            text = metrics.elidedText(
-                text,
-                QtCore.Qt.ElideLeft,
-                rect.width()
-            )
-            if n == 0:
-                color = common.TEXT
-                if len(lines) > 1:
-                    text = text + u'\n' if lines[1] else text
-            else:
-                text = u'\n' + text
-            color = common.TEXT
-            # if selected or active:
-            #     color = common.TEXT
-
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-            rect.setHeight(metrics.height())
-
-            rect.moveTop(option.rect.center().y() -
-                         (metrics.ascent() * 0.5))
-            if len(text.split(u'\n')) > 1:
-                rect.moveTop(rect.top() - (metrics.lineSpacing() * 0.5))
-
-            for t in text.split(u'\n'):
-                common.draw_aliased_text(
-                    painter, font, rect, t, align, color)
-                rect.moveTop(rect.top() + metrics.lineSpacing())
-
+            
         rectangles[DataRect] = _datarect
 
     def sizeHint(self, option, index):
@@ -697,6 +689,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
 class AssetsWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
+    fallback_thumb = u'thumb_item_gray'
 
     def paint(self, painter, option, index):
         """Defines how the ``AssetsWidget``'s' items should be painted."""
@@ -848,14 +841,17 @@ class FilesWidgetDelegate(BaseDelegate):
         if index.data(QtCore.Qt.DisplayRole) is None:
             return
 
-        self.paint_background(*args)
+        # Skip active elements
+        _args = list(args)
+        _args.pop(6)
+        _args.insert(6, False)
+        self.paint_background(*_args)
         self.paint_thumbnail(*args)
 
         b_hidden = self.parent().buttons_hidden()
         p_role = index.data(common.ParentPathRole)
         if p_role and not b_hidden:
             self.paint_file_shadow(*args)
-            # self.paint_thumbnail_shadow(*args)
             self.paint_name(*args)
         elif p_role and b_hidden:
             self.paint_simple_name(*args)

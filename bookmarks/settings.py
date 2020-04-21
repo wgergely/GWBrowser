@@ -25,6 +25,7 @@ from functools import wraps
 
 from PySide2 import QtCore
 
+import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks._scandir as _scandir
 
@@ -108,11 +109,6 @@ class LocalSettings(QtCore.QSettings):
         activepath/file (unicode):      Location-relative file path.
 
     """
-    activeBookmarkChanged = QtCore.Signal()
-    activeAssetChanged = QtCore.Signal()
-    activeLocationChanged = QtCore.Signal(unicode)
-    activeFileChanged = QtCore.Signal(unicode)
-
     filename = u'settings.ini'
     keys = (u'server', u'job', u'root', u'asset', u'location', u'file')
 
@@ -141,12 +137,6 @@ class LocalSettings(QtCore.QSettings):
         self.server_mount_timer.setSingleShot(False)
         self.server_mount_timer.setTimerType(QtCore.Qt.CoarseTimer)
         self.server_mount_timer.timeout.connect(self.verify_paths)
-
-        self.sync_timer = QtCore.QTimer(parent=self)
-        self.sync_timer.setInterval(1000)
-        self.sync_timer.setSingleShot(False)
-        self.sync_timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.sync_timer.timeout.connect(self.check_active_path_state)
 
     def value(self, k):
         """An override for the default get value method.
@@ -205,65 +195,6 @@ class LocalSettings(QtCore.QSettings):
                 d[k] = None
         return d
 
-    @QtCore.Slot(unicode)
-    @QtCore.Slot(unicode)
-    def save_state(self, k, d):
-        if k not in self.keys:
-            raise ValueError(u'{} is an invalid key.'.format(k))
-        self._active_paths[k] = d
-
-    @QtCore.Slot()
-    def check_active_path_state(self):
-        """Slot compares the internally saved `active_paths` against the current
-        values saved in the config file and emits a changed signal if the
-        current state differs from the saved state.
-
-        Connected to the `self.active_timer.timeout` to perform periodical
-        checks.
-
-        """
-        # When active sync is disabled we won't check for config changes
-        val = self.value(
-            u'preferences/disable_active_sync')
-        if val is True and common.STANDALONE is False:
-            return
-
-        active_paths = self.verify_paths()
-
-        self.sync()
-
-        if self._active_paths == active_paths:
-            return
-
-        serverChanged = self._active_paths[u'server'] != active_paths[u'server']
-        jobChanged = self._active_paths[u'job'] != active_paths[u'job']
-        rootChanged = self._active_paths[u'root'] != active_paths[u'root']
-        assetChanged = self._active_paths[u'asset'] != active_paths[u'asset']
-        locationChanged = self._active_paths[u'location'] != active_paths[u'location']
-        fileChanged = self._active_paths[u'file'] != active_paths[u'file']
-
-        if serverChanged or jobChanged or rootChanged:
-            common.Log.debug('activeBookmarkChanged', self)
-            self.activeBookmarkChanged.emit()
-            self._active_paths = active_paths
-            return
-
-        if assetChanged:
-            common.Log.debug('activeAssetChanged', self)
-            self.activeAssetChanged.emit()
-            self._active_paths = active_paths
-            return
-
-        if locationChanged:
-            common.Log.debug('activeLocationChanged', self)
-            self.activeLocationChanged.emit(active_paths[u'location'])
-
-        if fileChanged:
-            common.Log.debug('activeFileChanged', self)
-            self.activeFileChanged.emit(active_paths[u'file'])
-
-        self._active_paths = active_paths
-
     @prune_lockfile
     def touch_mode_lockfile(self):
         """Creates a lockfile based on the current process' PID."""
@@ -301,9 +232,12 @@ class LocalSettings(QtCore.QSettings):
             try:
                 data = int(data.strip())
                 if data == common.SynchronisedMode:
+                    log.debug(u'Current application mode is `SoloMode`')
                     return common.SoloMode
             except:
-                pass
+                log.error(u'Error getting the current application mode.')
+
+        log.debug(u'Current application mode is `SynchronisedMode`')
         return common.SynchronisedMode
 
     def set_mode(self, val):
