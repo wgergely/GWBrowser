@@ -50,15 +50,10 @@ from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.delegate as delegate
 import bookmarks.settings as settings
 import bookmarks.images as images
-import bookmarks.defaultpaths as defaultpaths
 import bookmarks.alembicpreview as alembicpreview
 
 import bookmarks.threads as threads
 
-
-def start_timer(thread):
-    if thread.timer is not None and not thread.timer.isActive():
-        thread.startTimer.emit()
 
 def validate_index(func):
     """Decorator function to ensure `QModelIndexes` passed to worker threads
@@ -432,7 +427,13 @@ class BaseModel(QtCore.QAbstractListModel):
 
     progressMessage = QtCore.Signal(unicode)
     updateIndex = QtCore.Signal(QtCore.QModelIndex)
-    updateRow = QtCore.Signal(weakref.ref)
+    updateRow = QtCore.Signal(int)
+
+    queueModel = QtCore.Signal(str)
+    startCheckQueue = QtCore.Signal()
+    stopCheckQueue = QtCore.Signal()
+
+    queue_type = None
 
     def __init__(self, has_threads=True, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -442,19 +443,17 @@ class BaseModel(QtCore.QAbstractListModel):
         self.INTERNAL_MODEL_DATA = common.DataDict()
         """Custom data type for weakref compatibility """
 
-        self.threads = {
+        self.threads = common.DataDict({
             common.InfoThread: [],  # Threads for getting file-size, description
-            common.BackgroundInfoThread: [],  # Thread for iterating the whole model
             common.ThumbnailThread: [],  # Thread for generating thumbnails
-        }
+        })
+
+        self.file_info_loaded = False
+        self.parent_path = None
         self._interrupt_requested = False
         self._generate_thumbnails_enabled = True
-        self.file_info_loaded = False
-
         self._task_folder = None
         self._datatype = {}
-        self.parent_path = None
-
         self._sortrole = None
         self._sortorder = None
 
@@ -653,7 +652,7 @@ class BaseModel(QtCore.QAbstractListModel):
             u'__initdata__ is abstract and must be overriden')
 
     @QtCore.Slot(QtCore.QThread)
-    def thread_started(self, thread):
+    def thread_started(self, thread, allow_model=False):
         """Slot connected in initialise_threads().
         Signals the model an item has been updated.
 
@@ -663,6 +662,25 @@ class BaseModel(QtCore.QAbstractListModel):
             lambda: log.debug('dataReady -> updateRow', thread.worker))
         thread.worker.dataReady.connect(
             self.updateRow, type=QtCore.Qt.QueuedConnection)
+
+        # queueModel allows loading the whole model data
+        if allow_model:
+            self.queueModel.connect(
+                lambda: log.debug('queueModel -> worker.queueModel', self))
+            self.queueModel.connect(
+                thread.queueModel, type=QtCore.Qt.QueuedConnection)
+
+        self.startCheckQueue.connect(
+            lambda: log.debug('startCheckQueue -> worker.startCheckQueue', self))
+        self.startCheckQueue.connect(
+            thread.startCheckQueue, type=QtCore.Qt.QueuedConnection)
+        self.stopCheckQueue.connect(
+            lambda: log.debug('stopCheckQueue -> worker.stopCheckQueue', self))
+        self.stopCheckQueue.connect(
+            thread.stopCheckQueue, type=QtCore.Qt.QueuedConnection)
+
+        self.taskFolderChanged.connect(thread.resetQueue, QtCore.Qt.QueuedConnection)
+        thread.startCheckQueue.emit()
 
     @QtCore.Slot()
     def model_loaded(self, ref):
@@ -683,66 +701,32 @@ class BaseModel(QtCore.QAbstractListModel):
             log.debug(u'>>> Model needs re-sorting', self)
             self.sort_data()
 
-    @QtCore.Slot(QtCore.QThread)
-    @QtCore.Slot(weakref.ref)
-    def put_in_thumbnail_queue(self, thread, ref):
-        """Slot connected in initialise_threads()."""
-        if not not self._has_threads:
-            return
-
-        log.success('put_in_thumbnail_queue()')
-        if not ref():
-            return
-        if self.generate_thumbnails_enabled():
-            thread.put(ref, force=True)
-
     def initialise_threads(self):
         """Starts and connects the threads."""
+        if self.queue_type is None:
+            raise RuntimeError(u'`queue_type` cannot be `None`')
+
         if not self._has_threads:
             return
 
         log.debug('initialise_threads()', self)
 
-        info_worker = threads.InfoWorker()
-        info_thread = threads.BaseThread(info_worker, interval=40)
+        info_worker = threads.InfoWorker(self.queue_type)
+        info_thread = threads.BaseThread(info_worker)
+        info_thread.started.connect(
+            partial(self.thread_started, info_thread, allow_model=True),
+            QtCore.Qt.DirectConnection
+        )
         self.threads[common.InfoThread].append(info_thread)
 
-        info_thread.started.connect(partial(self.thread_started, info_thread))
-
-        background_info_worker = threads.BackgroundInfoWorker()
-
-        background_info_worker.modelLoaded.connect(
-            lambda: log.debug('modelLoaded -> model_loaded', background_info_worker))
-        background_info_worker.modelLoaded.connect(
-            self.model_loaded, QtCore.Qt.QueuedConnection)
-
-        background_info_thread = threads.BaseThread(
-            background_info_worker, interval=260)
-        self.threads[common.BackgroundInfoThread].append(
-            background_info_thread)
-
-        background_info_thread.started.connect(
-            partial(self.thread_started, background_info_thread))
-
-        thumbnails_worker = threads.ThumbnailWorker()
-        thumbnails_thread = threads.BaseThread(thumbnails_worker, interval=100)
+        thumbnails_worker = threads.ThumbnailWorker(threads.ThumbnailQueue)
+        thumbnails_thread = threads.BaseThread(thumbnails_worker)
+        thumbnails_thread.started.connect(
+            partial(self.thread_started, thumbnails_thread, allow_model=False),
+            QtCore.Qt.DirectConnection
+        )
         self.threads[common.ThumbnailThread].append(thumbnails_thread)
 
-        thumbnails_thread.started.connect(
-            partial(self.thread_started, thumbnails_thread))
-
-        # The condition for loading a thumbnail is that the item must already
-        # have its file info loaded. However, it is possible that the thumbnail
-        # worker would consume an uninitiated item, leaving the thumbnail
-        # unloaded. Hooking the dataReady signal up here means initiated
-        # items will be sent to the thumbnail thread's queue to read the thumbnail
-        # info_worker.dataReady.connect(
-        #     lambda: log.debug())
-        # info_worker.dataReady.connect(
-        #     partial(self.put_in_thumbnail_queue, thumbnails_thread),
-        #     type=QtCore.Qt.QueuedConnection)
-
-        background_info_thread.start()
         info_thread.start()
         thumbnails_thread.start()
 
@@ -775,19 +759,19 @@ class BaseModel(QtCore.QAbstractListModel):
         self.file_info_loaded = False
 
     @QtCore.Slot()
-    def reset_thread_worker_queues(self):
-        """This slot removes all queued items from the respective worker queues.
-        Called by the ``modelAboutToBeReset`` signal.
+    def reset_worker_queues(self, all=False):
+        """Request all queued items to be removed from the thread/worker's
+        queue.
 
         """
-        if not not self._has_threads:
+        if not self._has_threads:
             return
 
-        log.debug('reset_thread_worker_queues()', self)
+        log.debug('reset_worker_queues()', self)
 
         for k in self.threads:
             for thread in self.threads[k]:
-                thread.worker.resetQueue.emit()
+                thread.resetQueue.emit()
 
     def model_data(self):
         """A pointer to the model's currently set internal data."""
@@ -1090,7 +1074,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelReset.connect(self.scheduleDelayedItemsLayout)
 
         self.reset_rows_timer.timeout.connect(self.repaint_visible_rows)
-        self.reset_rows_timer.timeout.connect(self.start_requestinfo_timers)
+        self.reset_rows_timer.timeout.connect(self.start_queue_timers)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update(self, index):
@@ -1107,20 +1091,16 @@ class BaseListWidget(QtWidgets.QListView):
             index = self.model().mapFromSource(index)
         super(BaseListWidget, self).update(index)
 
-    @QtCore.Slot(weakref.ref)
-    def update_row(self, ref):
+    @QtCore.Slot(int)
+    def update_row(self, idx):
         """Slot used to update the row associated with the data segment."""
         log.debug('update_row(ref)', self)
         model = self.model()
-
-        if not ref():
-            return
-        index = model.sourceModel().index(ref()[common.IdRole], 0)
-
+        index = model.sourceModel().index(idx, 0)
         index = model.mapFromSource(index)
-        super(BaseListWidget, self).update(index)
+        self.update(index)
 
-    def request_visible_fileinfo_load(self):
+    def queue_visible_indexes(self, *args, **kwargs):
         pass
 
     def activate(self, index):
@@ -1401,6 +1381,14 @@ class BaseListWidget(QtWidgets.QListView):
             # If that fails, we'll display a general placeholder image
             if not images.oiio_get_buf(source):
                 source = images.get_placeholder_path(source)
+                buf = images.oiio_get_buf(source, force=True)
+                if not buf:
+                    s = u'{} seems invalid.'.format(source)
+                    common_ui.ErrorBox(
+                        u'Error previewing image.', s).open()
+                    log.error(s)
+                    self.deleteLater()
+                    raise RuntimeError(s)
 
         if not source:
             raise RuntimeError('Invalid source value')
@@ -1657,7 +1645,7 @@ class BaseListWidget(QtWidgets.QListView):
             if event.angleDelta().y() > 0:
                 v = self.verticalScrollBar().setValue(v + 1 + o)
             else:
-                v = self.verticalScrollBar().setValue(v - 1 + o)
+                v = self.verticalScrollBar().setValue(v - 1 - o)
             return
 
         if event.angleDelta().y() > 0:
@@ -1887,25 +1875,29 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot()
     def repaint_visible_rows(self):
-        if not self.isVisible():
-            return
+        def _next(rect):
+            rect.moveTop(rect.top() + rect.height())
+            return self.indexAt(rect.topLeft())
 
         proxy = self.model()
         if not proxy.rowCount():
             return
 
-        r = self.viewport().rect()
-        index = self.indexAt(r.topLeft())
+        viewport_rect = self.viewport().rect()
+        index = self.indexAt(viewport_rect.topLeft())
         if not index.isValid():
             return
 
-        rect = self.visualRect(index)
-        while r.intersects(rect):
+        index_rect = self.visualRect(index)
+        n = 0
+        while viewport_rect.intersects(index_rect):
+            if n > 99: # manuel limit on how many items we will repaint
+                break
             super(BaseListWidget, self).update(index)
-            rect.moveTop(rect.top() + rect.height())
-            index = self.indexAt(rect.topLeft())
+            index = _next(index_rect)
             if not index.isValid():
                 break
+            n += 1
 
     def _reset_rows(self):
         """Reinitializes the rows to apply size-change."""
@@ -2325,7 +2317,7 @@ class BaseInlineIconWidget(BaseListWidget):
             raise
 
     @QtCore.Slot()
-    def start_requestinfo_timers(self):
+    def start_queue_timers(self):
         pass
 
     @QtCore.Slot()
@@ -2333,11 +2325,7 @@ class BaseInlineIconWidget(BaseListWidget):
         pass
 
     @QtCore.Slot()
-    def request_visible_fileinfo_load(self):
-        pass
-
-    @QtCore.Slot()
-    def request_visible_thumbnail_load(self):
+    def queue_visible_indexes(self, *args, **kwargs):
         pass
 
     def clickableRectangleEvent(self, event):
@@ -2419,8 +2407,15 @@ class BaseInlineIconWidget(BaseListWidget):
 
 
 class ThreadedBaseWidget(BaseInlineIconWidget):
-    """Adds the methods needed to push the indexes to the thread-workers."""
+    """Extends the base-class with the methods used to interface with threads.
 
+    Attributes:
+        queue_model_timer (QTimer):     Used to request file information for the
+                                        model data.
+        queue_visible_timer (QTimer):   Used to request file and thumnbnail
+                                        information for individual items.
+
+    """
     def __init__(self, parent=None):
         super(ThreadedBaseWidget, self).__init__(parent=parent)
 
@@ -2428,13 +2423,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.queue_model_timer.setSingleShot(True)
         self.queue_model_timer.setInterval(250)
 
-        self.request_visible_fileinfo_timer = QtCore.QTimer(parent=self)
-        self.request_visible_fileinfo_timer.setSingleShot(True)
-        self.request_visible_fileinfo_timer.setInterval(100)
-
-        self.request_visible_thumbnail_timer = QtCore.QTimer(parent=self)
-        self.request_visible_thumbnail_timer.setSingleShot(True)
-        self.request_visible_thumbnail_timer.setInterval(200)
+        self.queue_visible_timer = QtCore.QTimer(parent=self)
+        self.queue_visible_timer.setSingleShot(True)
+        self.queue_visible_timer.setInterval(100)
 
         self.connect_thread_signals()
 
@@ -2446,88 +2437,97 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         # Empty the queue when the data changes
         model.modelAboutToBeReset.connect(
-            lambda: log.debug('modelAboutToBeReset -> reset_thread_worker_queues', model))
+            lambda: log.debug('modelAboutToBeReset -> reset_worker_queues', model))
         model.modelAboutToBeReset.connect(
-            model.reset_thread_worker_queues, cnx_type)
+            model.reset_worker_queues, cnx_type)
 
         model.modelAboutToBeReset.connect(
             lambda: log.debug('modelAboutToBeReset -> reset_file_info_loaded', model))
         model.modelAboutToBeReset.connect(
             model.reset_file_info_loaded, cnx_type)
 
-        self.request_visible_fileinfo_timer.timeout.connect(
-            lambda: log.debug('timeout -> request_visible_fileinfo_load', self.request_visible_fileinfo_timer))
-        self.request_visible_fileinfo_timer.timeout.connect(
-            self.request_visible_fileinfo_load, cnx_type)
+        # Visible indexes to threads
+        self.queue_visible_timer.timeout.connect(
+            lambda: log.debug('timeout -> queue_visible_indexes', self.queue_visible_timer))
+        self.queue_visible_timer.timeout.connect(
+            partial(
+                self.queue_visible_indexes,
+                common.FileInfoLoaded,
+                common.InfoThread
+            ),
+            cnx_type
+        )
+        self.queue_visible_timer.timeout.connect(
+            lambda: log.debug('timeout -> queue_visible_indexes', self.queue_visible_timer))
+        self.queue_visible_timer.timeout.connect(
+            partial(
+                self.queue_visible_indexes,
+                common.ThumbnailLoaded,
+                common.ThumbnailThread
+            ),
+            cnx_type
+        )
 
-        self.request_visible_thumbnail_timer.timeout.connect(
-            lambda: log.debug('timeout -> request_visible_thumbnail_load', self.request_visible_thumbnail_timer))
-        self.request_visible_thumbnail_timer.timeout.connect(
-            self.request_visible_thumbnail_load, cnx_type)
+        model.modelReset.connect(
+            partial(
+                self.queue_visible_indexes,
+                common.FileInfoLoaded,
+                common.InfoThread
+            ),
+            cnx_type
+        )
+        model.modelReset.connect(
+            partial(
+                self.queue_visible_indexes,
+                common.ThumbnailLoaded,
+                common.ThumbnailThread
+            ),
+            cnx_type
+        )
+
 
         # Start / Stop request info timers
         model.modelAboutToBeReset.connect(
-            lambda: log.debug('modelAboutToBeReset -> stop_requestinfo_timers', model))
+            lambda: log.debug('modelAboutToBeReset -> stop_queue_timers', model))
         model.modelAboutToBeReset.connect(
-            self.stop_requestinfo_timers, cnx_type)
+            self.stop_queue_timers, cnx_type)
         model.modelReset.connect(
-            lambda: log.debug('modelReset -> start_requestinfo_timers', model))
+            lambda: log.debug('modelReset -> start_queue_timers', model))
         model.modelReset.connect(
-            self.start_requestinfo_timers, cnx_type)
+            self.start_queue_timers, cnx_type)
+
+        # Start / Stop queue timer
+        model.modelAboutToBeReset.connect(
+            lambda: log.debug('modelAboutToBeReset -> stop_queue_timers', model))
+        model.modelAboutToBeReset.connect(
+            model.stopCheckQueue, cnx_type)
+        model.modelReset.connect(
+            lambda: log.debug('modelReset -> start_queue_timers', model))
+        model.modelReset.connect(
+            model.startCheckQueue, cnx_type)
 
         # Filter changed
         proxy.filterTextChanged.connect(
-            lambda: log.debug('filterTextChanged -> start_requestinfo_timers', proxy))
+            lambda: log.debug('filterTextChanged -> start_queue_timers', proxy))
         proxy.filterTextChanged.connect(
-            self.start_requestinfo_timers, cnx_type)
+            self.start_queue_timers, cnx_type)
         proxy.filterFlagChanged.connect(
-            lambda: log.debug('filterFlagChanged -> start_requestinfo_timers', proxy))
+            lambda: log.debug('filterFlagChanged -> start_queue_timers', proxy))
         proxy.filterFlagChanged.connect(
-            self.start_requestinfo_timers, cnx_type)
-
-        # Slider - Pressed / Released
-        model.modelAboutToBeReset.connect(
-            lambda: self.verticalScrollBar().blockSignals(True))
-        model.modelReset.connect(
-            lambda: self.verticalScrollBar().blockSignals(False))
+            self.start_queue_timers, cnx_type)
 
         self.verticalScrollBar().sliderPressed.connect(
-            lambda: log.debug('sliderPressed -> reset_thread_worker_queues', self.verticalScrollBar()))
+            lambda: log.debug('sliderPressed -> stop_queue_timers', self.verticalScrollBar()))
         self.verticalScrollBar().sliderPressed.connect(
-            model.reset_thread_worker_queues)
-        self.verticalScrollBar().sliderPressed.connect(
-            lambda: log.debug('sliderPressed -> stop_requestinfo_timers', self.verticalScrollBar()))
-        self.verticalScrollBar().sliderPressed.connect(
-            self.stop_requestinfo_timers)
+            self.stop_queue_timers)
 
         self.verticalScrollBar().sliderReleased.connect(
-            lambda: log.debug('sliderReleased -> reset_thread_worker_queues', self.verticalScrollBar()))
+            lambda: log.debug('sliderReleased -> start_queue_timers', self.verticalScrollBar()))
         self.verticalScrollBar().sliderReleased.connect(
-            model.reset_thread_worker_queues)
-        self.verticalScrollBar().sliderReleased.connect(
-            lambda: log.debug('sliderReleased -> start_requestinfo_timers', self.verticalScrollBar()))
-        self.verticalScrollBar().sliderReleased.connect(
-            self.start_requestinfo_timers)
-
-        self.verticalScrollBar().valueChanged.connect(
-            lambda: log.debug('valueChanged -> start_requestinfo_timers', self.verticalScrollBar()))
-        self.verticalScrollBar().valueChanged.connect(
-            self.start_requestinfo_timers, cnx_type)
+            self.start_queue_timers)
 
         # Thread update signals
-        for k in model.threads:
-            for thread in model.threads[k]:
-                model.modelAboutToBeReset.connect(
-                    lambda: log.debug('modelAboutToBeReset -> stopTimer', model))
-                model.modelAboutToBeReset.connect(
-                    partial(thread.stopTimer.emit))
-                model.modelAboutToBeReset.connect(
-                    partial(thread.worker.resetQueue.emit))
-
-                model.modelReset.connect(
-                    lambda: log.debug('modelReset -> startTimer', model))
-                model.modelReset.connect(partial(thread.startTimer.emit))
-
+        model.modelAboutToBeReset.connect(lambda: model.reset_worker_queues(all=True))
         # Queue model data
         self.queue_model_timer.timeout.connect(self.queue_model_data)
 
@@ -2544,184 +2544,118 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             lambda: self.verticalScrollBar().valueChanged.emit(self.verticalScrollBar().value()))
 
     @QtCore.Slot()
-    def start_requestinfo_timers(self):
-        """Fires the timer responsible for updating the visible model indexes on
-        a threaded viewer.
+    def start_queue_timers(self):
+        """Start the timers used to load an item's secondary data.
 
         """
-        if self.verticalScrollBar().isSliderDown():
-            return
-
-        model = self.model().sourceModel()
-
-        for thread in model.threads[common.InfoThread]:
-            start_timer(thread)
-        for thread in model.threads[common.ThumbnailThread]:
-            start_timer(thread)
-
-        if not self.request_visible_fileinfo_timer.isActive():
-            log.debug('start()', self.request_visible_fileinfo_timer)
-            self.request_visible_fileinfo_timer.start(
-                self.request_visible_fileinfo_timer.interval())
-
-        if not self.request_visible_thumbnail_timer.isActive():
-            log.debug('start()', self.request_visible_thumbnail_timer)
-            self.request_visible_thumbnail_timer.start(
-                self.request_visible_thumbnail_timer.interval())
+        log.debug('start_queue_timers()', self)
+        if not self.queue_visible_timer.isActive():
+            self.queue_visible_timer.start(
+                self.queue_visible_timer.interval())
 
     @QtCore.Slot()
-    def stop_requestinfo_timers(self):
-        """Fires the timer responsible for updating the visible model indexes on
-        a threaded viewer.
+    def stop_queue_timers(self):
+        """Stop the timers used to load an item's secondary data.
 
         """
-        model = self.model().sourceModel()
-
-        for thread in model.threads[common.InfoThread]:
-            thread.stopTimer.emit()
-            thread.worker.resetQueue.emit()
-        for thread in model.threads[common.ThumbnailThread]:
-            thread.stopTimer.emit()
-            thread.worker.resetQueue.emit()
-
-        log.debug('stop()', self.request_visible_fileinfo_timer)
-        self.request_visible_fileinfo_timer.stop()
-
-        log.debug('stop()', self.request_visible_thumbnail_timer)
-        self.request_visible_thumbnail_timer.stop()
+        log.debug('stop_queue_timers()', self)
+        self.queue_visible_timer.stop()
 
     @QtCore.Slot()
     def queue_model_data(self):
         """Queues the model data for the BackgroundInfoThread to process."""
         log.debug('queue_model_data()', self)
-
         model = self.model().sourceModel()
-        threads = model.threads[common.BackgroundInfoThread]
-        if not threads:
+        model.queueModel.emit(repr(model))
+
+    @QtCore.Slot(int)
+    @QtCore.Slot(int)
+    def queue_visible_indexes(self, check_role, thread_type):
+        """Queue previously not loaded and visible indexes for processing.
+
+        Args:
+            check_role (int): Role to check the state of the index.
+            thread_type (int): Use the threads of `thread_type` to process the data.
+
+
+        """
+        def _next(rect):
+            rect.moveTop(rect.top() + rect.height())
+            return self.indexAt(rect.topLeft())
+
+        if not isinstance(check_role, (int, long)):
+            raise TypeError(u'Invalid `check_role`, expected <type \'int\', got {}'.format(type(check_role)))
+        if not isinstance(thread_type, int):
+            raise TypeError(u'Invalid `thread_type`, expected <type \'int\', got {}'.format(type(thread_type)))
+
+        log.debug('queue_visible_indexes() - Begin', self)
+
+        proxy = self.model()
+        if not proxy.rowCount():
+            log.debug('queue_visible_indexes() - No proxy rows', self)
             return
 
-        k = model.task_folder()
-        if model.data_type() == common.FileItem:
-            ts = (common.FileItem, common.SequenceItem)
-        else:
-            ts = (common.SequenceItem, common.FileItem)
+        model = proxy.sourceModel()
+        data = model.model_data()
 
-        if k not in model.INTERNAL_MODEL_DATA:
-            log.debug('{} was not in the model'.format(k))
+        # Find the first visible index
+        viewport_rect = self.viewport().rect()
+        index = self.indexAt(viewport_rect.topLeft())
+        if not index.isValid():
             return
+        index_rect = self.visualRect(index)
 
-        for _t in ts:
-            if _t not in model.INTERNAL_MODEL_DATA[k]:
+        thread_count = len(model.threads[thread_type])
+        show_archived = proxy.filter_flag(common.MarkedAsArchived)
+
+        n = 0
+        i = 0
+        while viewport_rect.intersects(index_rect):
+            if i >= 999:
+                break
+            i += 1
+
+            # If we encounter an archived item, we need to invalidate the proxy
+            is_archived = index.flags() & common.MarkedAsArchived
+            if show_archived is False and is_archived:
+                proxy.invalidateFilter()
+                log.debug('queue_visible_indexes() - invalidateFilter()', self)
+                return # abort
+
+            # Nothing else to do if the threads are not enabled
+            if not thread_count:
+                index = _next(index_rect)
                 continue
-            ref = weakref.ref(model.INTERNAL_MODEL_DATA[k][_t])
-            threads[0].put(ref)
 
-    @QtCore.Slot()
-    def request_visible_fileinfo_load(self):
-        """The sourceModel() loads its data in multiples steps: There's a
-        single-threaded walk of all sub-directories, and a threaded query for
-        image and file information. This method is responsible for passing the
-        indexes to the threads so they can update the model accordingly.
+            source_index = proxy.mapToSource(index)
+            idx = source_index.row()
+            if idx not in data:
+                index = _next(index_rect)
+                continue
 
-        """
-        log.debug('request_visible_fileinfo_load()', self)
+            # We will skip the time if it has alrady been loaded
+            skip = data[idx][check_role]
+            if skip:
+                index = _next(index_rect)
+                continue
 
-        try:
-            proxy = self.model()
-            model = proxy.sourceModel()
-            data = model.model_data()
+            # Put the weakref in the thread's queue
+            ref = weakref.ref(data[idx])
+            model.threads[thread_type][n % thread_count].add_to_queue(ref)
+            n += 1
 
-            if not proxy.rowCount():
-                return
-
-            r = self.viewport().rect()
-            index = self.indexAt(r.topLeft())
+            index = _next(index_rect)
             if not index.isValid():
-                return
+                break
+        log.debug('queue_visible_indexes() - done', self)
 
-            rect = self.visualRect(index)
-            i = 0
-            icount = len(model.threads[common.InfoThread])
-            while r.intersects(rect):
-                source_index = proxy.mapToSource(index)
-                if source_index.row() not in data:
-                    continue
-
-                ref = weakref.ref(data[source_index.row()])
-
-                info_loaded = index.data(common.FileInfoLoaded)
-                if icount and not info_loaded:
-                    model.threads[common.InfoThread][i % icount].put(ref)
-                    i += 1
-                rect.moveTop(rect.top() + rect.height())
-                index = self.indexAt(rect.topLeft())
-                if not index.isValid():
-                    break
-        except:
-            log.error('request_visible_fileinfo_load() failed')
-        finally:
-            for k in model.threads:
-                for thread in model.threads[k]:
-                    start_timer(thread)
-
-    @QtCore.Slot()
-    def request_visible_thumbnail_load(self):
-        """Send visible model indexes to the `ThumbnailThreads` for processing.
-
-        """
-        log.debug('request_visible_thumbnail_load()', self)
-        try:
-            proxy = self.model()
-            model = proxy.sourceModel()
-            data = model.model_data()
-            if not proxy.rowCount():
-                return
-
-            r = self.viewport().rect()
-            index = self.indexAt(r.topLeft())
-            if not index.isValid():
-                return
-
-            rect = self.visualRect(index)
-            t = 0
-            tcount = len(model.threads[common.ThumbnailThread])
-            show_archived = proxy.filter_flag(common.MarkedAsArchived)
-            # Starting from the top left iterate over valid indexes
-            while r.intersects(rect):
-                # If the item is archived but the `show_archived` flag is `False`,
-                # we'll interrupt and invalidate the proxy filter
-                is_archived = index.flags() & common.MarkedAsArchived
-                if show_archived is False and is_archived:
-                    proxy.invalidateFilter()
-                    return
-
-                source_index = proxy.mapToSource(index)
-                if source_index.row() not in data:
-                    continue
-
-                thumb_loaded = index.data(common.ThumbnailLoaded)
-                if tcount and not thumb_loaded and model.generate_thumbnails_enabled():
-                    ref = weakref.ref(data[source_index.row()])
-                    model.threads[common.ThumbnailThread][t % tcount].put(ref)
-                    t += 1
-
-                rect.moveTop(rect.top() + rect.height())
-                index = self.indexAt(rect.topLeft())
-                if not index.isValid():
-                    break
-        except:
-            log.error('request_visible_thumbnail_load() failed')
-            raise
-        finally:
-            # Thread update signals
-            for k in model.threads:
-                for thread in model.threads[k]:
-                    start_timer(thread)
+    def wheelEvent(self, event):
+        super(ThreadedBaseWidget, self).wheelEvent(event)
+        self.start_queue_timers()
 
     def showEvent(self, event):
         super(ThreadedBaseWidget, self).showEvent(event)
-        self.request_visible_fileinfo_load()
-        self.request_visible_thumbnail_load()
+        self.start_queue_timers()
 
 
 class StackedWidget(QtWidgets.QStackedWidget):

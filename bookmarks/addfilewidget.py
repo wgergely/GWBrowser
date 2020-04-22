@@ -290,7 +290,7 @@ class SelectButton(QtWidgets.QLabel):
 
 class BaseListView(BaseInlineIconWidget):
     """The base class used to view the ``BookmarksModel`` and ``AssetModel``
-    models. The class is an control icon-less version of the
+    models. The class is a control icon-less version of the
     ``BaseInlineIconWidget`` widget.
 
     The ``activated`` signal will hide the view but the activated signal itself
@@ -1057,6 +1057,7 @@ class ThumbnailButton(common_ui.ClickableIconButton):
             self.rect(), self.pixmap(), self.pixmap().rect())
 
         painter.end()
+
 
 class DescriptionEditor(common_ui.LineEdit):
     """Editor widget to input the description of the file."""

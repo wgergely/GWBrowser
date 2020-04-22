@@ -73,7 +73,7 @@ def debug(message, cls=None):
         color=OKBLUE[1],
         default=ENDC[1],
         message=message,
-        cls=u'.' + cls.__class__.__name__ if cls else u''
+        cls=cls.__class__.__name__ + u'.' if cls else u''
     )
     _log(message)
 

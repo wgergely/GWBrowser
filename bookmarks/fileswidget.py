@@ -28,12 +28,13 @@ from bookmarks.baselistwidget import initdata
 
 import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks.threads as threads
 import bookmarks._scandir as _scandir
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
 import bookmarks.defaultpaths as defaultpaths
-
 import bookmarks.images as images
+
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -86,6 +87,8 @@ class FilesModel(BaseModel):
     val = val if val else DEFAULT_ROW_SIZE.height()
     val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
     ROW_SIZE = QtCore.QSize(1, val)
+
+    queue_type = threads.FileInfoQueue
 
     def _entry_iterator(self, path):
         for entry in _scandir.scandir(path):
@@ -206,7 +209,11 @@ class FilesModel(BaseModel):
             parent_path_role = (server, job, root, asset,
                                 task_folder, fileroot)
 
+            # Let's limit the maximum number of items we load
             idx = len(MODEL_DATA[common.FileItem])
+            if idx >= common.MAXITEMS:
+                break
+
             MODEL_DATA[common.FileItem][idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,

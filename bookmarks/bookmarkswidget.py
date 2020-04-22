@@ -27,6 +27,7 @@ import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
+import bookmarks.threads as threads
 import bookmarks._scandir as _scandir
 import bookmarks.baselistwidget as baselistwidget
 import bookmarks.basecontextmenu as basecontextmenu
@@ -85,12 +86,15 @@ class BookmarksWidgetContextMenu(basecontextmenu.BaseContextMenu):
 
 class BookmarksModel(baselistwidget.BaseModel):
     """The model used store the data necessary to display bookmarks.
+
     """
     DEFAULT_ROW_SIZE = QtCore.QSize(1, common.BOOKMARK_ROW_HEIGHT())
     val = settings.local_settings.value(u'widget/bookmarksmodel/rowheight')
     val = val if val else DEFAULT_ROW_SIZE.height()
     val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
     ROW_SIZE = QtCore.QSize(1, val)
+
+    queue_type = threads.BookmarkInfoQueue
 
     def __init__(self, has_threads=True, parent=None):
         super(BookmarksModel, self).__init__(

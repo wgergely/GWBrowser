@@ -353,6 +353,9 @@ class AlembicView(QtWidgets.QWidget):
             raise ValueError(
                 u'Expected <type \'unicode\'>, got {}'.format(type(path)))
 
+        if not self.parent():
+            common.set_custom_stylesheet(self)
+
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
             s = '{} does not exists.'.format(path)
@@ -374,7 +377,7 @@ class AlembicView(QtWidgets.QWidget):
         )
 
         self._create_UI()
-        self.view.setStyleSheet(u'QTreeView {{padding:{p}px; border-radius: {p}px; border: {s}px solid gray;}}'.format(
+        self.view.setStyleSheet(u'QTreeView {{padding:{p}px; border-radius: {p}px; border: {s}px solid black;}}'.format(
             p=common.INDICATOR_WIDTH() * 2, s=common.ROW_SEPARATOR()))
 
     def _create_UI(self):

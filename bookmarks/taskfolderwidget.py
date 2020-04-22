@@ -169,6 +169,8 @@ class TaskFolderModel(BaseModel):
     via the signals and slots."""
     ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
 
+    queue_type = threads.TaskFolderInfoQueue
+
     def __init__(self, parent=None):
         self._parent = parent
         super(TaskFolderModel, self).__init__(parent=parent)
@@ -181,12 +183,22 @@ class TaskFolderModel(BaseModel):
             """Signals the model an item has been updated."""
             thread.worker.dataReady.connect(
                 self.updateRow, QtCore.Qt.QueuedConnection)
-            thread.startTimer.emit()
 
-        info_worker = threads.TaskFolderWorker()
-        info_thread = threads.BaseThread(info_worker, interval=250)
+            self.startCheckQueue.connect(
+                lambda: log.debug('startCheckQueue -> worker.startCheckQueue', self))
+            self.startCheckQueue.connect(
+                thread.startCheckQueue, type=QtCore.Qt.QueuedConnection)
+            self.stopCheckQueue.connect(
+                lambda: log.debug('stopCheckQueue -> worker.stopCheckQueue', self))
+            self.stopCheckQueue.connect(
+                thread.stopCheckQueue, type=QtCore.Qt.QueuedConnection)
+            self.startCheckQueue.emit()
+
+        info_worker = threads.TaskFolderWorker(threads.TaskFolderInfoQueue)
+        info_thread = threads.BaseThread(info_worker)
         self.threads[common.InfoThread].append(info_thread)
         info_thread.started.connect(partial(thread_started, info_thread))
+
         info_thread.start()
 
     @property
@@ -239,7 +251,6 @@ class TaskFolderModel(BaseModel):
         entries = sorted(
             ([f for f in _scandir.scandir(parent_path)]), key=lambda x: x.name)
 
-        print defaultpaths.get_description('dsad')
         for entry in entries:
             if entry.name.startswith(u'.'):
                 continue
@@ -260,9 +271,11 @@ class TaskFolderModel(BaseModel):
                 common.FileInfoLoaded: False,
                 common.ThumbnailLoaded: True,
                 common.TodoCountRole: 0,
+                #
+                common.IdRole: idx,
             })
             thread = self.threads[common.InfoThread][0]
-            thread.put(weakref.ref(data))
+            thread.add_to_queue(weakref.ref(data[idx]))
 
 
 class TaskFolderWidget(QtWidgets.QListView):

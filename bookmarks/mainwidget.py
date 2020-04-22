@@ -44,6 +44,9 @@ from bookmarks.listcontrolwidget import ListControlWidget
 
 _instance = None
 
+def instance():
+    global _instance
+    return _instance
 
 @QtCore.Slot()
 def show_window():
@@ -371,7 +374,7 @@ class MainWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         global _instance
         if _instance is not None:
-            raise RuntimeError(u'MainWidget cannot be initiated twice.')
+            raise RuntimeError(u'Bookmarks cannot be initiated twice.')
         _instance = self
 
         super(MainWidget, self).__init__(parent=parent)
@@ -619,8 +622,8 @@ class MainWidget(QtWidgets.QWidget):
             _threads = threads.THREADS.values()
             for thread in _threads:
                 if thread.isRunning():
-                    thread.worker.resetQueue.emit()
-                    thread.timer.deleteLater()
+                    thread.stopCheckQueue.emit()
+                    thread.resetQueue.emit()
                     thread.quit()
                     thread.wait()
 

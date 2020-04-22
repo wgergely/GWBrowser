@@ -42,7 +42,6 @@ SoloMode = 1
 """Enum used to indicate the mode. When syncronised mode is on, the active path
 selections will be syncronised across DCCs and desktop instances."""
 
-
 # Flags
 MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
@@ -50,9 +49,11 @@ MarkedAsActive = 0b100000000000
 """Custom Item flags."""
 
 InfoThread = 0
-BackgroundInfoThread = 1
-ThumbnailThread = 2
+ThumbnailThread = 1
 """Thread types."""
+
+MAXITEMS = 999999
+"""The maximum number of items to load."""
 
 
 def get_oiio_namefilters():
@@ -118,7 +119,7 @@ SequenceEndRegex = re.compile(
     ur'^(.*)\[.*?([0-9]+)\](.*)$',
     flags=re.IGNORECASE | re.UNICODE)
 GetSequenceRegex = re.compile(
-    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
+    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{1,})$',
     flags=re.IGNORECASE | re.UNICODE)
 
 WindowsPath = 0

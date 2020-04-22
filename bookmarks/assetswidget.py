@@ -23,7 +23,7 @@ import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks._scandir as _scandir
-import bookmarks.images as images
+import bookmarks.threads as threads
 from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.baselistwidget import ThreadedBaseWidget
 from bookmarks.baselistwidget import BaseModel
@@ -74,6 +74,8 @@ class AssetModel(BaseModel):
     val = val if val else DEFAULT_ROW_SIZE.height()
     val = DEFAULT_ROW_SIZE.height() if (val < DEFAULT_ROW_SIZE.height()) else val
     ROW_SIZE = QtCore.QSize(1, val)
+
+    queue_type = threads.AssetInfoQueue
 
     def __init__(self, has_threads=True, parent=None):
         super(AssetModel, self).__init__(

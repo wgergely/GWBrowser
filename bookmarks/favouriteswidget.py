@@ -20,6 +20,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks.threads as threads
 import bookmarks.settings as settings
 
 from bookmarks.basecontextmenu import BaseContextMenu
@@ -55,6 +56,8 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
 
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
+
+    queue_type = threads.FavouriteInfoQueue
 
     def __init__(self, parent=None):
         super(FavouritesModel, self).__init__(parent=parent)

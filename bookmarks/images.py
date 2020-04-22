@@ -269,7 +269,6 @@ def oiio_get_buf(source, hash=None, force=False):
     ext = source.split(u'.').pop().lower()
     i = OpenImageIO.ImageInput.create(ext)
     if not i:
-        log.error(OpenImageIO.geterror())
         return None
     if not i.valid_file(source):
         i.close()
@@ -281,7 +280,6 @@ def oiio_get_buf(source, hash=None, force=False):
     buf.reset(source, 0, 0)
     if buf.has_error:
         oiio_cache.invalidate(source, force=True)
-        log.error(buf.geterror())
         return None
 
     ImageCache.setValue(hash, buf, BufferType)
@@ -289,7 +287,7 @@ def oiio_get_buf(source, hash=None, force=False):
     return buf
 
 
-def oiio_get_qimage(path, buf=None, force=False):
+def oiio_get_qimage(path, buf=None, force=True):
     """Load the pixel data using OpenImageIO and return it as a
     `RGBA8888` / `RGB888` QImage.
 
@@ -1208,7 +1206,7 @@ class Viewer(QtWidgets.QGraphicsView):
         event.ignore()
 
 
-class ImageViewer(QtWidgets.QWidget):
+class ImageViewer(QtWidgets.QDialog):
     """Used to view an image.
 
     The image data is loaded using OpenImageIO and is then wrapped in a QGraphicsScene,
@@ -1218,9 +1216,7 @@ class ImageViewer(QtWidgets.QWidget):
     def __init__(self, path, parent=None):
         global _viewer_widget
         _viewer_widget = self
-
         super(ImageViewer, self).__init__(parent=parent)
-
         if not isinstance(path, unicode):
             raise ValueError(
                 u'Expected <type \'unicode\'>, got {}'.format(type(path)))
@@ -1233,6 +1229,14 @@ class ImageViewer(QtWidgets.QWidget):
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
             s = '{} does not exists.'.format(path)
+            common_ui.ErrorBox(
+                u'Error previewing image.', s).open()
+            log.error(s)
+            self.deleteLater()
+            raise RuntimeError(s)
+
+        if not oiio_get_buf(path, force=True):
+            s = u'{} seems invalid.'.format(path)
             common_ui.ErrorBox(
                 u'Error previewing image.', s).open()
             log.error(s)
