@@ -1,4 +1,8 @@
 <p align="center">
+  <img width="460" height="300" src="http://www.fillmurray.com/460/300">
+</p>
+
+<center>
 
 ![alt text][logo]
 
@@ -10,7 +14,7 @@
 
 ### [Get the latest release.](https://github.com/wgergely/bookmarks/releases)
 
-</p>
+</center>
 <br>
 
 Bookmarks provides a basic overview of your project's assets and files. Use it
@@ -18,9 +22,9 @@ to create new jobs, shots, or browse existing content. Share paths and notes
 with your Slack-mates and preview renders with OpenImageIO and Shotgun RV, or
 add versioned template files to manage file naming.
 
-<p align="center">
+<center>
 <img width="80%" alt="Bookmarks Asset Manager" src="./bookmarks/rsc/docs/tabs.gif">
-</p>
+</center>
 
 
 
