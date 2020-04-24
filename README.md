@@ -19,7 +19,7 @@ with your Slack-mates and preview renders with OpenImageIO and Shotgun RV, or
 add versioned template files to manage file naming.
 
 <center>
-<img width="80%" alt="Bookmarks Asset Manager" src="./bookmarks/rsc/docs/tabs.gif">
+<img width="500px" alt="Bookmarks Asset Manager" src="./bookmarks/rsc/docs/tabs.gif">
 </center>
 
 
