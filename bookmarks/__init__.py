@@ -67,9 +67,11 @@ def exec_():
         sys.stdout.write(u'{}\n'.format(info))
 
     from PySide2 import QtWidgets
-    import bookmarks.common as common
     import bookmarks.settings as settings
+    import bookmarks.common as common
 
+    if not settings.local_settings:
+        settings.local_settings = settings.LocalSettings()
     ui_scale = settings.local_settings.value(u'preferences/ui_scale')
     ui_scale = ui_scale if ui_scale else common.UI_SCALE
 
