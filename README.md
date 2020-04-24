@@ -1,127 +1,160 @@
-# Bookmarks
+<center>
+
 ![alt text][logo]
+
+## Bookmarks<br>_A simple asset manager for VFX and animation jobs._
+
+<br>
 
 ![alt text](https://img.shields.io/badge/Python-2.7-lightgrey.svg "Python 2.7") ![alt text](https://img.shields.io/badge/Qt-5.6%2B-lightgrey.svg "Qt 5.6+") ![alt text](https://img.shields.io/badge/platform-windows%20%7C%20osx-lightgray.svg "Windows & Mac OS X")
 
-***
-
-### A file and asset manager for animation and CG productions.
-
-### Use Bookmarks to see an overview of shots, files, custom notes and thumbnails. Use it to [create jobs](#first-run), assets or [browse existing content](#content-structure). Share paths with Slack and preview footage with Shotgun RV.
-
-***
-
-
-
-[link text itself]: http://www.reddit.com
-
 ### [Get the latest release.](https://github.com/wgergely/bookmarks/releases)
 
-***
-
-![alt text](./bookmarks/rsc/docs/tabs.gif "Content is categorised into Bookmarks, assets and files")
-
-## Features
-
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Create jobs and assets using custom folder templates
+</center>
 <br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/todo.png" height=20>Annotate items using thumbnails, TODOs, tags and descriptions
-<br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/archived.png" height=20>Archive superflous items without touching underlying files
-<br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/active.png" height=20>Preview easily most image formats and Alembic archives
-<br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/folder.png" height=20>Reveal files in Finder / Explorer
-<br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/rv.png" height=20>Push footage to **Shotgun RV** from within Bookmarks
-<br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/slack_color.png" height=20>[Send file paths and messages directly with **Slack**](#slack)
-<br>
-<img style="margin:4px 10px 4px 0px;" src="./bookmarks/rsc/maya.png" height=20>[Dedicated Maya plugin](#bookmarks-maya-plugin)
 
-![alt text](./bookmarks/rsc/docs/adding_thumbnails_and_descriptions_8fps.gif "Adding thumbnails and descriptions is easy...")
+Bookmarks provides a basic overview of your project's assets and files. Use it
+to create new jobs, shots, or browse existing content. Share paths and notes
+with your Slack-mates and preview renders with OpenImageIO and Shotgun RV, or
+add versioned template files to manage file naming.
 
-***
+<center>
+<img width="80%" alt="Bookmarks Asset Manager" src="./bookmarks/rsc/docs/tabs.gif">
+</center>
 
 
 
+# Introduction
 
-# ![alt text][maya] Maya Plugin
+<img align="right"  alt="Adding bookmarks and jobs" src="./bookmarks/rsc/docs/files1.jpg">
 
-![alt text](./bookmarks/rsc/docs/maya_saver.jpg "And so is adding descriptions")
+The project started life as a Maya script to change workspaces but since has
+grown into a standalone, multi-threaded asset manager.
 
-Bookmarks replaces Maya's Set Project and uses assets to set the current
-workspace. Use Bookmarks to import/export scenes and to apply frame rate, range
-and resolution settings. Use the custom file saver to save named scenes based on
-the current bookmark, asset and mode selections.
+For Maya artists Bookmarks has tools to load and save scenes and caches (**hello
+incremental save!**), preview/import images. Non-maya artists, and even small
+and medium sized studios, could find themselves in need of a simple asset
+manager where Shotgun (and the likes) are not required.
+
+<img width="280px" alt="Adding bookmarks and jobs" src="./bookmarks/rsc/docs/maya_files.jpg"><br>
+
+I use it to manage my own freelance projects because it lets me quickly
+set up the folders needed to turn a small job around. It is also place where I
+keep notes, feedback, google sheet urls. I tend to keep adding descriptions to
+scenes as I increment versions know what was changed in each version.
+
+## Let's Go!
 
 
-***
-
-## Content Structure
-
-
-Content is organised into three separate sections: `Bookmarks`, `Assets` & `Files`.
+To get started specify your servers and create a job if you don't have any.
+Right-click anywhere inside the window and select `Manage bookmarks`.
 
 
-| Overview  | ![alt text](./bookmarks/rsc/docs/bookmark_graph.jpg "Content structure")  |
-|---|---|
-| Bookmarks | Bookmarks are folders in your job folder and the main container for CG content. Each bookmark has frame rate, resolution, default frame-range, and a Slack token.|
-| Assets  | Assets are Maya/Houdini workspace-like folder-structures. Each contains a series of task folders (scene, render, folders). Any folder can be an asset, and any folder containing an asset identifier file (eg. workspace.mel) will be recognized as an asset automatically. |
-| Files  | Files are stored inside task folders. When browsing, Bookmarks reads all files inside a selected task folder, including files in subdirectories. You can use the provided search and filter tools to locate and save items.  |
+<img align="right" width="360" alt="Adding bookmarks and jobs" src="./bookmarks/rsc/docs/managing_bookmarks_6fps.gif">
 
-> Parsing the whole task folder does come with a performance trade-off as files must be loaded upfront. Up to a few hundred thousand files this should not take too long, but a much depends on network access and hard-drive speeds.
+Use the ![alt text][add] icons to add a new server, job or bookmark. The job templates are simple zip files and you can add your own by dragging a zip to where the templates are listed. If the job template has bookmark folders they will be listed below automatically, otherwise, add a new one by hand.
 
-***
+## Bookmark, Asset and File Tabs
+
+_Bookmarks_ are folders in your job folder and the main container for CG
+content. Bookmarks have frame rate, resolution, default frame range, and a Slack
+tokens. Each job can contain multiple bookmarks - eg. `shots`, `assets`, etc.
+
+_Assets_ are Maya/Houdini workspace-like folder structures. Each contains a
+series of task folders (eg. a _scene_, _render_, _cache_ folder). Any folder can
+be an asset, and any folder containing an asset identifier file (eg.
+workspace.mel) will be recognized as such automatically.
+
+_Files_ are stored inside task folders. When browsing, Bookmarks reads all files
+inside a selected _task folder_, including files in subdirectories. You can use
+the provided search and filter tools to locate and save items. <a
+href="./bookmarks/rsc/docs/bookmark_graph.jpg" target="_blank">See this folder
+diagram for details</a>.
+
+
+## Controling What You See
+
+### Search filters
+
+_**Search filters**_ can be used to include or exclude items based on their
+description and file name. They are persistent and will stay on unless you
+remove them. Click <img height="24px" alt="Search Filter button"
+src="./bookmarks/rsc/filter.png"> or press `Ctrl+F` to edit. To show all chef
+images type `chef` and press enter. To _exclude_ all chef images type `--chef`
+(two dashes followed by a name).
+
+<img alt="Search filter" src="./bookmarks/rsc/docs/search_filter.jpg"><br>
+
+
+You can also click subfolder labels. To **isolate** elements
+`Shift+Click`, to **hide** elements `Alt-Click` on the label.
+To reset the search filter `Alt-Click` on the <img height="24px" alt="Search
+Filter button" src="./bookmarks/rsc/filter.png"> search filter icon.
+
+### Flags and thumbnails
+
+Save items as a favourite - these items will be added to `My Files`.
+You can also archive superflous items.
+
+Use thumbnails to visually scout items. Bookmarks will generate a thumbnail for image files. Press `space` on your keyboard to preview the image (this also works for alembic archives!).
+
+
+<img alt="Search filter" src="./bookmarks/rsc/docs/image_preview.jpg"><br>
+
+
+
+## Maya
+
+
+The maya plugin replaces the internal project manager and uses assets to set the
+current workspace.
+
+
+`Shift+RightClick` shows Maya specific actions.
+`Ctrl+Shift+Alt+S` shows the file-saver.<br>
+`Ctrls+Shift+Alt+B` will show/hide Bookmarks.
+
+After installing bookmarks enable `mBookmarks.py` in Maya's plugin manager.
 
 ## ![alt text][slack] Slack
 
 To send messages using Slack, you must configure a bookmark with a valid Slack OAuth token.  The tokens are generated automatically when you install a new app to your Slack Workspace. [See guides on Slack](https://api.slack.com/apps) on how to add a new app and make sure to enable the following scopes:
 
-> | OAuth Scopes |`channels:read`<br>`chat:write`<br> `chat:write.public`<br>`groups:read`<br>`users:read` |
+
+| OAuth Scopes |`channels:read`<br>`chat:write`<br> `chat:write.public`<br>`groups:read`<br>`users:read` |
 |--|--|
 
 
-***
 
+## Running Bookmarks
 
-## First Run
+Bookmarks has not yet been ported to Python 3 and currently requires Python 2.
+Make sure all python dependencies are installed:
 
-o start browsing, right-click anywhere on the main window and select Manage bookmarks. Here you can configure your servers, create new jobs and add bookmark folders.
-
-![alt text](./bookmarks/rsc/docs/managing_bookmarks_6fps.gif "Managing bookmarks")
-
-Use the ![alt text][add] icons to add a new server, job or bookmark. The job templates are simple zip files and you can add your own by dragging a zip file where the templates are listed. If the job template has bookmark folders they will be listed here automatically, otherwise, add one manually.
-
-***
-
-# Running the Python module
-
-
-| Make sure first all python dependencies are installed: | `SlackClient`<br>`OpenImageIO`<br>`Alembic`<br>`PySide2 (Qt5.6+)`|
+| Dependencies | `SlackClient`<br>`OpenImageIO`<br>`Alembic`<br>`PySide2`<br>`Numpy`<br>`psutil`|
 | -- | -- |
+
+
+Starts Bookmarks as a standalone PySide2 application:
 
 ``` python
 
-  # Starts Bookmarks as a standalone PySide2 app
   import bookmarks
   bookmarks.exec_()
 
 ```
 
+Or inside Maya initialize the widget like this:
 
 ``` python
 
-  #  Show the Maya widget
   import bookmarks.maya.widget as widget
   widget.show()
 
   # NOTE: Bookmarks is meant to be used as a singleton,
-  # and running multiple instances is a call for trouble.
+  # and running multiple instances is not allowed.
 
 ```
-
-> Bookmarks was written in Python 2 and built against the latest version of OpenImageIO and Qt5. There will be a Python 3 port in the future but as the latest version of Maya is still uses Python 2 there was no point of migrating just yet.
 
 
 ## Credits and Acknowledgments
@@ -136,5 +169,6 @@ Use the ![alt text][add] icons to add a new server, job or bookmark. The job tem
 
 [logo]: ./bookmarks/rsc/logo_s.png "Bookmarks: A simple file and asset manager for animation and CG productions"
 [add]: ./bookmarks/rsc/add_button_s.png "Add button"
-[maya]: ./bookmarks/rsc/maya.png "Add button"
-[slack]: ./bookmarks/rsc/slack_color_sm.png "Add button"
+[maya]: ./bookmarks/rsc/maya.png "Maya button"
+[slack]: ./bookmarks/rsc/slack_color_sm.png "Slack button"
+[filter]: ./bookmarks/rsc/filter.png "Filter button"
