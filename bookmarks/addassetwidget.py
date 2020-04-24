@@ -20,14 +20,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-from PySide2 import QtWidgets, QtCore, QtGui
+from PySide2 import QtWidgets, QtCore
 
 import bookmarks.managebookmarks as managebookmarks
-import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
-import bookmarks.preferenceswidget as preferenceswidget
 
 
 _widget_instance = None
@@ -86,7 +84,6 @@ class AddAssetWidget(QtWidgets.QDialog):
             parent=row
         )
 
-
         bookmark = u'{}/{}/{}'.format(self.server, self.job, self.root)
         source = images.get_thumbnail_path(
             self.server,
@@ -97,7 +94,8 @@ class AddAssetWidget(QtWidgets.QDialog):
 
         pixmap = images.ImageCache.get_pixmap(source, row.height())
         if not pixmap:
-            source = images.get_placeholder_path(bookmark, fallback=u'thumb_bookmark_gray')
+            source = images.get_placeholder_path(
+                bookmark, fallback=u'thumb_bookmark_gray')
             pixmap = images.ImageCache.get_pixmap(source, row.height())
 
         if pixmap:

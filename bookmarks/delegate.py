@@ -125,16 +125,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         def rect():
             """Returns a rectangle with a separator."""
             r = QtCore.QRect(rectangle)
-            return r.adjusted(0, 0, 0, -common.ROW_SEPARATOR())
+            return r.adjusted(0, 0, 0, -1)
             # return r
 
         background_rect = rect()
         background_rect.setLeft(common.INDICATOR_WIDTH())
 
-        indicator_rect = rect()
+        indicator_rect = QtCore.QRect(rectangle)
         indicator_rect.setWidth(common.INDICATOR_WIDTH())
 
-        thumbnail_rect = rect()
+        thumbnail_rect = QtCore.QRect(rectangle)
         thumbnail_rect.setWidth(thumbnail_rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH())
 
@@ -232,7 +232,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        # painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         # Background
         color = common.THUMBNAIL_BACKGROUND
@@ -249,8 +249,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         source = index.data(QtCore.Qt.StatusTipRole)
         if not source:
             return
-        if common.is_collapsed(source):
-            source = common.get_sequence_startpath(source)
 
         thumbnail_path = images.get_thumbnail_path(
             _p[0],
@@ -273,6 +271,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             )
             if not pixmap:
                 return
+        else:
+            color = images.ImageCache.get_color(thumbnail_path)
+            if color:
+                painter.setBrush(color)
+                painter.drawRect(rectangles[ThumbnailRect])
 
         # Let's make sure the image is fully fitted, even if the image's size
         # doesn't match ThumbnailRect
@@ -281,10 +284,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         ratio = s / longest_edge
         w = pixmap.width() * ratio
         h = pixmap.height() * ratio
-        if index.row() != (self.parent().model().rowCount() - 1):
-            h = h + common.ROW_SEPARATOR()
 
-        _rect = QtCore.QRect(0, 0, w, h)
+        _rect = QtCore.QRect(0, 0, int(w), int(h))
         _rect.moveCenter(rectangles[ThumbnailRect].center())
         painter.drawPixmap(_rect, pixmap, pixmap.rect())
 
@@ -680,7 +681,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
             painter.drawPath(path)
 
             offset += width
-            
+
         rectangles[DataRect] = _datarect
 
     def sizeHint(self, option, index):

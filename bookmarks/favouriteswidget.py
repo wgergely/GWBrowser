@@ -58,6 +58,7 @@ class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
 
     queue_type = threads.FavouriteInfoQueue
+    thumbnail_queue_type = threads.FavouriteThumbnailQueue
 
     def __init__(self, parent=None):
         super(FavouritesModel, self).__init__(parent=parent)

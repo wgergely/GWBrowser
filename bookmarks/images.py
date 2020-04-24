@@ -50,9 +50,10 @@ BufferType = QtCore.Qt.UserRole
 PixmapType = BufferType + 1
 ImageType = PixmapType + 1
 ResourcePixmapType = ImageType + 1
+ColorType = ResourcePixmapType + 1
 
 _capture_widget = None
-__library_widget = None
+_library_widget = None
 _filedialog_widget = None
 _viewer_widget = None
 
@@ -94,8 +95,10 @@ def set_from_source(index, source):
 
     # Flush and re-cache
     size = int(index.data(QtCore.Qt.SizeHintRole).height())
+    
     ImageCache.flush(destination)
     ImageCache.get_image(destination, size)
+    ImageCache.make_color(destination)
 
     if hasattr(index.model(), 'updateIndex'):
         index.model().updateIndex.emit(index)
@@ -255,7 +258,8 @@ def oiio_get_buf(source, hash=None, force=False):
 
     """
     if not isinstance(source, unicode):
-        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(source)))
+        raise TypeError(
+            'Expected <type \'unicode\'>, got {}'.format(type(source)))
     if hash is None:
         hash = common.get_hash(source)
 
@@ -350,7 +354,6 @@ def oiio_get_qimage(path, buf=None, force=True):
         _format
     )
 
-
     # The loaded pixel values are cached by OpenImageIO automatically.
     # By invalidating the buf, we can ditch the cached data.
     oiio_cache.invalidate(path, force=True)
@@ -376,6 +379,7 @@ class ImageCache(QtCore.QObject):
     ``ImageCache.get_rsc_pixmap()``.
 
     """
+    COLOR_DATA = common.DataDict()
     RESOURCE_DATA = common.DataDict()
     PIXEL_DATA = common.DataDict()
     INTERNAL_DATA = common.DataDict({
@@ -383,6 +387,7 @@ class ImageCache(QtCore.QObject):
         PixmapType: common.DataDict(),
         ImageType: common.DataDict(),
         ResourcePixmapType: common.DataDict(),
+        ColorType: common.DataDict(),
     })
 
     @classmethod
@@ -422,10 +427,10 @@ class ImageCache(QtCore.QObject):
                 raise TypeError(
                     u'Invalid type. Expected <type \'ImageBuf\'>, got {}'.format(type(value)))
 
-            cls.INTERNAL_DATA[cache_type][hash] = value
-            return
+            cls.INTERNAL_DATA[BufferType][hash] = value
+            return cls.INTERNAL_DATA[BufferType][hash]
 
-        if cache_type == ImageType:
+        elif cache_type == ImageType:
             if not isinstance(value, QtGui.QImage):
                 raise TypeError(
                     u'Invalid type. Expected <type \'QImage\'>, got {}'.format(type(value)))
@@ -436,9 +441,9 @@ class ImageCache(QtCore.QObject):
                 size = int(size)
 
             cls.INTERNAL_DATA[cache_type][hash][size] = value
-            return
+            return cls.INTERNAL_DATA[cache_type][hash][size]
 
-        if cache_type == PixmapType or cache_type == ResourcePixmapType:
+        elif cache_type == PixmapType or cache_type == ResourcePixmapType:
             if not isinstance(value, QtGui.QPixmap):
                 raise TypeError(
                     u'Invalid type. Expected <type \'QPixmap\'>, got {}'.format(type(value)))
@@ -447,9 +452,17 @@ class ImageCache(QtCore.QObject):
                 size = int(size)
 
             cls.INTERNAL_DATA[cache_type][hash][size] = value
-            return
+            return cls.INTERNAL_DATA[cache_type][hash][size]
 
-        raise TypeError('Invalid cache type.')
+        elif cache_type == ColorType:
+            if not isinstance(value, QtGui.QColor):
+                raise TypeError(
+                    u'Invalid type. Expected <type \'QColor\'>, got {}'.format(type(value)))
+
+            cls.INTERNAL_DATA[ColorType][hash] = value
+            return cls.INTERNAL_DATA[ColorType][hash]
+        else:
+            raise TypeError('Invalid cache type.')
 
     @classmethod
     def flush(cls, source):
@@ -489,6 +502,10 @@ class ImageCache(QtCore.QObject):
             log.error(s)
             raise RuntimeError(s)
 
+        if size is not None:
+            if not isinstance(size, int):
+                raise TypeError(u'Invalid type. Expected <type \'int\'>')
+
         # Check the cache and return the previously stored value if exists
         hash = common.get_hash(source)
         contains = cls.contains(hash, PixmapType)
@@ -512,6 +529,63 @@ class ImageCache(QtCore.QObject):
         return pixmap
 
     @classmethod
+    def get_color(cls, source, force=False):
+        """Get a color
+        """
+        if not isinstance(source, unicode):
+            raise TypeError(u'Invalid type. Expected <type \'unicode\'>')
+
+        # Check the cache and return the previously stored value if exists
+        hash = common.get_hash(source)
+
+        if not force and cls.contains(hash, ColorType):
+            data = cls.value(hash, ColorType)
+            if data:
+                return data
+        if force:
+            color = cls.make_color(source)
+            if color:
+                return color
+        return None
+
+    @classmethod
+    def make_color(cls, source):
+        buf = oiio_get_buf(source)
+        if not buf:
+            return None
+
+        hash = common.get_hash(source)
+
+        stats = OpenImageIO.ImageBufAlgo.computePixelStats(buf)
+        if not stats:
+            return None
+        if stats.avg and len(stats.avg) > 3:
+            color = QtGui.QColor(
+                int(stats.avg[0] * 255),
+                int(stats.avg[1] * 255),
+                int(stats.avg[2] * 255),
+                a=240
+                # a=int(stats.avg[3] * 255)
+            )
+        elif stats.avg and len(stats.avg) == 3:
+            color = QtGui.QColor(
+                int(stats.avg[0] * 255),
+                int(stats.avg[1] * 255),
+                int(stats.avg[2] * 255),
+            )
+        elif stats.avg and len(stats.avg) < 3:
+            color = QtGui.QColor(
+                int(stats.avg[0] * 255),
+                int(stats.avg[0] * 255),
+                int(stats.avg[0] * 255),
+            )
+        else:
+            return None
+
+        cls.setValue(hash, color, ColorType)
+        return color
+
+    @classmethod
     def get_image(cls, source, size, hash=None, force=False):
         """Loads, resizes `source` as a QImage and stores it for later use.
 
@@ -531,6 +605,12 @@ class ImageCache(QtCore.QObject):
         """
         if not isinstance(source, unicode):
             raise TypeError(u'Invalid type. Expected <type \'unicode\'>')
+        if size is not None:
+            if isinstance(size, float):
+                size = int(size)
+            if not isinstance(size, int):
+                raise TypeError(
+                    u'Invalid type. Expected <type \'int\'>, got {}'.format(type(size)))
 
         if hash is None:
             hash = common.get_hash(source)
@@ -722,20 +802,19 @@ class ImageCache(QtCore.QObject):
         buf = oiio_get_buf(source)
         if not buf:
             return False
-
         source_spec = buf.spec()
-        accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4', u'gif')
-        codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
         if source_spec.get_int_attribute(u'oiio:Movie') == 1:
+            accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4')
+            codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
             # [BUG] Not all codec formats are supported by ffmpeg. There does
             # not seem to be (?) error handling and an unsupported codec will
             # crash ffmpeg and the rest of the app.
-            if not [f for f in accepted_codecs if f.lower() in codec_name.lower()]:
-                log.debug(
-                    u'Unsupported movie format: {}'.format(codec_name))
-
-                oiio_cache.invalidate(source, force=True)
-                return False
+            if codec_name:
+                if not [f for f in accepted_codecs if f.lower() in codec_name.lower()]:
+                    log.debug(
+                        u'Unsupported movie format: {}'.format(codec_name))
+                    oiio_cache.invalidate(source, force=True)
+                    return False
 
         destination_spec = get_scaled_spec(source_spec)
         buf = shuffle_channels(buf, source_spec)
@@ -1067,6 +1146,7 @@ class Viewer(QtWidgets.QGraphicsView):
     """The graphics view used to display an QPixmap read using OpenImageIO.
 
     """
+
     def __init__(self, parent=None):
         super(Viewer, self).__init__(parent=parent)
         self.item = QtWidgets.QGraphicsPixmapItem()
@@ -1213,6 +1293,7 @@ class ImageViewer(QtWidgets.QDialog):
     using a QPixmap. See ``Viewer``.
 
     """
+
     def __init__(self, path, parent=None):
         global _viewer_widget
         _viewer_widget = self
@@ -1222,6 +1303,8 @@ class ImageViewer(QtWidgets.QDialog):
                 u'Expected <type \'unicode\'>, got {}'.format(type(path)))
 
         import bookmarks.common_ui as common_ui
+
+        self.path = path
 
         if not self.parent():
             common.set_custom_stylesheet(self)
@@ -1315,11 +1398,17 @@ class ImageViewer(QtWidgets.QDialog):
         painter = QtGui.QPainter()
         painter.begin(self)
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR())
+        pen.setWidth(common.ROW_SEPARATOR())
         painter.setPen(pen)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(QtGui.QColor(20, 20, 20, 240))
+
+        color = ImageCache.get_color(self.path)
+        if not color:
+            color = ImageCache.make_color(self.path)
+        if not color:
+            color = QtGui.QColor(20, 20, 20, 240)
+        painter.setBrush(color)
         painter.drawRect(self.rect())
 
         painter.end()
@@ -1464,8 +1553,8 @@ class ThumbnailLibraryWidget(QtWidgets.QDialog):
     def __init__(self, parent=None):
 
         # Global binding to avoid the widget being garbage collected.
-        global _filedialog_widget
-        _filedialog_widget = self
+        global _library_widget
+        _library_widget = self
 
         super(ThumbnailLibraryWidget, self).__init__(parent=parent)
         self.scrollarea = None
@@ -1494,7 +1583,8 @@ class ThumbnailLibraryWidget(QtWidgets.QDialog):
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        row = common_ui.add_row(None, height=common.ROW_HEIGHT(), padding=None, parent=self)
+        row = common_ui.add_row(
+            None, height=common.ROW_HEIGHT(), padding=None, parent=self)
         label = common_ui.PaintedLabel(
             u'Select a thumbnail',
             color=common.TEXT,

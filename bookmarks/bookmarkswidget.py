@@ -95,6 +95,7 @@ class BookmarksModel(baselistwidget.BaseModel):
     ROW_SIZE = QtCore.QSize(1, val)
 
     queue_type = threads.BookmarkInfoQueue
+    thumbnail_queue_type = threads.BookmarkThumbnailQueue
 
     def __init__(self, has_threads=True, parent=None):
         super(BookmarksModel, self).__init__(

@@ -16,14 +16,10 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.images as images
-
-import bookmarks._scandir as _scandir
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.delegate as delegate
 
@@ -763,7 +759,8 @@ class FilterEditor(QtWidgets.QDialog):
         rect.setHeight(common.ROW_HEIGHT() + (common.MARGIN() * 2))
         painter.setBrush(common.SECONDARY_BACKGROUND)
         painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.drawRoundedRect(
+            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
     def mousePressEvent(self, event):

@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
-"""Basic test for the app.
-
-The test leave a lot more to be desired but for now they will check bare-bone
-functionality.
-
-"""
+"""Bookmarks unittesting module."""
 import unittest
 
 
-class TestImports(unittest.TestCase):
+class TestScandir(unittest.TestCase):
+    def test_scandir(self):
+        import bookmarks._scandir as scandir
+        import os
 
-    def setUp(self):
-        try:
-            import bookmarks
-        except ImportError as err:
-            self.fail(
-                'Could not import <bookmarks>. Is the modules available for Python?')
+        p = os.path.abspath(os.path.join(__file__, os.pardir))
 
+        it = scandir.scandir(unicode(p))
+        for entry in it:
+            self.assertIsInstance(entry, scandir.DirEntry)
+            self.assertIsInstance(entry.name, unicode)
+            self.assertIsInstance(entry.path, unicode)
+
+
+class TestDependencies(unittest.TestCase):
     def test_oiio_import(self):
         try:
             import OpenImageIO
@@ -241,7 +242,7 @@ class TestBookmarksWidget(unittest.TestCase):
         from PySide2 import QtCore
 
         import bookmarks.common as common
-        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+        common.PRODUCT = u'bookmarks_unittest'
 
         tempdir = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
@@ -295,13 +296,11 @@ class TestBookmarksWidget(unittest.TestCase):
     def test_open_managebookmarks(self):
         import bookmarks.managebookmarks as managebookmarks
         w = managebookmarks.ManageBookmarks()
-        w.show()
 
     def test_managebookmarks_add_bookmark(self):
         import bookmarks.managebookmarks as managebookmarks
 
         w = managebookmarks.ManageBookmarks()
-        w.show()
 
         val = u'INVALID_SERVER'
         w.scrollarea.widget().server_editor.add_server_lineeditor.setText(val)
@@ -325,7 +324,6 @@ class TestBookmarksWidget(unittest.TestCase):
         import bookmarks.managebookmarks as managebookmarks
 
         w = managebookmarks.ManageBookmarks()
-        w.show()
 
         val = self.server
         w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
@@ -337,7 +335,7 @@ class TestBookmarksWidget(unittest.TestCase):
         self.assertNotEqual(idx, -1)
 
 
-class TestModules(unittest.TestCase):
+class TestGui(unittest.TestCase):
     app = None
     root_dir = None
     server = None
@@ -349,7 +347,7 @@ class TestModules(unittest.TestCase):
         from PySide2 import QtCore
 
         import bookmarks.common as common
-        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+        common.PRODUCT = u'bookmarks_unittest'
 
         tempdir = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
@@ -382,18 +380,15 @@ class TestModules(unittest.TestCase):
 
     def test_addassetwidget(self):
         import bookmarks.addassetwidget as addassetwidget
-        path = u'/'
         w = addassetwidget.AddAssetWidget(
             self.server,
             self.job,
             u'bookmark_a',
         )
-        w.open()
 
     def test_addfilewidget(self):
         import bookmarks.addfilewidget as addfilewidget
         w = addfilewidget.AddFileWidget(u'ma')
-        w.open()
 
     def test_assetwidget(self):
         import bookmarks.assetswidget as assetswidget
@@ -401,23 +396,20 @@ class TestModules(unittest.TestCase):
         widget.model().sourceModel().parent_path = (
             self.server, self.job, 'bookmark_b',)
         widget.model().sourceModel().modelDataResetRequested.emit()
-        widget.show()
 
     def test_basecontextmenu(self):
         from PySide2 import QtCore
         import bookmarks.basecontextmenu as basecontextmenu
-        widget = basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
-        widget.show()
+        basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
 
     def test_bookmark_properties_widget(self):
         from PySide2 import QtCore
         import bookmarks.bookmark_properties as bookmark_properties
-        widget = bookmark_properties.BookmarkPropertiesWidget(
+        bookmark_properties.BookmarkPropertiesWidget(
             server=self.server,
             job=self.job,
             root=u'bookmark_a'
         )
-        widget.open()
 
     def test_baselist_widget(self):
         import bookmarks.baselistwidget as baselistwidget
@@ -426,42 +418,38 @@ class TestModules(unittest.TestCase):
         import bookmarks.bookmarkswidget as bookmarkswidget
         widget = bookmarkswidget.BookmarksWidget()
         widget.model().sourceModel().modelDataResetRequested.emit()
-        widget.show()
 
     def test_taskfolders_widget(self):
         import bookmarks.taskfolderwidget as taskfolderwidget
         widget = taskfolderwidget.TaskFolderWidget()
         widget.model().modelDataResetRequested.emit()
-        widget.show()
 
     def test_main_widget(self):
         import bookmarks.mainwidget as mainwidget
         widget = mainwidget.MainWidget()
-        widget.show()
 
     def test_favourites_widget(self):
         import bookmarks.favouriteswidget as favouriteswidget
         widget = favouriteswidget.FavouritesWidget()
-        widget.show()
 
     def test_preferences_widget(self):
         import bookmarks.preferenceswidget as preferenceswidget
         widget = preferenceswidget.PreferencesWidget()
-        widget.show()
 
     def test_slacker_widget(self):
         import bookmarks.slacker as slacker
         widget = slacker.SlackWidget(None, None)
-        widget.show()
 
-    def test_standalon0e_widget(self):
+    def test_standalone_widget(self):
         import bookmarks.standalone as standalone
         import bookmarks.mainwidget as mainwidget
         if mainwidget._instance:
             mainwidget._instance.deleteLater()
             mainwidget._instance = None
+
         widget = standalone.StandaloneMainWidget()
-        widget.show()
+        with self.assertRaises(RuntimeError):
+            standalone.StandaloneMainWidget()
 
     def test_files_widget(self):
         import bookmarks.fileswidget as fileswidget
@@ -470,7 +458,6 @@ class TestModules(unittest.TestCase):
             self.server, self.job, 'bookmark_a', u'asset_a')
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.model().sourceModel().taskFolderChanged.emit('taskdir_a')
-        widget.show()
 
     def test_todo_editor(self):
         from PySide2 import QtCore
@@ -482,7 +469,6 @@ class TestModules(unittest.TestCase):
             idx=1, text=u'Hello world', checked=True)
         widget.add_item(idx=2, text='file://test.com', checked=False)
         widget.add_item(idx=0, text='First item', checked=False)
-        widget.show()
 
     def test_versioncontrol(self):
         from PySide2 import QtCore
@@ -563,7 +549,7 @@ class TestImages(unittest.TestCase):
         import bookmarks.standalone as standalone
 
         import bookmarks.common as common
-        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+        common.PRODUCT = u'bookmarks_unittest'
 
         app = QtWidgets.QApplication.instance()
         if not app:
@@ -700,6 +686,20 @@ class TestImages(unittest.TestCase):
         image = images.ImageCache.get_image(u'bogus/path', 128)
         self.assertEqual(image, None)
 
+    def test_get_color(self):
+        import bookmarks.images as images
+        from PySide2 import QtGui
+
+        color = images.ImageCache.get_color(self.source)
+        self.assertEqual(color, None)
+
+        images.ImageCache.make_color(self.source)
+        color = images.ImageCache.get_color(self.source)
+        self.assertIsInstance(color, QtGui.QColor)
+
+        color2 = images.ImageCache.get_color(self.source)
+        self.assertEqual(color, color2)
+
     def test_get_pixmap(self):
         import bookmarks.images as images
         from PySide2 import QtGui
@@ -782,7 +782,7 @@ class TestAddFileWidget(unittest.TestCase):
         _dir.mkpath(u'./bookmark_a/taskdir_a')
 
         import bookmarks.common as common
-        common.PRODUCT = u'{}_unittest'.format(common.PRODUCT)
+        common.PRODUCT = u'bookmarks_unittest'
 
         from PySide2 import QtWidgets
         import bookmarks.standalone as standalone
@@ -843,13 +843,14 @@ class TestAddFileWidget(unittest.TestCase):
 if __name__ == '__main__':
     loader = unittest.TestLoader()
     cases = (
-        loader.loadTestsFromTestCase(TestImports),
+        loader.loadTestsFromTestCase(TestDependencies),
+        loader.loadTestsFromTestCase(TestScandir),
         loader.loadTestsFromTestCase(TestImages),
         loader.loadTestsFromTestCase(TestSQLite),
         loader.loadTestsFromTestCase(TestLocalSettings),
         loader.loadTestsFromTestCase(TestAddFileWidget),
         loader.loadTestsFromTestCase(TestBookmarksWidget),
-        loader.loadTestsFromTestCase(TestModules),
+        loader.loadTestsFromTestCase(TestGui),
     )
     suite = unittest.TestSuite(cases)
     unittest.TextTestRunner(verbosity=2, failfast=True).run(suite)

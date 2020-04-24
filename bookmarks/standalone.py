@@ -26,24 +26,26 @@ import bookmarks.images as images
 from bookmarks.mainwidget import TrayMenu
 
 
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseDesktopOpenGL, True)
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-# if QtWidgets.QApplication.testAttribute(QtCore.Qt.AA_UseOpenGLES):
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
+
+_instance = None
+
+
+def instance():
+    global _instance
+    return _instance
 
 
 class StandaloneMainWidget(MainWidget):
-    """An subclass of ``MainWidget`` adapted to run it as a standalone
-    application.
+    """Modified ``MainWidget``adapted to run it as a standalone
+    application, with or without window borders.
 
-    ``StandaloneMainWidget`` is a frameless window but resizing similar to
-    that of normal windows is implemented.
-
-    ``HeaderWidget`` is used to move the window around. We're also adding a
-    ``QSystemTrayIcon`` responsible for quick-access.
+    ``HeaderWidget`` is used to move the window around.
 
     """
-
     def __init__(self, parent=None):
         """Init method.
 
@@ -54,6 +56,11 @@ class StandaloneMainWidget(MainWidget):
         defines here. These properties work in conjunction with the mouse events
 
         """
+        global _instance
+        if _instance is not None:
+            raise RuntimeError('{} cannot be initialised more than once.'.format(self.__class__.__name__))
+        _instance = self
+
         super(StandaloneMainWidget, self).__init__(parent=None)
 
         k = u'preferences/frameless_window'
@@ -301,7 +308,6 @@ class StandaloneMainWidget(MainWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return
         if not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
-            event.ignore()
             return
 
         if self.resize_initial_pos == QtCore.QPoint(-1, -1):

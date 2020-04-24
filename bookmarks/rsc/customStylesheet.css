@@ -254,14 +254,14 @@ QScrollBar {{
 	font-size: {MEDIUM_FONT_SIZE}px;
 	background: rgba({SEPARATOR});
 	border-radius: {RADIUS_SM}px;
-	width: {RADIUS}px;
-	height: {RADIUS}px;
+	width: {SCROLLBAR_SIZE}px;
+	height: {SCROLLBAR_SIZE}px;
 }}
 QScrollBar::handle {{
 	background: rgba({SECONDARY_BACKGROUND});
 	border: none;
 	border-radius: {RADIUS_SM}px;
-	min-height: {ROW_HEIGHT}px;
+	min-height: {SCROLLBAR_MINHEIGHT}px;
 }}
 
 QScrollBar::add-page,
@@ -271,7 +271,6 @@ QScrollBar::up-arrow,
 QScrollBar::down-arrow,
 QScrollBar::sub-line {{
 	background: transparent;
-	/* background: rgba({SEPARATOR}); */
 	border: none;
 	border-radius: 0px;
 }}

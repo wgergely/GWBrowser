@@ -30,6 +30,75 @@ import bookmarks.images as images
 import bookmarks.settings as settings
 
 
+
+class QuickSwitchMenu(BaseContextMenu):
+    """Quick asset change menu."""
+
+    def __init__(self, parent=None):
+        super(QuickSwitchMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+
+    def add_switch_bookmark_menu(self):
+        stackedwidget = self.parent().parent().parent().stackedwidget
+        self.add_switch_menu(stackedwidget.widget(0), u'Change bookmark')
+
+    def add_switch_asset_menu(self):
+        stackedwidget = self.parent().parent().parent().stackedwidget
+        self.add_switch_menu(stackedwidget.widget(1), u'Change asset')
+
+    def add_switch_task_folder_menu(self):
+        w = self.parent().parent().task_folder_view
+        self.add_switch_menu(w, u'Change task folder')
+
+    @contextmenu
+    def add_switch_menu(self, menu_set, widget, label):
+        if hasattr(widget.model(), 'sourceModel'):
+            model = widget.model().sourceModel()
+        else:
+            model = widget.model()
+        active_index = model.active_index()
+        items = model.model_data().items()
+        items = sorted(
+            items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
+
+        off_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'folder', common.SECONDARY_TEXT, common.MARGIN())
+        on_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.MARGIN())
+
+        menu_set[label] = {
+            u'disabled': True
+        }
+        for idx, item in items:
+            if item[common.FlagsRole] & common.MarkedAsArchived:
+                continue
+            name = item[QtCore.Qt.DisplayRole]
+            active = False
+            if active_index.isValid():
+                n = active_index.data(QtCore.Qt.DisplayRole)
+                active = n.lower() == name.lower()
+
+            index = model.index(idx, 0)
+            if hasattr(model, 'mapFromSource'):
+                index = widget.model().mapFromSource(index)
+
+            thumbnail_path = images.get_thumbnail_path(
+                item[common.ParentPathRole][0],
+                item[common.ParentPathRole][1],
+                item[common.ParentPathRole][2],
+                item[QtCore.Qt.StatusTipRole],
+            )
+            pixmap = images.ImageCache.get_pixmap(thumbnail_path, common.MARGIN() * 2)
+            pixmap = pixmap if pixmap else off_pixmap
+            pixmap = on_pixmap if active else pixmap
+            icon = QtGui.QIcon(pixmap)
+            menu_set[name.upper()] = {
+                u'icon': icon,
+                u'action': functools.partial(widget.activate, index)
+            }
+        return menu_set
+
+
 class BaseControlButton(ClickableIconButton):
     """Base class with a few default values."""
 
@@ -235,15 +304,6 @@ class SimpleModeButton(BaseControlButton):
         cls = self.current_widget().__class__.__name__
         k = 'widget/{}/sort_with_basename'.format(cls)
         settings.local_settings.setValue(k, not val)
-
-        # self.current_widget().update()
-    #
-    # def update(self):
-    #     super(SimpleModeButton, self).update()
-    #     if self.current_index() == 2:
-    #         self.show()
-    #     else:
-    #         self.hide()
 
 
 class ToggleFavouriteButton(BaseControlButton):
@@ -530,44 +590,12 @@ class BookmarksTabButton(PaintedTextButton):
             text = self.default_label
         return text
 
-
-class QuickAssetsContextMenu(BaseContextMenu):
-    """Quick asset change menu."""
-
-    def __init__(self, parent=None):
-        super(QuickAssetsContextMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_assetlist_menu()
-
-    @contextmenu
-    def add_assetlist_menu(self, menu_set):
-        widget = self.parent().parent().parent().stackedwidget.widget(1)
-        active_index = widget.model().sourceModel().active_index()
-        items = widget.model().sourceModel().model_data().items()
-        items = sorted(
-            items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
-
-        off_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.MARGIN())
-        on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.MARGIN())
-
-        for idx, item in items:
-            active = False
-            if active_index.isValid():
-                active = active_index.data(QtCore.Qt.DisplayRole).lower(
-                ) == item[QtCore.Qt.DisplayRole].lower()
-            if item[common.FlagsRole] & common.MarkedAsArchived:
-                continue
-            source_index = widget.model().sourceModel().index(idx, 0)
-            index = widget.model().mapFromSource(source_index)
-
-            menu_set[item[QtCore.Qt.DisplayRole].upper()] = {
-                u'icon': on_pixmap if active else off_pixmap,
-                u'action': functools.partial(widget.activate, index)
-            }
-        return menu_set
-
+    def contextMenuEvent(self, event):
+        menu = QuickSwitchMenu(parent=self)
+        menu.add_switch_bookmark_menu()
+        pos = self.mapToGlobal(event.pos())
+        menu.move(pos)
+        menu.exec_()
 
 class AssetsTabButton(PaintedTextButton):
     """The button responsible for revealing the ``AssetsWidget``"""
@@ -584,7 +612,8 @@ class AssetsTabButton(PaintedTextButton):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
     def contextMenuEvent(self, event):
-        menu = QuickAssetsContextMenu(parent=self)
+        menu = QuickSwitchMenu(parent=self)
+        menu.add_switch_asset_menu()
         pos = self.mapToGlobal(event.pos())
         menu.move(pos)
         menu.exec_()
@@ -613,7 +642,11 @@ class FilesTabButton(PaintedTextButton):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
     def contextMenuEvent(self, event):
-        self.show_view()
+        menu = QuickSwitchMenu(parent=self)
+        menu.add_switch_task_folder_menu()
+        pos = self.mapToGlobal(event.pos())
+        menu.move(pos)
+        menu.exec_()
 
     def view(self):
         return self.parent().task_folder_view
@@ -654,7 +687,6 @@ class FilesTabButton(PaintedTextButton):
             painter.drawRect(self.rect())
 
             rect = self.rect()
-            center = rect.center()
             rect.setHeight(common.ROW_SEPARATOR() * 2.0)
             painter.setBrush(common.ADD)
             painter.drawRect(rect)
@@ -719,6 +751,15 @@ class FavouritesTabButton(PaintedTextButton):
             u'Click to see your saved favourites',
             parent=parent
         )
+
+    def contextMenuEvent(self, event):
+        menu = QuickSwitchMenu(parent=self)
+        menu.add_switch_bookmark_menu()
+        menu.add_switch_asset_menu()
+        menu.add_switch_task_folder_menu()
+        pos = self.mapToGlobal(event.pos())
+        menu.move(pos)
+        menu.exec_()
 
 
 class SlackDropOverlayWidget(QtWidgets.QWidget):

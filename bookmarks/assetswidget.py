@@ -76,6 +76,7 @@ class AssetModel(BaseModel):
     ROW_SIZE = QtCore.QSize(1, val)
 
     queue_type = threads.AssetInfoQueue
+    thumbnail_queue_type = threads.AssetThumbnailQueue
 
     def __init__(self, has_threads=True, parent=None):
         super(AssetModel, self).__init__(

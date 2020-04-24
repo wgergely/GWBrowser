@@ -89,6 +89,7 @@ class FilesModel(BaseModel):
     ROW_SIZE = QtCore.QSize(1, val)
 
     queue_type = threads.FileInfoQueue
+    thumbnail_queue_type = threads.FileThumbnailQueue
 
     def _entry_iterator(self, path):
         for entry in _scandir.scandir(path):
@@ -326,7 +327,6 @@ class FilesModel(BaseModel):
             MODEL_DATA[common.SequenceItem][idx][common.IdRole] = idx
 
         self.INTERNAL_MODEL_DATA[task_folder] = MODEL_DATA
-        del MODEL_DATA
 
     def task_folder(self):
         """Current key to the data dictionary."""

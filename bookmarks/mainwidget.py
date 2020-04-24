@@ -361,7 +361,8 @@ class ToggleModeButton(QtWidgets.QWidget):
 
 
 class MainWidget(QtWidgets.QWidget):
-    """The main widget.
+    """Our super-duper main widget.
+
     Contains the list control bar with the tab buttons, the stacked widget
     containing the Bookmark-, Asset- and FileWidgets and the statusbar.
 
@@ -369,12 +370,11 @@ class MainWidget(QtWidgets.QWidget):
     initialized = QtCore.Signal()
     terminated = QtCore.Signal()
     shutdown = QtCore.Signal()
-    resized = QtCore.Signal(QtCore.QRect)
 
     def __init__(self, parent=None):
         global _instance
         if _instance is not None:
-            raise RuntimeError(u'Bookmarks cannot be initiated twice.')
+            raise RuntimeError('{} cannot be initialised more than once.'.format(self.__class__.__name__))
         _instance = self
 
         super(MainWidget, self).__init__(parent=parent)
@@ -974,9 +974,3 @@ class MainWidget(QtWidgets.QWidget):
         """
         if not self._initialized:
             self.initializer.start()
-
-    def resizeEvent(self, event):
-        """Custom resize event."""
-        self.resized.emit(self.geometry())
-        if self.stackedwidget:
-            self.stackedwidget.currentWidget().scheduleDelayedItemsLayout()

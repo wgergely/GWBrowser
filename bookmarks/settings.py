@@ -31,6 +31,7 @@ import bookmarks._scandir as _scandir
 
 
 ACTIVE_KEYS = (u'server', u'job', u'root', u'asset', u'location', u'file')
+local_settings = None
 
 
 def _bool(v):

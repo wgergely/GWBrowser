@@ -624,12 +624,9 @@ class SelectFolderView(QtWidgets.QTreeView):
 
     def _connect_signals(self):
         self.model().directoryLoaded.connect(self.restore_previous_selection)
-        self.model().directoryLoaded.connect(self.resize_columns)
         self.model().directoryLoaded.connect(self.adjust_height)
 
-        self.expanded.connect(self.resize_columns)
         self.expanded.connect(self.adjust_height)
-        self.collapsed.connect(self.resize_columns)
         self.collapsed.connect(self.adjust_height)
 
         self.selectionModel().currentChanged.connect(self.active_changed)
@@ -729,15 +726,6 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.activated.emit(index)
 
         self._initialized = True
-
-    @QtCore.Slot(unicode)
-    def resize_columns(self):
-        return
-        # self.header().resizeSections(QtWidgets.QHeaderView.Interactive)
-        # for n in xrange(self.model().columnCount()):
-        self.resizeColumnToContents(0)
-        self.resizeColumnToContents(1)
-        self.resizeColumnToContents(4)
 
     def showEvent(self, event):
         self.adjust_height()
@@ -992,25 +980,12 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         saves the new file.
 
         """
-        def move_widget_offscreen():
-            """We'll move the window off-screen before we do a capture."""
-            app = QtWidgets.QApplication.instance()
-            t, l, w, h = (list(), ) * 4
-            for screen in app.screens():
-                rect = screen.availableGeometry()
-                t.append(rect.top())
-                l.append(rect.left())
-                w.append(rect.width())
-                h.append(rect.height())
-            t, l, w, h = [max(f) for f in (t, l, w, h)]
-            self.window().move(l + w, t + h)
-
         @QtCore.Slot(unicode)
         def process_capture(source):
             images.ImageCache.flush(source)
             image = images.ImageCache.get_image(
                 source,
-                common.THUMBNAIL_IMAGE_SIZE
+                int(common.THUMBNAIL_IMAGE_SIZE)
             )
             if not image:
                 s = u'Error saving capture'
@@ -1021,10 +996,7 @@ class ThumbnailButton(common_ui.ClickableIconButton):
             self.thumbnail = image
             self.update()
 
-        original_pos = self.window().geometry().topLeft()
-
         try:
-            move_widget_offscreen()
             widget = images.ScreenCapture()
             widget.captureFinished.connect(process_capture)
             widget.open()
@@ -1033,8 +1005,6 @@ class ThumbnailButton(common_ui.ClickableIconButton):
             log.error(s)
             common_ui.ErroBox(s, u'').open()
             raise
-        finally:
-            self.window().move(original_pos)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -1043,19 +1013,39 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-        pen = QtGui.QPen(common.SEPARATOR)
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        if hover:
+            pen = QtGui.QPen(common.ADD)
+        else:
+            pen = QtGui.QPen(common.SEPARATOR)
+
         o = common.INDICATOR_WIDTH()
         pen.setWidth(o * 0.5)
         painter.setPen(pen)
         painter.setBrush(common.SEPARATOR)
 
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
-        painter.setOpacity(0.5)
-        painter.drawRoundedRect(self.rect(), o * 2, o * 2)
+        if not hover:
+            painter.setOpacity(0.95)
 
-        painter.drawPixmap(
-            self.rect(), self.pixmap(), self.pixmap().rect())
+        pixmap = self.pixmap()
+        rect = self.rect()
 
+        rect_ = rect.marginsRemoved(QtCore.QMargins(o * 0.5, o * 0.5, o * 0.5, o * 0.5))
+        painter.drawRoundedRect(rect_, o * 2, o * 2)
+
+
+        s = float(rect_.height())
+        longest_edge = float(max((pixmap.width(), pixmap.height())))
+        ratio = s / longest_edge
+        w = pixmap.width() * ratio
+        h = pixmap.height() * ratio
+
+        _rect = QtCore.QRect(0, 0, int(w), int(h))
+        _rect.moveCenter(rect_.center())
+        painter.drawPixmap(_rect, pixmap, pixmap.rect())
         painter.end()
 
 
@@ -1843,7 +1833,9 @@ class AddFileWidget(QtWidgets.QDialog):
 
         server, job, root = index.data(common.ParentPathRole)[0:3]
         destination = images.get_thumbnail_path(
-            server, job, root,
+            server,
+            job,
+            root,
             file_path
         )
 

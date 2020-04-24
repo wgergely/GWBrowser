@@ -31,7 +31,7 @@ import OpenImageIO
 import bookmarks._scandir as _scandir
 
 
-font_db = None # Must be set before bookmarks is initialized
+font_db = None  # Must be set before bookmarks is initialized
 STANDALONE = True  # The current mode of bookmarks
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks'
@@ -572,6 +572,8 @@ def set_custom_stylesheet(widget):
             LARGE_FONT_SIZE=int(LARGE_FONT_SIZE()),
             RADIUS=int(INDICATOR_WIDTH() * 1.5),
             RADIUS_SM=int(INDICATOR_WIDTH()),
+            SCROLLBAR_SIZE=int(INDICATOR_WIDTH() * 2),
+            SCROLLBAR_MINHEIGHT=int(MARGIN() * 5),
             ROW_SEPARATOR=int(ROW_SEPARATOR()),
             MARGIN=int(MARGIN()),
             CONTEXT_MENU_HEIGHT=int(MARGIN() * 1.5),

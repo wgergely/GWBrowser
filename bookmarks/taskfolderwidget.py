@@ -181,17 +181,18 @@ class TaskFolderModel(BaseModel):
         @QtCore.Slot(QtCore.QThread)
         def thread_started(thread):
             """Signals the model an item has been updated."""
-            thread.worker.dataReady.connect(
-                self.updateRow, QtCore.Qt.QueuedConnection)
+            cnx = QtCore.Qt.QueuedConnection
+            thread.updateRow.connect(
+                self.updateRow, QtCore.Qt.DirectConnection)
 
             self.startCheckQueue.connect(
                 lambda: log.debug('startCheckQueue -> worker.startCheckQueue', self))
             self.startCheckQueue.connect(
-                thread.startCheckQueue, type=QtCore.Qt.QueuedConnection)
+                thread.startCheckQueue, cnx)
             self.stopCheckQueue.connect(
                 lambda: log.debug('stopCheckQueue -> worker.stopCheckQueue', self))
             self.stopCheckQueue.connect(
-                thread.stopCheckQueue, type=QtCore.Qt.QueuedConnection)
+                thread.stopCheckQueue, cnx)
             self.startCheckQueue.emit()
 
         info_worker = threads.TaskFolderWorker(threads.TaskFolderInfoQueue)
@@ -281,7 +282,6 @@ class TaskFolderModel(BaseModel):
 class TaskFolderWidget(QtWidgets.QListView):
     """The view responsonsible for displaying the available data-keys."""
     ContextMenu = TaskFolderContextMenu
-
     def __init__(self, parent=None, altparent=None):
         super(TaskFolderWidget, self).__init__(parent=parent)
         self.altparent = altparent
@@ -328,6 +328,13 @@ class TaskFolderWidget(QtWidgets.QListView):
             return QtCore.QSize(self.parent().width(), self.parent().height())
         else:
             return QtCore.QSize(common.WIDTH() * 0.6, common.HEIGHT() * 0.6)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def activate(self, index):
+        """Exists only for compatibility/consistency."""
+        if not index.isValid():
+            return
+        self.activated.emit(index)
 
     def inline_icons_count(self):
         return 0

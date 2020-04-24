@@ -96,7 +96,8 @@ class RectanglesWidget(QtWidgets.QLabel):
         painter.setOpacity(1.0)
 
         painter.setPen(common.TEXT)
-        painter.setFont(common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE()))
+        painter.setFont(common.font_db.primary_font(
+            font_size=common.SMALL_FONT_SIZE()))
         _rect = self.rect()
         _rect.setLeft(rect.left() + common.SMALL_FONT_SIZE())
 
@@ -457,6 +458,7 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
     Bookmark properties.
 
     """
+
     def __init__(self, server, job, root, parent=None):
         global _widget_instance
         _widget_instance = self
@@ -504,7 +506,8 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
 
         pixmap = images.ImageCache.get_pixmap(source, row.height())
         if not pixmap:
-            source = images.get_placeholder_path(bookmark, fallback=u'thumb_bookmark_gray')
+            source = images.get_placeholder_path(
+                bookmark, fallback=u'thumb_bookmark_gray')
             pixmap = images.ImageCache.get_pixmap(source, row.height())
 
         if pixmap:

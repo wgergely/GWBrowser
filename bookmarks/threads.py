@@ -37,21 +37,34 @@ import bookmarks.bookmark_db as bookmark_db
 
 THREADS = {}
 
-ThumbnailQueue = 1
-FileInfoQueue = ThumbnailQueue + 1
+FileThumbnailQueue = 1
+FavouriteThumbnailQueue = FileThumbnailQueue + 1
+AssetThumbnailQueue = FavouriteThumbnailQueue + 1
+BookmarkThumbnailQueue = AssetThumbnailQueue + 1
+FileInfoQueue = BookmarkThumbnailQueue + 1
 FavouriteInfoQueue = FileInfoQueue + 1
 AssetInfoQueue = FavouriteInfoQueue + 1
 BookmarkInfoQueue = AssetInfoQueue + 1
 TaskFolderInfoQueue = BookmarkInfoQueue + 1
 
 QUEUES = {
-    ThumbnailQueue: collections.deque([], 99),
+    FileThumbnailQueue: collections.deque([], 99),
+    FavouriteThumbnailQueue: collections.deque([], 99),
+    AssetThumbnailQueue: collections.deque([], 99),
+    BookmarkThumbnailQueue: collections.deque([], 99),
     FileInfoQueue: collections.deque([], common.MAXITEMS),
     FavouriteInfoQueue: collections.deque([], common.MAXITEMS),
     AssetInfoQueue: collections.deque([], common.MAXITEMS),
     BookmarkInfoQueue: collections.deque([], common.MAXITEMS),
     TaskFolderInfoQueue: collections.deque([], common.MAXITEMS),
 }
+
+
+class ModelLoadedDummy(object):
+    """Dummy class used to help signal a model has been fully processed."""
+
+    def __init__(self, data_type):
+        self.data_type = data_type
 
 
 def verify_thread_affinity():
@@ -65,27 +78,40 @@ def process(func):
     """Decorator for worker `process_data` slots.
 
     Takes and passes the next available data in the queue for processing
-    and emits the `dataReady` signal if the data has been correctly loaded.
+    and emits the `updateRow` signal if the data has been correctly loaded.
 
     """
     @functools.wraps(func)
     def func_wrapper(self):
         verify_thread_affinity()
-
         try:
             if self.interrupt:
                 return
+
             ref = QUEUES[self.queue_type].pop()
+
+            # Let the source model know that we loaded a data segment fully
+            if isinstance(ref, ModelLoadedDummy):
+                if self.interrupt:
+                    return
+                self.modelLoaded.emit(ref.data_type)
+                return
+
             if not ref() or self.interrupt:
                 return
+
+            # Call process_data
             result = func(self, ref)
             if not isinstance(result, bool):
                 raise TypeError(
                     u'Invalid return value from process_data(). Expected <type \'bool\'>, got {}'.format(type(result)))
-            # Let the models/views know the data has been processed ok
+
+            # Let the models/views know the data has been processed ok and
+            # and request a row repaint
             if not ref() or self.interrupt or not result:
                 return
-            self.dataReady.emit(ref()[common.IdRole])
+            self.updateRow.emit(ref()[common.IdRole])
+
         except IndexError:
             pass # ignore index errors
         except (ValueError, RuntimeError, TypeError):
@@ -156,6 +182,8 @@ class BaseThread(QtCore.QThread):
     queueModel = QtCore.Signal(str)
     startCheckQueue = QtCore.Signal()
     stopCheckQueue = QtCore.Signal()
+    updateRow = QtCore.Signal(int)
+    modelLoaded = QtCore.Signal(int)
 
     def __init__(self, worker, parent=None):
         super(BaseThread, self).__init__(parent=parent)
@@ -182,7 +210,9 @@ class BaseThread(QtCore.QThread):
     @QtCore.Slot()
     def move_worker_to_thread(self):
         log.debug(u'move_worker_to_thread()', self)
+
         self.worker.moveToThread(self)
+        cnx = QtCore.Qt.QueuedConnection
 
         if self.worker.thread() == QtWidgets.QApplication.instance().thread():
             s = u'The worker cannot be used in the main gui thread.'
@@ -191,29 +221,19 @@ class BaseThread(QtCore.QThread):
 
         self.resetQueue.connect(
             lambda: log.debug(u'resetQueue --> worker.resetQueue', self))
-        self.resetQueue.connect(
-            self.worker.resetQueue,
-            QtCore.Qt.QueuedConnection
-        )
+        self.resetQueue.connect(self.worker.resetQueue, cnx)
         self.queueModel.connect(
             lambda: log.debug(u'queueModel --> worker.queueModel', self))
-        self.queueModel.connect(
-            self.worker.queueModel,
-            QtCore.Qt.QueuedConnection
-        )
+        self.queueModel.connect(self.worker.queueModel, cnx)
 
         self.startCheckQueue.connect(
             lambda: log.debug(u'startCheckQueue --> worker.startCheckQueue', self))
-        self.startCheckQueue.connect(
-            self.worker.startCheckQueue,
-            QtCore.Qt.QueuedConnection
-        )
+        self.startCheckQueue.connect(self.worker.startCheckQueue, cnx)
         self.stopCheckQueue.connect(
             lambda: log.debug(u'stopCheckQueue --> worker.stopCheckQueue', self))
-        self.stopCheckQueue.connect(
-            self.worker.stopCheckQueue,
-            QtCore.Qt.QueuedConnection
-        )
+        self.stopCheckQueue.connect(self.worker.stopCheckQueue, cnx)
+        self.worker.updateRow.connect(self.updateRow, cnx)
+        self.worker.modelLoaded.connect(self.modelLoaded, cnx)
 
     def add_to_queue(self, ref):
         """Add an item to the worker's queue.
@@ -240,8 +260,8 @@ class BaseWorker(QtCore.QObject):
     resetQueue = QtCore.Signal()
     queueModel = QtCore.Signal(str)
 
-    dataReady = QtCore.Signal(int)
-    modelLoaded = QtCore.Signal(weakref.ref)
+    updateRow = QtCore.Signal(int)
+    modelLoaded = QtCore.Signal(int)
 
     startCheckQueue = QtCore.Signal()
     stopCheckQueue = QtCore.Signal()
@@ -287,10 +307,14 @@ class BaseWorker(QtCore.QObject):
 
     @QtCore.Slot(str)
     def add_model_to_queue(self, repr_name):
-        """Add each data segments to the worker's queue.
+        """Load the entirety of the model's data in the queue for processing.
+
+        `repr_name` is the name of the source class. This is needed because the connections are
+        queued and passing model data directly would incur a significant overhead. Instead, `repr_name` is
+        used as a pointer to located data from in the model directly.
 
         Args:
-            ref (weakref.ref): Weak reference to the `FileType` or `SequenceType` data.
+            repr_name (str): The string representation of the calling class.
 
         """
         verify_thread_affinity()
@@ -299,6 +323,7 @@ class BaseWorker(QtCore.QObject):
         if not mainwidget.instance():
             return
 
+        # Let's determine the type
         if 'BookmarksModel' in repr_name:
             n = 0
         elif 'AssetModel' in repr_name:
@@ -308,6 +333,7 @@ class BaseWorker(QtCore.QObject):
         elif 'FavouritesModel' in repr_name:
             n = 3
 
+        # and load the data
         view = mainwidget.instance().stackedwidget.widget(n)
         model = view.model().sourceModel()
 
@@ -317,6 +343,7 @@ class BaseWorker(QtCore.QObject):
         if k not in model.INTERNAL_MODEL_DATA:
             return
 
+        # We will load the current item type first
         if model.data_type() == common.FileItem:
             data_types = (common.FileItem, common.SequenceItem)
         else:
@@ -333,8 +360,10 @@ class BaseWorker(QtCore.QObject):
                     continue
                 _ref = weakref.ref(data)
                 q.appendleft(_ref)
-                # if _ref not in q:
 
+            # The very last item we add is a dummy object that will be used to
+            # signal the model that all data has been loaded
+            q.appendleft(ModelLoadedDummy(data_type))
             return True
 
     @QtCore.Slot()
@@ -360,7 +389,6 @@ class InfoWorker(BaseWorker):
     don't want to do in the main thread.
 
     """
-
     @process
     @QtCore.Slot(weakref.ref)
     def process_data(self, ref):
@@ -574,19 +602,18 @@ class ThumbnailWorker(BaseWorker):
 
         """
         is_valid = lambda: False if not ref() or self.interrupt or ref()[common.ThumbnailLoaded] or ref()[common.FlagsRole] & common.MarkedAsArchived else True
+
         if not is_valid():
             return False
         size = ref()[QtCore.Qt.SizeHintRole].height()
+
         if not is_valid():
             return False
         _p = ref()[common.ParentPathRole]
+
         if not is_valid():
             return False
         source = ref()[QtCore.Qt.StatusTipRole]
-
-        # If this is a sequence, use the sequence's first file as the thumbnail
-        if common.is_collapsed(source):
-            source = common.get_sequence_startpath(source)
 
         # Resolve the thumbnail's path...
         destination = images.get_thumbnail_path(
@@ -605,22 +632,35 @@ class ThumbnailWorker(BaseWorker):
         try:
             # If the image successfully loads we can wrap things up here
             if image and not image.isNull():
+                images.ImageCache.get_image(destination, int(size), force=True)
+                images.ImageCache.make_color(destination)
                 return True
 
             # Otherwise, we will try to generate a thumbnail using OpenImageIO
+
+            # If the items is a sequence, we'll use the first image of the
+            # sequence to make the thumbnail.
+            if not is_valid():
+                return False
+            if ref()[common.TypeRole] == common.SequenceItem:
+                if not is_valid():
+                    return False
+                source = ref()[common.EntryRole][0].path.replace(u'\\', u'/')
+
             buf = images.oiio_get_buf(source)
             if not buf:
-                return True
+                return False
 
             if QtCore.QFileInfo(source).size() >= pow(1024, 3) * 2:
                 return False
-
             res = images.ImageCache.oiio_make_thumbnail(
                 source,
                 destination,
                 common.THUMBNAIL_IMAGE_SIZE,
             )
             if res:
+                images.ImageCache.get_image(destination, int(size), force=True)
+                images.ImageCache.make_color(destination)
                 return True
 
             # We should never get here ideally, but if we do we'll mark the item
@@ -631,11 +671,12 @@ class ThumbnailWorker(BaseWorker):
                 common.THUMBNAIL_IMAGE_SIZE
             )
             if res:
+                images.ImageCache.get_image(destination, int(size), force=True)
+                images.ImageCache.make_color(destination)
                 return True
             return False
         except:
             log.error(u'Failed to generate thumbnail')
-            return True
         finally:
             if ref():
                 ref()[common.ThumbnailLoaded] = True

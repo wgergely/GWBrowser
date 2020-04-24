@@ -98,12 +98,14 @@ MAYA_FPS = {
     u'48000fps': 48000.0,
 }
 
+
 def set_framerate(fps):
     for k, v in MAYA_FPS.iteritems():
         if fps == v:
             cmds.currentUnit(time=k)
             return k
     raise ValueError(u'Invalid fps provided')
+
 
 def get_framerate():
     return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
@@ -317,7 +319,6 @@ def outliner_sets():
 
         return True
 
-
     sets_data = {}
     for s in sorted([k for k in cmds.ls(sets=True) if _is_set_created_by_user(k)]):
         # I added this because of the plethora of sets in complex animation scenes
@@ -354,7 +355,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     # ERROR CHECKING
     # Check destination before proceeding
     if not isinstance(outliner_set, (tuple, list)):
-        raise TypeError('Expected <type \'list\'>, got {}'.format(type(outliner_set)))
+        raise TypeError(
+            'Expected <type \'list\'>, got {}'.format(type(outliner_set)))
 
     destination_info = QtCore.QFileInfo(destination_path)
     destination_dir = destination_info.dir()
@@ -486,7 +488,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                     world_shape, fullPath=True, type='transform', parent=True)[0])
             world_shapes.append(world_shape)
 
-        perframecallback = u'"import bookmarks.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(startframe, endframe, time.time())
+        perframecallback = u'"import bookmarks.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
+            startframe, endframe, time.time())
 
         jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {sn} {rt} {df} {pfc} {ro}'.format(
             f=u'-file "{}"'.format(destination_path),
@@ -537,6 +540,7 @@ def _capture_viewport_destination():
         scene=scene_info.baseName()
     )
     return capture_folder, workspace, dest
+
 
 @QtCore.Slot()
 def capture_viewport(size=1.0):
@@ -753,7 +757,6 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
     for entry in _scandir.scandir(latest_dir):
         os.remove(entry.path)
 
-
     idx = 0
     for n in xrange(int(duration)):
         source = u'{workspace}/{capture_folder}/{scene}/{scene}.{n}.{ext}'.format(
@@ -881,7 +884,8 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_capture_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.MARGIN())
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'capture', None, common.MARGIN())
         k = 'Capture viewport'
         menu_set[k] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(k)] = pixmap
@@ -889,7 +893,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
 
-        size = lambda n: (int(int(width) * n), int(int(height) * n))
+        def size(n): return (int(int(width) * n), int(int(height) * n))
 
         for n in (1.0, 0.5, 0.25, 1.5, 2.0):
             menu_set[k][u'capture{}'.format(n)] = {
@@ -951,7 +955,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             self.adjustSize()
             self.update()
         else:
-            s ='Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.'
+            s = 'Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.'
             log.error(s)
             print s
 
@@ -967,7 +971,8 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.drawRoundRect(self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.drawRoundRect(
+            self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.end()
 
         super(MayaBrowserButton, self).paintEvent(event)
@@ -1165,7 +1170,8 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
     @contextmenu
     @contextmenu_mainwidget
     def add_capture_menu(self, menu_set, mainwidget=None):
-        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.MARGIN())
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'capture', None, common.MARGIN())
         k = 'Capture viewport'
         menu_set[k] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(k)] = pixmap
@@ -1173,7 +1179,7 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
 
-        size = lambda n: (int(int(width) * n), int(int(height) * n))
+        def size(n): return (int(int(width) * n), int(int(height) * n))
 
         for n in (1.0, 0.5, 0.25, 1.5, 2.0):
             menu_set[k][u'capture{}'.format(n)] = {
@@ -1557,7 +1563,6 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             else:
                 cmds.currentTime(currentFrame, edit=True)
 
-
         def set_end_frame(frame):
             frame = round(frame, 0)
             currentFrame = round(cmds.currentTime(query=True))
@@ -1571,18 +1576,18 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             else:
                 cmds.currentTime(currentFrame, edit=True)
 
-
         def _set_framerate(fps):
-            animationStartTime = cmds.playbackOptions(query=True, animationStartTime=True)
+            animationStartTime = cmds.playbackOptions(
+                query=True, animationStartTime=True)
             minTime = cmds.playbackOptions(query=True, minTime=True)
-            animationEndTime = cmds.playbackOptions(query=True, animationEndTime=True)
+            animationEndTime = cmds.playbackOptions(
+                query=True, animationEndTime=True)
             maxTime = cmds.playbackOptions(query=True, maxTime=True)
             set_framerate(fps)
             cmds.playbackOptions(animationStartTime=animationStartTime)
             cmds.playbackOptions(minTime=minTime)
             cmds.playbackOptions(animationEndTime=animationEndTime)
             cmds.playbackOptions(maxTime=maxTime)
-
 
         try:
             widget = self.mainwidget.stackedwidget.widget(0)
@@ -1603,7 +1608,6 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 for _k in bookmark_db.KEYS[t]:
                     v[_k] = db.value(1, _k, table=t)
 
-
             if (v['width'] and v['height']):
                 cmds.setAttr('defaultResolution.width', v['width'])
                 cmds.setAttr('defaultResolution.height', v['height'])
@@ -1622,20 +1626,26 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.setAttr('defaultRenderGlobals.outFormatControl', 0)
             cmds.setAttr('defaultRenderGlobals.imageFormat', 8)
 
-
             info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
-                w=u'{}'.format(int(v['width'])) if (v['width'] and v['height']) else u'',
-                h=u'x{}px'.format(int(v['height'])) if (v['width'] and v['height']) else u'',
-                fps=u'  |  {}fps'.format(v['framerate']) if v['framerate'] else u'',
+                w=u'{}'.format(int(v['width'])) if (
+                    v['width'] and v['height']) else u'',
+                h=u'x{}px'.format(int(v['height'])) if (
+                    v['width'] and v['height']) else u'',
+                fps=u'  |  {}fps'.format(
+                    v['framerate']) if v['framerate'] else u'',
                 pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
-                start=u'  |  {}'.format(int(v['startframe'])) if v['startframe'] else u'',
+                start=u'  |  {}'.format(
+                    int(v['startframe'])) if v['startframe'] else u'',
                 duration=u'-{} ({} frames)'.format(
                     int(v['startframe']) + int(v['duration']),
                     int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
             )
 
+            s = u'Successfully applied the default scene settings: {}'.format(
+                info)
+            log.success(s)
             common_ui.OkBox(
-                u'Successfully applied the default scene settings:',
+                u'Successfully applied the default scene settings.',
                 info,
             ).open()
 
@@ -1644,8 +1654,6 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
             log.error(s)
             raise
-
-
 
     @QtCore.Slot()
     def save_scene(self, increment=False, modal=True):
@@ -1671,7 +1679,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             if widget.exec_() == QtWidgets.QDialog.Rejected:
                 return
         if not modal and not increment:
-            raise RuntimeError('Flags `increment` and `modal` together is undefined behaviour')
+            raise RuntimeError(
+                'Flags `increment` and `modal` together is undefined behaviour')
         if increment and modal:
             widget.open()
 
@@ -1732,12 +1741,9 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 return
             cmds.file(file_info.filePath(), open=True, force=True)
 
-            log.success(
-                u'# Bookmarks: Scene opened {}\n'.format(file_info.filePath()))
-            common_ui.OkBox(
-                u'Success.',
-                u'{} opened successfully.'.format(file_info.filePath())
-            ).open()
+            s = u'Scene opened {}\n'.format(file_info.filePath())
+            log.success(s)
+
             return file_info.filePath()
         except Exception as e:
             s = u'Could not open the scene.'
@@ -1773,10 +1779,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 i=True,
                 ns=ns
             )
-            common_ui.OkBox(
-                u'Done.',
-                u'{} imported successfully.'.format(file_info.filePath())
-            ).open()
+            s = u'{} imported successfully.'.format(file_info.filePath())
+            log.success(s)
             return file_info.filePath()
 
         except Exception as e:
@@ -1840,7 +1844,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             if not alphabet:
                 return
 
-            w = QtWidgets.QInputDialog(parent=self)
+            w = QtWidgets.QInputDialog()
             w.setWindowTitle(u'Assign suffix')
             w.setLabelText(
                 u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
@@ -1869,11 +1873,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             rfn = cmds.rename(rfn, u'{}_RN'.format(ns))
             cmds.lockNode(rfn, lock=True)
 
-            common_ui.OkBox(
-                u'Success.',
-                u'{} referenced successfully.'.format(file_info.filePath())
-            ).open()
-
+            s = u'{} referenced successfully.'.format(file_info.filePath())
+            log.success(s)
             return file_info.filePath()
         except Exception as e:
             s = u'Could not reference the scene.'
@@ -1905,10 +1906,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
                 return
             cmds.AbcImport(file_info.filePath(), mode=u'open')
-            common_ui.OkBox(
-                u'Success.',
-                u'{} opened successfully.'.format(file_info.filePath())
-            ).open()
+            s = u'{} opened successfully.'.format(file_info.filePath())
+            log.success(s)
             return file_info.filePath()
         except Exception as e:
             s = u'Could not reference the scene.'
@@ -1967,10 +1966,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             for s in cmds.listRelatives(root_node, children=True):
                 cmds.rename(s, u'{}:{}'.format(ns, s))
 
-            common_ui.OkBox(
-                u'Success.',
-                u'{} imported successfully.'.format(file_info.filePath())
-            ).open()
+            s = u'{} imported successfully.'.format(file_info.filePath())
+            log.success(s)
             return file_info.filePath()
         except Exception as e:
             s = u'Could not import alembic.'
@@ -2033,10 +2030,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     continue
                 cmds.parent(member, root_node)
 
-            common_ui.OkBox(
-                u'Success.',
-                u'{} referenced successfully.'.format(file_info.filePath())
-            ).open()
+            s = u'{} referenced successfully.'.format(file_info.filePath())
+            log.success(s)
             return file_info.filePath()
         except Exception as e:
             s = u'Could not reference alembic.'

@@ -38,6 +38,7 @@ import bookmarks.images as images
 
 _viewer_instance = None
 
+
 class BaseNode(QtCore.QObject):
     def __init__(self, iobject, parentNode=None, parent=None):
         super(BaseNode, self).__init__(parent=parent)
@@ -344,6 +345,7 @@ class AlembicView(QtWidgets.QWidget):
     """Widget used  to display the contents of an alembic archive.
 
     """
+
     def __init__(self, path, parent=None):
         global _viewer_instance
         _viewer_instance = self

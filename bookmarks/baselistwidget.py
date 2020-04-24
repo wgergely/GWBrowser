@@ -98,6 +98,8 @@ def initdata(func):
 
         try:
             self.beginResetModel()
+            self.reset_model_loaded()
+
             self._interrupt_requested = False
             log.debug('__initdata__()', self)
             func(self, *args, **kwargs)
@@ -426,6 +428,8 @@ class BaseModel(QtCore.QAbstractListModel):
     sortingChanged = QtCore.Signal(int, bool)  # (SortRole, SortOrder)
 
     progressMessage = QtCore.Signal(unicode)
+
+    # Update signals
     updateIndex = QtCore.Signal(QtCore.QModelIndex)
     updateRow = QtCore.Signal(int)
 
@@ -434,6 +438,7 @@ class BaseModel(QtCore.QAbstractListModel):
     stopCheckQueue = QtCore.Signal()
 
     queue_type = None
+    thumbnail_queue_type = None
 
     def __init__(self, has_threads=True, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -448,8 +453,12 @@ class BaseModel(QtCore.QAbstractListModel):
             common.ThumbnailThread: [],  # Thread for generating thumbnails
         })
 
-        self.file_info_loaded = False
         self.parent_path = None
+
+        self._model_loaded = {
+            common.FileItem: False,
+            common.SequenceItem: False,
+        }
         self._interrupt_requested = False
         self._generate_thumbnails_enabled = True
         self._task_folder = None
@@ -658,47 +667,65 @@ class BaseModel(QtCore.QAbstractListModel):
 
         """
         log.debug(u'thread_started()', self)
-        thread.worker.dataReady.connect(
-            lambda: log.debug('dataReady -> updateRow', thread.worker))
-        thread.worker.dataReady.connect(
-            self.updateRow, type=QtCore.Qt.QueuedConnection)
 
-        # queueModel allows loading the whole model data
+        cnx = QtCore.Qt.QueuedConnection
+
+        # thread.updateRow.connect(
+        #     lambda: log.debug('updateRow -> updateRow', thread))
+        thread.updateRow.connect(
+            self.updateRow, cnx)
+
+        # queueModel requests a full model data load
         if allow_model:
             self.queueModel.connect(
                 lambda: log.debug('queueModel -> worker.queueModel', self))
             self.queueModel.connect(
-                thread.queueModel, type=QtCore.Qt.QueuedConnection)
+                thread.queueModel, cnx)
 
         self.startCheckQueue.connect(
             lambda: log.debug('startCheckQueue -> worker.startCheckQueue', self))
         self.startCheckQueue.connect(
-            thread.startCheckQueue, type=QtCore.Qt.QueuedConnection)
+            thread.startCheckQueue, cnx)
         self.stopCheckQueue.connect(
             lambda: log.debug('stopCheckQueue -> worker.stopCheckQueue', self))
         self.stopCheckQueue.connect(
-            thread.stopCheckQueue, type=QtCore.Qt.QueuedConnection)
+            thread.stopCheckQueue, cnx)
 
-        self.taskFolderChanged.connect(thread.resetQueue, QtCore.Qt.QueuedConnection)
+        thread.modelLoaded.connect(self.model_loaded, cnx)
+
+        self.taskFolderChanged.connect(thread.resetQueue, cnx)
         thread.startCheckQueue.emit()
 
     @QtCore.Slot()
-    def model_loaded(self, ref):
-        """Slot connected in initialise_threads().
-        Slot called by the background file info thread when the thread
-        finished loading the model data.
+    def reset_model_loaded(self):
+        self._model_loaded = {
+            common.FileItem: False,
+            common.SequenceItem: False,
+        }
 
-        The model might need re-sorting, and the proxy
-        invalidating, when the sorting mode is anything but descending
-        alphabetical. Calling sort_data() will emit all signals needed
-        to repopulate.
+    @QtCore.Slot(int)
+    def set_model_loaded(self, data_type):
+        """Mark the model data type loaded.
+
+        """
+        self._model_loaded[data_type] = True
+
+    @QtCore.Slot(int)
+    def model_loaded(self, data_type):
+        """Called when a thread is done loading a data type.
+
+        If proper sorting needs information just loaded by the thread, we will
+        re-sort. This will also invalidate the proxy so archived items hopefully
+        won't be visible.
 
         """
         log.debug(u'model_loaded()', self)
-        if not ref():
+        self.set_model_loaded(data_type)
+        # The the loaded data is for the current file type we don't have to
+        # do anything
+        if self.data_type() != data_type:
             return
-        if ref() == self.model_data() and (self.sort_order() or self.sort_role() != common.SortByNameRole):
-            log.debug(u'>>> Model needs re-sorting', self)
+        if self.sort_order() or self.sort_role() != common.SortByNameRole:
             self.sort_data()
 
     def initialise_threads(self):
@@ -719,7 +746,7 @@ class BaseModel(QtCore.QAbstractListModel):
         )
         self.threads[common.InfoThread].append(info_thread)
 
-        thumbnails_worker = threads.ThumbnailWorker(threads.ThumbnailQueue)
+        thumbnails_worker = threads.ThumbnailWorker(self.thumbnail_queue_type)
         thumbnails_thread = threads.BaseThread(thumbnails_worker)
         thumbnails_thread.started.connect(
             partial(self.thread_started, thumbnails_thread, allow_model=False),
@@ -748,15 +775,6 @@ class BaseModel(QtCore.QAbstractListModel):
         k = u'widget/{}/generate_thumbnails'.format(cls)
         settings.local_settings.setValue(k, val)
         self._generate_thumbnails_enabled = val
-
-    @QtCore.Slot()
-    def reset_file_info_loaded(self, *args):
-        """Set the file-info-loaded state to ``False``. This property is used
-        by the ``SecondaryFileInfoWorker`` to indicate all information has
-        been loaded an no more work is necessary.
-
-        """
-        self.file_info_loaded = False
 
     @QtCore.Slot()
     def reset_worker_queues(self, all=False):
@@ -857,7 +875,8 @@ class BaseModel(QtCore.QAbstractListModel):
                 return
 
             if val not in (common.FileItem, common.SequenceItem):
-                s = u'Invalid value {} ({}) provided for `data_type`'.format(val, type(val))
+                s = u'Invalid value {} ({}) provided for `data_type`'.format(
+                    val, type(val))
                 log.error(s)
                 raise ValueError(s)
 
@@ -907,6 +926,12 @@ class BaseListWidget(QtWidgets.QListView):
         self.viewport().setAcceptDrops(True)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
 
+        self._layout_timer = QtCore.QTimer(parent=self)
+        self._layout_timer.setSingleShot(True)
+        self._layout_timer.setInterval(300)
+        self._layout_timer.timeout.connect(self.scheduleDelayedItemsLayout)
+        self._layout_timer.timeout.connect(self.repaint_visible_rows)
+
         self._thumbnail_drop = (-1, False)  # row, accepted
         self._background_icon = u'icon_bw'
         self._generate_thumbnails_enabled = True
@@ -930,10 +955,6 @@ class BaseListWidget(QtWidgets.QListView):
             QtWidgets.QApplication.instance().keyboardInputInterval())
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
-
-        self.reset_rows_timer = QtCore.QTimer(parent=self)
-        self.reset_rows_timer.setInterval(500)
-        self.reset_rows_timer.setSingleShot(True)
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -964,7 +985,7 @@ class BaseListWidget(QtWidgets.QListView):
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
-        if self.width() < common.WIDTH() * 0.5:
+        if self.width() < common.WIDTH() * 0.66:
             return True
         return self._buttons_hidden
 
@@ -1065,16 +1086,10 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: log.debug('modelReset -> reselect_previous', model))
         model.modelReset.connect(self.reselect_previous)
 
+        # model.updateRow.connect(
+        #     lambda: log.debug('updateRow -> update_row', model))
         model.updateRow.connect(
-            lambda: log.debug('updateRow -> update_row', model))
-        model.updateRow.connect(self.update_row)
-
-        model.modelReset.connect(
-            lambda: log.debug('modelReset -> scheduleDelayedItemsLayout', model))
-        model.modelReset.connect(self.scheduleDelayedItemsLayout)
-
-        self.reset_rows_timer.timeout.connect(self.repaint_visible_rows)
-        self.reset_rows_timer.timeout.connect(self.start_queue_timers)
+            self.update_row, type=QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update(self, index):
@@ -1094,10 +1109,11 @@ class BaseListWidget(QtWidgets.QListView):
     @QtCore.Slot(int)
     def update_row(self, idx):
         """Slot used to update the row associated with the data segment."""
-        log.debug('update_row(ref)', self)
-        model = self.model()
-        index = model.sourceModel().index(idx, 0)
-        index = model.mapFromSource(index)
+        if not self.isVisible():
+            return
+        index = self.model().sourceModel().index(idx, 0)
+        self.model().mapFromSource(index)
+        # super(BaseListWidget, self).update(index)
         self.update(index)
 
     def queue_visible_indexes(self, *args, **kwargs):
@@ -1142,7 +1158,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.update(index)
 
         source_index.model().activeChanged.emit(source_index)
-        self.activated.emit(index)
 
     def deactivate(self, index):
         """Unsets the active flag."""
@@ -1354,7 +1369,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         source = index.data(QtCore.Qt.StatusTipRole)
         source = common.get_sequence_startpath(source)
-
         ext = source.split(u'.').pop()
 
         if ext.lower() == u'abc':
@@ -1375,12 +1389,12 @@ class BaseListWidget(QtWidgets.QListView):
                 index.data(common.ParentPathRole)[0],
                 index.data(common.ParentPathRole)[1],
                 index.data(common.ParentPathRole)[2],
-                source
+                index.data(QtCore.Qt.StatusTipRole)
             )
-
-            # If that fails, we'll display a general placeholder image
             if not images.oiio_get_buf(source):
-                source = images.get_placeholder_path(source)
+                # If that fails, we'll display a general placeholder image
+                source = images.get_placeholder_path(
+                    index.data(QtCore.Qt.StatusTipRole))
                 buf = images.oiio_get_buf(source, force=True)
                 if not buf:
                     s = u'{} seems invalid.'.format(source)
@@ -1391,7 +1405,7 @@ class BaseListWidget(QtWidgets.QListView):
                     raise RuntimeError(s)
 
         if not source:
-            raise RuntimeError('Invalid source value')
+            raise RuntimeError(u'Invalid source value')
 
         # Finally, we'll create and show our widget, and destroy it when the
         # selection changes
@@ -1483,50 +1497,73 @@ class BaseListWidget(QtWidgets.QListView):
         numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         index = self.selectionModel().currentIndex()
+
         if no_modifier:
             if event.key() == QtCore.Qt.Key_Escape:
                 self.interruptRequested.emit()
+                return
 
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
                 self.key_space()
+                return
             if event.key() == QtCore.Qt.Key_Escape:
                 self.selectionModel().setCurrentIndex(
                     QtCore.QModelIndex(), QtCore.QItemSelectionModel.ClearAndSelect)
+                return
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
                 self.save_selection()
+                self.start_queue_timers()
+                return
             elif event.key() == QtCore.Qt.Key_Up:
                 self.key_up()
                 self.save_selection()
+                self.start_queue_timers()
+                return
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
+                return
             elif event.key() == QtCore.Qt.Key_Tab:
                 if not self.description_editor_widget.isVisible():
                     self.key_tab()
+                    return
                 else:
                     self.key_down()
                     self.key_tab()
                     self.save_selection()
+                    self.start_queue_timers()
+                    return
             elif event.key() == QtCore.Qt.Key_Backtab:
                 if not self.description_editor_widget.isVisible():
                     self.key_tab()
+                    return
                 else:
                     self.key_up()
                     self.key_tab()
                     self.save_selection()
+                    self.start_queue_timers()
+                    return
             elif event.key() == QtCore.Qt.Key_PageDown:
                 super(BaseListWidget, self).keyPressEvent(event)
                 self.save_selection()
+                self.start_queue_timers()
+                return
             elif event.key() == QtCore.Qt.Key_PageUp:
                 super(BaseListWidget, self).keyPressEvent(event)
                 self.save_selection()
+                self.start_queue_timers()
+                return
             elif event.key() == QtCore.Qt.Key_Home:
                 super(BaseListWidget, self).keyPressEvent(event)
                 self.save_selection()
+                self.start_queue_timers()
+                return
             elif event.key() == QtCore.Qt.Key_End:
                 super(BaseListWidget, self).keyPressEvent(event)
                 self.save_selection()
+                self.start_queue_timers()
+                return
             else:  # keyboard search and select
                 if not self.timer.isActive():
                     self.timed_search_string = u''
@@ -1567,7 +1604,7 @@ class BaseListWidget(QtWidgets.QListView):
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
                             self.save_selection()
-                            break
+                            return
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
             if event.key() == QtCore.Qt.Key_C:
@@ -1630,9 +1667,11 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_Tab:
                 self.key_up()
                 self.key_tab()
+                return
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
+                return
 
     def wheelEvent(self, event):
         event.accept()
@@ -1699,18 +1738,13 @@ class BaseListWidget(QtWidgets.QListView):
     def mousePressEvent(self, event):
         """Deselecting item when the index is invalid."""
         if not isinstance(event, QtGui.QMouseEvent):
-            self.reset_multitoggle()
             return
+
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
         index = self.indexAt(cursor_position)
         if not index.isValid():
             self.selectionModel().setCurrentIndex(
                 QtCore.QModelIndex(),
-                QtCore.QItemSelectionModel.ClearAndSelect
-            )
-        else:
-            self.selectionModel().setCurrentIndex(
-                index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
         self.save_selection()
@@ -1871,6 +1905,7 @@ class BaseListWidget(QtWidgets.QListView):
         return False
 
     def resizeEvent(self, event):
+        self._layout_timer.start(self._layout_timer.interval())
         self.resized.emit(self.viewport().geometry())
 
     @QtCore.Slot()
@@ -1891,7 +1926,7 @@ class BaseListWidget(QtWidgets.QListView):
         index_rect = self.visualRect(index)
         n = 0
         while viewport_rect.intersects(index_rect):
-            if n > 99: # manuel limit on how many items we will repaint
+            if n > 99:  # manuel limit on how many items we will repaint
                 break
             super(BaseListWidget, self).update(index)
             index = _next(index_rect)
@@ -1905,9 +1940,9 @@ class BaseListWidget(QtWidgets.QListView):
         row = self.selectionModel().currentIndex().row()
 
         self.scheduleDelayedItemsLayout()
-        self.reset_rows_timer.start()
+        self.start_queue_timers()
+        self.repaint_visible_rows()
 
-        # Reset selection
         index = proxy.index(row, 0)
         self.selectionModel().setCurrentIndex(
             index, QtCore.QItemSelectionModel.ClearAndSelect)
@@ -2416,6 +2451,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                                         information for individual items.
 
     """
+
     def __init__(self, parent=None):
         super(ThreadedBaseWidget, self).__init__(parent=parent)
 
@@ -2440,11 +2476,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             lambda: log.debug('modelAboutToBeReset -> reset_worker_queues', model))
         model.modelAboutToBeReset.connect(
             model.reset_worker_queues, cnx_type)
-
-        model.modelAboutToBeReset.connect(
-            lambda: log.debug('modelAboutToBeReset -> reset_file_info_loaded', model))
-        model.modelAboutToBeReset.connect(
-            model.reset_file_info_loaded, cnx_type)
 
         # Visible indexes to threads
         self.queue_visible_timer.timeout.connect(
@@ -2484,7 +2515,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             ),
             cnx_type
         )
-
 
         # Start / Stop request info timers
         model.modelAboutToBeReset.connect(
@@ -2527,7 +2557,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.start_queue_timers)
 
         # Thread update signals
-        model.modelAboutToBeReset.connect(lambda: model.reset_worker_queues(all=True))
+        model.modelAboutToBeReset.connect(
+            lambda: model.reset_worker_queues(all=True))
         # Queue model data
         self.queue_model_timer.timeout.connect(self.queue_model_data)
 
@@ -2565,7 +2596,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
     def queue_model_data(self):
         """Queues the model data for the BackgroundInfoThread to process."""
         log.debug('queue_model_data()', self)
+
         model = self.model().sourceModel()
+        if model._model_loaded[model.data_type()]:
+            return
         model.queueModel.emit(repr(model))
 
     @QtCore.Slot(int)
@@ -2584,9 +2618,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             return self.indexAt(rect.topLeft())
 
         if not isinstance(check_role, (int, long)):
-            raise TypeError(u'Invalid `check_role`, expected <type \'int\', got {}'.format(type(check_role)))
+            raise TypeError(
+                u'Invalid `check_role`, expected <type \'int\', got {}'.format(type(check_role)))
         if not isinstance(thread_type, int):
-            raise TypeError(u'Invalid `thread_type`, expected <type \'int\', got {}'.format(type(thread_type)))
+            raise TypeError(u'Invalid `thread_type`, expected <type \'int\', got {}'.format(
+                type(thread_type)))
 
         log.debug('queue_visible_indexes() - Begin', self)
 
@@ -2610,6 +2646,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         n = 0
         i = 0
+        l = []
         while viewport_rect.intersects(index_rect):
             if i >= 999:
                 break
@@ -2620,7 +2657,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             if show_archived is False and is_archived:
                 proxy.invalidateFilter()
                 log.debug('queue_visible_indexes() - invalidateFilter()', self)
-                return # abort
+                return  # abort
 
             # Nothing else to do if the threads are not enabled
             if not thread_count:
@@ -2641,12 +2678,16 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
             # Put the weakref in the thread's queue
             ref = weakref.ref(data[idx])
-            model.threads[thread_type][n % thread_count].add_to_queue(ref)
+            l.append(ref)
             n += 1
 
             index = _next(index_rect)
             if not index.isValid():
                 break
+
+        for ref in reversed(l):
+            model.threads[thread_type][n % thread_count].add_to_queue(ref)
+
         log.debug('queue_visible_indexes() - done', self)
 
     def wheelEvent(self, event):
@@ -2695,3 +2736,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
     def _setCurrentIndex(self, idx):
         super(StackedWidget, self).setCurrentIndex(idx)
+
+    def showEvent(self, event):
+        if self.currentWidget():
+            self.currentWidget().setFocus()

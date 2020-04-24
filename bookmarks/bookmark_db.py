@@ -78,11 +78,14 @@ def get_db(server, job, root):
 
     """
     if not isinstance(server, unicode):
-        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(server)))
+        raise TypeError(
+            'Expected <type \'unicode\'>, got {}'.format(type(server)))
     if not isinstance(job, unicode):
-        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(job)))
+        raise TypeError(
+            'Expected <type \'unicode\'>, got {}'.format(type(job)))
     if not isinstance(root, unicode):
-        raise TypeError('Expected <type \'unicode\'>, got {}'.format(type(root)))
+        raise TypeError(
+            'Expected <type \'unicode\'>, got {}'.format(type(root)))
 
     t = unicode(repr(QtCore.QThread.currentThread()))
     key = (u'/'.join((server, job, root)) + t).lower()
@@ -114,7 +117,6 @@ def get_db(server, job, root):
             # Wait a little and try again
             n += 1
             QtCore.QThread.msleep(50)
-
 
 
 def remove_db(index, server=None, job=None, root=None):
@@ -163,6 +165,7 @@ class BookmarkDB(QtCore.QObject):
     Use `BookmarkDB.value()` and `BookmarkDB.setValue()` to get and set data.
 
     """
+
     def __init__(self, server, job, root, parent=None):
         super(BookmarkDB, self).__init__(parent=parent)
 

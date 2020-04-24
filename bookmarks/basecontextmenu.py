@@ -200,7 +200,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         if w:
             self.setFixedWidth(max(w))
 
-
     @contextmenu
     def add_sort_menu(self, menu_set):
         """Creates the menu needed to set the sort-order of the list."""
@@ -277,6 +276,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         """Creates a menu containing"""
         if not self.index.isValid():
             return menu_set
+
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
 
@@ -591,7 +591,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(images.capture, source_index)}
 
-
         menu_set[u'file'] = {
             u'text': u'Select file...',
             u'icon': pick_thumbnail_pixmap,
@@ -763,14 +762,12 @@ class BaseContextMenu(QtWidgets.QMenu):
             widget.accepted.connect(lambda: accepted(widget.get_file_path()))
             res = widget.open()
 
-
         menu_set[u'separator1'] = {}
 
         # k = u'formats'
         # menu_set[k] = collections.OrderedDict()
         # menu_set[u'formats:icon'] = add_pixmap
         # menu_set[u'formats:text'] = u'Add template file'
-
 
         menu_set[u'scene'] = collections.OrderedDict()
         menu_set[u'scene:icon'] = add_pixmap
