@@ -1,4 +1,4 @@
-<center>
+<p align="center">
 
 ![alt text][logo]
 
@@ -10,7 +10,7 @@
 
 ### [Get the latest release.](https://github.com/wgergely/bookmarks/releases)
 
-</center>
+</p>
 <br>
 
 Bookmarks provides a basic overview of your project's assets and files. Use it
@@ -18,9 +18,9 @@ to create new jobs, shots, or browse existing content. Share paths and notes
 with your Slack-mates and preview renders with OpenImageIO and Shotgun RV, or
 add versioned template files to manage file naming.
 
-<center>
+<p align="center">
 <img width="80%" alt="Bookmarks Asset Manager" src="./bookmarks/rsc/docs/tabs.gif">
-</center>
+</p>
 
 
 
