@@ -209,8 +209,7 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot(unicode)
     def setText(self, text):
         super(SelectButton, self).setText(text)
-        metrics = QtGui.QFontMetrics(
-            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         width = metrics.width(self.text().upper())
         self.setFixedWidth(width + common.MARGIN())
         self.update()
@@ -230,9 +229,9 @@ class SelectButton(QtWidgets.QLabel):
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         common.draw_aliased_text(
-            painter, common.font_db.primary_font(
-                common.MEDIUM_FONT_SIZE()), self.rect(),
+            painter, font, self.rect(),
             self.text().upper(), QtCore.Qt.AlignCenter, color)
 
         if not hover:
@@ -266,7 +265,7 @@ class SelectButton(QtWidgets.QLabel):
         if not isinstance(event, QtGui.QMouseEvent):
             return
         if event.button() == QtCore.Qt.LeftButton:
-            pos = QtGui.QCursor().pos()
+            pos = common.cursor.pos()
             pos = self.mapFromGlobal(pos)
             if self.rect().contains(pos):
                 self.clicked.emit()
@@ -824,7 +823,7 @@ class SelectFolderView(QtWidgets.QTreeView):
                 self.viewport().mapToGlobal(rect.bottomLeft()).y(),
             )
         else:
-            widget.move(QtGui.QCursor().pos())
+            widget.move(common.cursor.pos())
 
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())
@@ -1367,8 +1366,7 @@ class FilePathWidget(QtWidgets.QWidget):
 
         rect = self.rect().marginsRemoved(
             QtCore.QMargins(o * 2, o * 2, o * 2, o * 2))
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         file_path = metrics.elidedText(
             file_path.upper(),
             QtCore.Qt.ElideLeft,
@@ -2030,7 +2028,7 @@ class AddFileWidget(QtWidgets.QDialog):
         if not isinstance(event, QtGui.QMouseEvent):
             return
         self.move_in_progress = True
-        self.move_start_position = QtGui.QCursor().pos()
+        self.move_start_position = common.cursor.pos()
         self.move_start_widget_pos = self.geometry().topLeft()
 
     def mouseMoveEvent(self, event):
@@ -2044,7 +2042,7 @@ class AddFileWidget(QtWidgets.QDialog):
         if not self.move_start_widget_pos:
             return
 
-        pos = QtGui.QCursor().pos()
+        pos = common.cursor.pos()
         offset = self.move_start_position - pos
         self.move(self.move_start_widget_pos - offset)
         self.widgetMoved.emit(self.geometry().topLeft())

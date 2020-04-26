@@ -134,8 +134,7 @@ class ThreadMonitor(QtWidgets.QWidget):
         self.timer.setInterval(500)
         self.timer.setSingleShot(False)
         self.timer.timeout.connect(self.update)
-        self.metrics = QtGui.QFontMetrics(
-            common.font_db.primary_font(common.SMALL_FONT_SIZE()))
+        self.metrics = common.font_db.primary_font(common.SMALL_FONT_SIZE())[1]
 
     def showEvent(self, event):
         self.timer.start()
@@ -148,7 +147,7 @@ class ThreadMonitor(QtWidgets.QWidget):
         painter.begin(self)
         common.draw_aliased_text(
             painter,
-            common.font_db.primary_font(common.SMALL_FONT_SIZE()),
+            common.font_db.primary_font(common.SMALL_FONT_SIZE())[0],
             self.rect(),
             self.text(),
             QtCore.Qt.AlignCenter,

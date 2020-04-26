@@ -99,8 +99,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             for action in parent.actions():
                 if not action.text():
                     continue
-                metrics = QtGui.QFontMetrics(
-                    common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+                font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
                 width = metrics.width(action.text())
                 width += (common.MARGIN() * 4)
                 w.append(int(width))
@@ -192,8 +191,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         for action in self.actions():
             if not action.text():
                 continue
-            metrics = QtGui.QFontMetrics(
-                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+            font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
             width = metrics.width(action.text())
             width += (common.MARGIN() * 4)
             w.append(int(width))

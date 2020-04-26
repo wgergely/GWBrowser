@@ -44,6 +44,90 @@ DataRect = 10
 BookmarkPropertiesRect = 11
 
 
+PATH_CACHE = {}
+
+
+def get_painter_path(x, y, font, text):
+    k = u'{}{}{}{}'.format(x, y, font, text)
+    if k not in PATH_CACHE:
+        path = QtGui.QPainterPath()
+        path.addText(x, y, font, text)
+        PATH_CACHE[k] = path
+    return PATH_CACHE[k]
+
+
+RECTANGLE_CACHE = {}
+
+
+def get_rectangles(rectangle, count):
+    """Returns the paintable/clickable regions based on the number of
+    inline icons and the source rectangle.
+
+    Args:
+        rectangle (QtCore.QRect): A source rectangle.
+        count (int):    The number of inline icons.
+
+    Returns:
+        dict: A dictionary with all the requested rectangles.
+
+    """
+    k = '{}{}'.format(rectangle, count)
+    if k in RECTANGLE_CACHE:
+        return RECTANGLE_CACHE[k]
+
+    def adjusted():
+        return rectangle.adjusted(0, 0, 0, -common.ROW_SEPARATOR())
+
+    background_rect = adjusted()
+    background_rect.setLeft(common.INDICATOR_WIDTH())
+
+    indicator_rect = QtCore.QRect(rectangle)
+    indicator_rect.setWidth(common.INDICATOR_WIDTH())
+
+    thumbnail_rect = QtCore.QRect(rectangle)
+    thumbnail_rect.setWidth(thumbnail_rect.height())
+    thumbnail_rect.moveLeft(common.INDICATOR_WIDTH())
+
+    # Inline icons rect
+    inline_icon_rects = []
+    inline_icon_rect = adjusted()
+    spacing = common.INDICATOR_WIDTH() * 2
+    center = inline_icon_rect.center()
+    size = QtCore.QSize(common.MARGIN(), common.MARGIN())
+    inline_icon_rect.setSize(size)
+    inline_icon_rect.moveCenter(center)
+    inline_icon_rect.moveRight(rectangle.right() - spacing)
+
+    offset = 0
+    for _ in xrange(count):
+        r = inline_icon_rect.translated(offset, 0)
+        inline_icon_rects.append(r)
+        offset -= inline_icon_rect.width() + spacing
+    offset -= spacing
+
+    data_rect = adjusted()
+    data_rect.setLeft(thumbnail_rect.right() + spacing)
+    data_rect.setRight(rectangle.right() + offset)
+
+    null_rect = QtCore.QRect()
+
+    RECTANGLE_CACHE[k] = {
+        BackgroundRect: background_rect,
+        IndicatorRect: indicator_rect,
+        ThumbnailRect: thumbnail_rect,
+        FavouriteRect: inline_icon_rects[0] if count > 0 else null_rect,
+        ArchiveRect: inline_icon_rects[1] if count > 1 else null_rect,
+        RevealRect: inline_icon_rects[2] if count > 2 else null_rect,
+        TodoRect: inline_icon_rects[3] if count > 3 else null_rect,
+        AddAssetRect: inline_icon_rects[4] if count > 4 else null_rect,
+        BookmarkPropertiesRect: inline_icon_rects[5] if count > 5 else null_rect,
+        DataRect: data_rect
+    }
+    return RECTANGLE_CACHE[k]
+
+
+
+
 def paintmethod(func):
     """@Decorator to save the painter state."""
     @wraps(func)
@@ -92,13 +176,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         favourite = flags & common.MarkedAsFavourite
         archived = flags & common.MarkedAsArchived
         active = flags & common.MarkedAsActive
-
-        rectangles = self.get_rectangles(option.rect)
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        rectangles = get_rectangles(option.rect, self.parent().inline_icons_count())
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         painter.setFont(font)
-        metrics = QtGui.QFontMetrics(font)
 
-        cursor_position = self.parent().mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.parent().mapFromGlobal(common.cursor.pos())
 
         args = (
             rectangles,
@@ -117,67 +199,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
         return args
 
-    def get_rectangles(self, rectangle):
-        """Returns all the main rectangles of the row to paint and handle
-        mouse-click events.
-
-        """
-        def rect():
-            """Returns a rectangle with a separator."""
-            r = QtCore.QRect(rectangle)
-            return r.adjusted(0, 0, 0, -1)
-            # return r
-
-        background_rect = rect()
-        background_rect.setLeft(common.INDICATOR_WIDTH())
-
-        indicator_rect = QtCore.QRect(rectangle)
-        indicator_rect.setWidth(common.INDICATOR_WIDTH())
-
-        thumbnail_rect = QtCore.QRect(rectangle)
-        thumbnail_rect.setWidth(thumbnail_rect.height())
-        thumbnail_rect.moveLeft(common.INDICATOR_WIDTH())
-
-        # Inline icons rect
-        inline_icon_rects = []
-        inline_icon_rect = rect()
-        num_icons = self.parent().inline_icons_count()
-        spacing = common.INDICATOR_WIDTH() * 2
-        center = inline_icon_rect.center()
-        size = QtCore.QSize(common.MARGIN(), common.MARGIN())
-        inline_icon_rect.setSize(size)
-        inline_icon_rect.moveCenter(center)
-        inline_icon_rect.moveRight(rectangle.right() - spacing)
-
-        offset = 0
-        for _ in xrange(self.parent().inline_icons_count()):
-            r = inline_icon_rect.translated(offset, 0)
-            inline_icon_rects.append(r)
-            offset -= inline_icon_rect.width() + spacing
-        offset -= spacing
-
-        data_rect = rect()
-        data_rect.setLeft(thumbnail_rect.right() + spacing)
-        data_rect.setRight(rectangle.right() + offset)
-
-        null_rect = QtCore.QRect()
-
-        return {
-            BackgroundRect: background_rect,
-            #
-            IndicatorRect: indicator_rect,
-            ThumbnailRect: thumbnail_rect,
-            #
-            FavouriteRect: inline_icon_rects[0] if num_icons > 0 else null_rect,
-            ArchiveRect: inline_icon_rects[1] if num_icons > 1 else null_rect,
-            RevealRect: inline_icon_rects[2] if num_icons > 2 else null_rect,
-            TodoRect: inline_icon_rects[3] if num_icons > 3 else null_rect,
-            AddAssetRect: inline_icon_rects[4] if num_icons > 4 else null_rect,
-            BookmarkPropertiesRect: inline_icon_rects[5] if num_icons > 5 else null_rect,
-            #
-            DataRect: data_rect
-        }
-
     def get_clickable_rectangles(self, index, rectangles):
         """Clickable rectangles are used by the the QListView to identify
         interactive regions.
@@ -186,10 +207,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         Since the size of the rectangle depends on how the delegate is handling
         painting, we're using the delegate calculate and cache these rectangles.
 
-        We're using the rectangles in the QListView's mouse events to responds
-        to user clicks.
-
-        The actual rectangle is calculated and saved when a relavant paint
+        The actual rectangles are calculated and saved when a relavant paint
         method is called.
 
         """
@@ -298,7 +316,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawRect(option.rect)
 
             painter.setPen(common.ADD)
-            font = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
+            font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
             painter.setFont(font)
 
             text = u'Drop image to add as thumbnail'
@@ -459,15 +477,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                         count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
 
                     text = unicode(index.data(common.TodoCountRole))
-                    _font = common.font_db.primary_font(
+                    _font, _metrics = common.font_db.primary_font(
                         font_size=common.SMALL_FONT_SIZE())
-                    _metrics = QtGui.QFontMetrics(_font)
                     x = count_rect.center().x() - (_metrics.width(text) / 2.0) + common.ROW_SEPARATOR()
                     y = count_rect.center().y() + (_metrics.ascent() / 2.0)
 
                     painter.setBrush(common.TEXT)
-                    path = QtGui.QPainterPath()
-                    path.addText(x, y, _font, text)
+                    path = get_painter_path(x, y, _font, text)
                     painter.drawPath(path)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
 
@@ -498,9 +514,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the leading rectangle indicating the selection."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[IndicatorRect]
-        color = common.FAVOURITE if selected else QtGui.QColor(0, 0, 0, 0)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        color = common.TEXT_SELECTED if selected else QtGui.QColor(0, 0, 0, 0)
         painter.setBrush(color)
-        painter.drawRect(rect)
+        painter.drawRoundedRect(rect, rect.width() * 0.5, rect.width() * 0.5)
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
@@ -674,10 +691,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 )
 
             painter.setBrush(color)
-            path = QtGui.QPainterPath()
             x = _r.x()
             y = _r.bottom()
-            path.addText(x, y, font, text)
+            path = path = get_painter_path(x, y, font, text)
             painter.drawPath(path)
 
             offset += width
@@ -718,8 +734,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + common.MARGIN())
 
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         name_rect = QtCore.QRect(rect)
         center = name_rect.center()
@@ -774,8 +789,7 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         x = name_rect.left()
         y = name_rect.center().y() + (metrics.ascent() / 2.0)
-        path = QtGui.QPainterPath()
-        path.addText(x, y, font, text)
+        path = get_painter_path(x, y, font, text)
         painter.drawPath(path)
 
         description_rect = QtCore.QRect(name_rect)
@@ -791,10 +805,9 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        font = common.font_db.primary_font(
+        font, _metrics = common.font_db.primary_font(
             font_size=common.MEDIUM_FONT_SIZE())
         painter.setFont(font)
-        _metrics = QtGui.QFontMetrics(font)
         text = _metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -819,8 +832,7 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         x = description_rect.left()
         y = description_rect.center().y() + (metrics.ascent() / 2.0)
-        path = QtGui.QPainterPath()
-        path.addText(x, y, font, text)
+        path = get_painter_path(x, y, font, text)
         painter.drawPath(path)
 
     def sizeHint(self, option, index):
@@ -836,7 +848,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
-
         args = self.get_paint_arguments(
             painter, option, index, antialiasing=False)
         if index.data(QtCore.Qt.DisplayRole) is None:
@@ -919,8 +930,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 y = rect.center().y() + offset
 
                 painter.setBrush(color)
-                path = QtGui.QPainterPath()
-                path.addText(x, y, font, text)
+                path = get_painter_path(x, y, font, text)
                 painter.drawPath(path)
 
                 rect.translate(-width, 0)
@@ -928,9 +938,8 @@ class FilesWidgetDelegate(BaseDelegate):
             return x
 
         def draw_subdirs(text_edge):
-            font = common.font_db.primary_font(
+            font, metrics = common.font_db.primary_font(
                 font_size=common.SMALL_FONT_SIZE())
-            metrics = QtGui.QFontMetrics(font)
 
             subdir_rectangles = self.get_subdir_rectangles(
                 index, rectangles, metrics)
@@ -1038,8 +1047,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 color = color.lighter(250)
                 painter.setBrush(color)
                 painter.setPen(QtCore.Qt.NoPen)
-                path = QtGui.QPainterPath()
-                path.addText(x, y, font, text)
+                path = get_painter_path(x, y, font, text)
                 painter.drawPath(path)
             return r.right()
 
@@ -1051,8 +1059,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if large_mode:
                 left_limit = rectangles[DataRect].left()
                 right_limit = rectangles[DataRect].right() - common.MARGIN()
-                font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-                metrics = QtGui.QFontMetrics(font)
+                font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
             text = index.data(common.DescriptionRole)
             text = metrics.elidedText(
@@ -1089,13 +1096,11 @@ class FilesWidgetDelegate(BaseDelegate):
                 color = common.TEXT_SELECTED
 
             painter.setBrush(color)
-            path = QtGui.QPainterPath()
-            path.addText(x, y, font, text)
+            path = get_painter_path(x, y, font, text)
             painter.drawPath(path)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
-        font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
         it = self.get_text_segments(index).itervalues()
         offset = 0
 
@@ -1104,9 +1109,8 @@ class FilesWidgetDelegate(BaseDelegate):
 
         it = self.get_filedetail_text_segments(index).itervalues()
         offset = metrics.ascent()
-        font = common.font_db.primary_font(
+        font, metrics = common.font_db.primary_font(
             font_size=common.SMALL_FONT_SIZE() * 0.95)
-        metrics = QtGui.QFontMetrics(font)
         right_limit = draw_segments(it, font, metrics, offset)
         draw_description(font, metrics, left_limit, right_limit, offset)
 
@@ -1135,9 +1139,8 @@ class FilesWidgetDelegate(BaseDelegate):
         text_segments = self.get_text_segments(index)
         painter.setPen(common.TEXT)
         painter.setBrush(QtCore.Qt.NoBrush)
-        font = common.font_db.primary_font(
+        font, metrics = common.font_db.primary_font(
             font_size=common.SMALL_FONT_SIZE() * 1.1)
-        metrics = QtGui.QFontMetrics(font)
 
         offset = 0
 
@@ -1168,17 +1171,15 @@ class FilesWidgetDelegate(BaseDelegate):
             y = r.center().y() + (metrics.ascent() / 2.0)
 
             painter.setBrush(color)
-            path = QtGui.QPainterPath()
-            path.addText(x, y, font, text)
+            path = get_painter_path(x, y, font, text)
             painter.drawPath(path)
 
         # Description
         if not index.data(common.DescriptionRole):
             return
 
-        font = common.font_db.secondary_font(
+        font, metrics = common.font_db.secondary_font(
             font_size=common.SMALL_FONT_SIZE() * 1.2)
-        metrics = QtGui.QFontMetrics(font)
 
         description_rect = QtCore.QRect(rect)
         description_rect.setHeight(metrics.height())
@@ -1211,8 +1212,7 @@ class FilesWidgetDelegate(BaseDelegate):
         y = r.center().y() + (metrics.ascent() / 2.0)
 
         painter.setBrush(color)
-        path = QtGui.QPainterPath()
-        path.addText(x, y, font, text)
+        path = get_painter_path(x, y, font, text)
         painter.drawPath(path)
 
     def get_simple_description_rectangle(self, rectangles, index):
@@ -1222,8 +1222,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + (common.INDICATOR_WIDTH() * 2))
 
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         # File-name
         name_rect = QtCore.QRect(rect)
@@ -1236,9 +1235,8 @@ class FilesWidgetDelegate(BaseDelegate):
             )
 
         text_segments = self.get_text_segments(index)
-        font = common.font_db.primary_font(
+        font, metrics = common.font_db.primary_font(
             font_size=common.SMALL_FONT_SIZE() * 1.1)
-        metrics = QtGui.QFontMetrics(font)
 
         offset = 0
         for k in sorted(text_segments, reverse=True):
@@ -1254,8 +1252,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if r.right() > rect.right():
                 r.setRight(rect.right() - (common.INDICATOR_WIDTH()))
 
-        metrics = QtGui.QFontMetrics(font)
-        font = common.font_db.secondary_font(
+        font, metrics = common.font_db.secondary_font(
             font_size=common.SMALL_FONT_SIZE() * 1.2)
 
         description_rect = QtCore.QRect(name_rect)
@@ -1401,7 +1398,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.drawRect(option.rect)
 
         painter.setPen(common.BACKGROUND)
-        font = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
+        font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
         painter.setFont(font)
 
         text = '"Drag+Shift" grabs all files    |    "Drag+Alt" grabs the first file    |    "Drag+Shift+Alt" grabs the parent folder'

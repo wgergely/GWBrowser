@@ -56,7 +56,7 @@ class ComboBox(QtWidgets.QComboBox):
             painter.begin(self)
             common.draw_aliased_text(
                 painter,
-                common.font_db.secondary_font(common.SMALL_FONT_SIZE()),
+                common.font_db.secondary_font(common.SMALL_FONT_SIZE())[0],
                 self.rect(),
                 self._warning_string,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -290,7 +290,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter.setBrush(common.SEPARATOR)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.font_db.secondary_font(
-                common.SMALL_FONT_SIZE()))
+                common.SMALL_FONT_SIZE())[0])
             painter.setOpacity(0.3)
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
@@ -413,7 +413,7 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.setPen(QtCore.Qt.NoPen)
 
             painter.setFont(common.font_db.secondary_font(
-                common.SMALL_FONT_SIZE()))
+                common.SMALL_FONT_SIZE())[0])
             painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
@@ -475,7 +475,7 @@ class TemplatesWidget(QtWidgets.QWidget):
 
         self.name_widget = common_ui.LineEdit(parent=self)
         self.name_widget.setFont(
-            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0])
         self.name_widget.setPlaceholderText(
             u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
@@ -690,7 +690,7 @@ class TemplatesWidget(QtWidgets.QWidget):
                 icon = folder_icon
             item = QtWidgets.QListWidgetItem(parent=self)
             item.setData(QtCore.Qt.FontRole, common.font_db.secondary_font(
-                common.SMALL_FONT_SIZE()))
+                common.SMALL_FONT_SIZE())[0])
             item.setData(QtCore.Qt.DisplayRole, f)
             item.setData(QtCore.Qt.SizeHintRole, size)
             item.setData(QtCore.Qt.DecorationRole, icon)
@@ -838,7 +838,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             painter.setFont(common.font_db.secondary_font(
-                common.SMALL_FONT_SIZE()))
+                common.SMALL_FONT_SIZE())[0])
             painter.setBrush(common.ADD)
             painter.setPen(common.TEXT_DISABLED)
             painter.drawText(
@@ -874,7 +874,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
 
         size = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
         font = common.font_db.primary_font(
-            font_size=common.MEDIUM_FONT_SIZE() * 1.2)
+            font_size=common.MEDIUM_FONT_SIZE() * 1.2)[0]
 
         for bookmark in bookmarks:
             file_info = QtCore.QFileInfo(bookmark)

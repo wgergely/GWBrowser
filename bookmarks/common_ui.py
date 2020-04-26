@@ -211,7 +211,7 @@ class PaintedButton(QtWidgets.QPushButton):
         rect.moveCenter(center)
         common.draw_aliased_text(
             painter,
-            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
             rect,
             self.text(),
             QtCore.Qt.AlignCenter,
@@ -233,8 +233,7 @@ class PaintedLabel(QtWidgets.QLabel):
         self.update_size()
 
     def update_size(self):
-        metrics = QtGui.QFontMetrics(
-            common.font_db.primary_font(font_size=self._size))
+        font, metrics = common.font_db.primary_font(font_size=self._size)
         self.setFixedHeight(metrics.height())
         self.setFixedWidth(metrics.width(self._text) * 1.01)
 
@@ -244,7 +243,7 @@ class PaintedLabel(QtWidgets.QLabel):
         painter.begin(self)
         common.draw_aliased_text(
             painter,
-            common.font_db.primary_font(font_size=self._size),
+            common.font_db.primary_font(font_size=self._size)[0],
             self.rect(),
             self.text(),
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -400,8 +399,7 @@ QWidget {{
 }}
             """.format(
             SIZE=common.LARGE_FONT_SIZE(),
-            FAMILY=common.font_db.primary_font(
-                common.MEDIUM_FONT_SIZE()).family(),
+            FAMILY=common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0].family(),
             TEXT=common.rgb(self.secondary_color.darker(150)),
             BG=common.rgb(self.secondary_color)))
 
@@ -610,7 +608,7 @@ class DescriptionEditorWidget(LineEdit):
             return
 
         rect = self.parent().visualRect(index)
-        rectangles = self.parent().itemDelegate().get_rectangles(rect)
+        rectangles = delegate.get_rectangles(rect, self.parent().inline_icons_count())
         description_rect = self.parent().itemDelegate(
         ).get_description_rect(rectangles, index)
 

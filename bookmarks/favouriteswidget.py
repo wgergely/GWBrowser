@@ -112,7 +112,13 @@ class DropIndicatorWidget(QtWidgets.QWidget):
         painter.drawRect(self.rect())
         painter.setOpacity(1.0)
         common.draw_aliased_text(
-            painter, common.font_db.primary_font(common.MEDIUM_FONT_SIZE()), self.rect(), 'Drop to add bookmark', QtCore.Qt.AlignCenter, common.FAVOURITE)
+            painter,
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
+            self.rect(),
+            u'Drop to add bookmark',
+            QtCore.Qt.AlignCenter,
+            common.FAVOURITE
+        )
         painter.end()
 
     def show(self):

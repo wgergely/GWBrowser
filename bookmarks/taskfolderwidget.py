@@ -91,7 +91,7 @@ class TaskFolderWidgetDelegate(BaseDelegate):
             color = common.TEXT if hover else common.BACKGROUND_SELECTED
         color = common.TEXT_SELECTED if selected else color
 
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0]
 
         o = common.MARGIN()
         rect = QtCore.QRect(option.rect)
@@ -142,12 +142,12 @@ class TaskFolderWidgetDelegate(BaseDelegate):
                 align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
 
             width = common.draw_aliased_text(
-                painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), rect, u'    |    ', align, common.SEPARATOR)
+                painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE())[0], rect, u'    |    ', align, common.SEPARATOR)
             rect.setLeft(rect.left() + width)
 
             width = common.draw_aliased_text(
                 painter,
-                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
+                common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
                 rect,
                 text,
                 align,

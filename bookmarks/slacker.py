@@ -237,7 +237,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                     QtCore.Qt.DisplayRole: u'Channel:  ' + channel['name'],
                     QtCore.Qt.DecorationRole: QtGui.QIcon(),
                     QtCore.Qt.SizeHintRole: self.row_size,
-                    QtCore.Qt.FontRole: common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE()),
+                    QtCore.Qt.FontRole: common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())[0],
                     IdRole: channel[u'id'],
                     ThumbnailHashRole: None,
                     ThumbnailUrlRole: None,
@@ -252,7 +252,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                     QtCore.Qt.DisplayRole: self.get_pretty_name(profile),
                     QtCore.Qt.DecorationRole: QtGui.QIcon(),
                     QtCore.Qt.SizeHintRole: self.row_size,
-                    QtCore.Qt.FontRole: common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE()),
+                    QtCore.Qt.FontRole: common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())[0],
                     IdRole: profile[u'id'],
                     ThumbnailHashRole: profile[u'profile']['avatar_hash'],
                     ThumbnailUrlRole: profile[u'profile']['image_32'],
@@ -668,7 +668,7 @@ class LoadingWidget(QtWidgets.QWidget):
 
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(common.TEXT)
-        painter.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+        painter.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0])
 
         painter.drawText(
             rect,

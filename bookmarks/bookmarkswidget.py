@@ -348,7 +348,7 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return
 
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         index = self.indexAt(cursor_position)
 
         if not index.isValid():
@@ -357,7 +357,7 @@ class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
             return
 
         rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
 
         if rectangles[delegate.AddAssetRect].contains(cursor_position):
             self.show_add_asset_widget()

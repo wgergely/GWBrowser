@@ -1508,7 +1508,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 parent.viewport().mapToGlobal(rect.bottomLeft()).y(),
             )
         else:
-            widget.move(QtGui.QCursor().pos())
+            widget.move(common.cursor.pos())
 
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())

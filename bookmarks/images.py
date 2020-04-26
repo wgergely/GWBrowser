@@ -95,7 +95,7 @@ def set_from_source(index, source):
 
     # Flush and re-cache
     size = int(index.data(QtCore.Qt.SizeHintRole).height())
-    
+
     ImageCache.flush(destination)
     ImageCache.get_image(destination, size)
     ImageCache.make_color(destination)
@@ -1188,8 +1188,7 @@ class Viewer(QtWidgets.QGraphicsView):
         o = common.MARGIN()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         rect.setHeight(metrics.height())
 
         # Filename
@@ -1216,8 +1215,7 @@ class Viewer(QtWidgets.QGraphicsView):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
-            metrics = QtGui.QFontMetrics(
-                common.font_db.secondary_font(common.SMALL_FONT_SIZE()))
+            font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)
@@ -1227,8 +1225,14 @@ class Viewer(QtWidgets.QGraphicsView):
             for n, text in enumerate(image_info):
                 if n > 2:
                     break
-                common.draw_aliased_text(painter, common.font_db.secondary_font(common.SMALL_FONT_SIZE()), QtCore.QRect(
-                    rect), text, QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
+                common.draw_aliased_text(
+                    painter,
+                    font,
+                    QtCore.QRect(rect),
+                    text,
+                    QtCore.Qt.AlignLeft,
+                    common.SECONDARY_TEXT
+                )
                 rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
         painter.end()
 
@@ -1516,7 +1520,7 @@ class ThumbnailLibraryItem(QtWidgets.QLabel):
 
         text = self._path.split(u'/').pop()
         text = text.replace(u'thumb_', u'')
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         common.draw_aliased_text(
             painter,

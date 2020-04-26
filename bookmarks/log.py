@@ -28,7 +28,7 @@ ENDC = (0b001000000, u'\033[0m')
 BOLD = (0b010000000, u'\033[1m')
 UNDERLINE = (0b100000000, u'\033[4m')
 
-LOGGING_ON = True
+LOGGING_ON = False
 LOG_SUCCESS = True
 LOG_DEBUG = False
 LOG_ERROR = True
@@ -350,7 +350,11 @@ class LogWidget(QtWidgets.QWidget):
         LOG_DEBUG = v
 
     def showEvent(self, event):
+        global LOGGING_ON
+        LOGGING_ON = True
         self.logview.timer.start()
 
     def hideEvent(self, event):
+        global LOGGING_ON
+        LOGGING_ON = False
         self.logview.timer.stop()

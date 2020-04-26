@@ -27,6 +27,7 @@ from bookmarks.basecontextmenu import contextmenu
 from bookmarks.common_ui import ClickableIconButton
 from bookmarks.taskfolderwidget import TaskFolderWidget
 import bookmarks.images as images
+import bookmarks.delegate as delegate
 import bookmarks.settings as settings
 
 
@@ -485,9 +486,8 @@ class PaintedTextButton(QtWidgets.QLabel):
 
     def get_width(self):
         o = common.INDICATOR_WIDTH() * 3
-        width = QtGui.QFontMetrics(common.font_db.primary_font(
-            common.MEDIUM_FONT_SIZE())).width(self.text()) + (o * 2)
-        return width
+        font, metrics =common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        return metrics.width(self.text()) + (o * 2)
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -523,8 +523,7 @@ class PaintedTextButton(QtWidgets.QLabel):
             color = common.TEXT if hover else common.BACKGROUND
             painter.setBrush(color)
 
-        metrics = QtGui.QFontMetrics(
-            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()))
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         if (metrics.width(self.text()) + (common.MARGIN() * 0.5)) < self.rect().width():
             text = metrics.elidedText(
@@ -536,9 +535,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
             x = (self.width() / 2.0) - (width / 2.0)
             y = self.rect().center().y() + (metrics.ascent() * 0.5)
-            path = QtGui.QPainterPath()
-            path.addText(x, y, common.font_db.primary_font(
-                common.MEDIUM_FONT_SIZE()), text)
+            path = delegate.get_painter_path(x, y, font, text)
             painter.drawPath(path)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
@@ -693,7 +690,7 @@ class FilesTabButton(PaintedTextButton):
 
             common.draw_aliased_text(
                 painter,
-                common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
+                common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
                 self.rect(),
                 u'...',
                 QtCore.Qt.AlignCenter,

@@ -96,8 +96,9 @@ class RectanglesWidget(QtWidgets.QLabel):
         painter.setOpacity(1.0)
 
         painter.setPen(common.TEXT)
-        painter.setFont(common.font_db.primary_font(
-            font_size=common.SMALL_FONT_SIZE()))
+        font, metrics = common.font_db.primary_font(
+            font_size=common.SMALL_FONT_SIZE())
+        painter.setFont(font)
         _rect = self.rect()
         _rect.setLeft(rect.left() + common.SMALL_FONT_SIZE())
 

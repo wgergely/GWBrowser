@@ -164,7 +164,7 @@ class ProgressWidget(QtWidgets.QWidget):
         painter.drawRect(self.rect())
         common.draw_aliased_text(
             painter,
-            common.font_db.primary_font(common.MEDIUM_FONT_SIZE()),
+            common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
             self.rect(),
             self._message,
             QtCore.Qt.AlignCenter,
@@ -1715,7 +1715,7 @@ class BaseListWidget(QtWidgets.QListView):
         if index.isValid():
             rect = self.visualRect(index)
             gpos = self.viewport().mapToGlobal(event.pos())
-            rectangles = self.itemDelegate().get_rectangles(rect)
+            rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
             if rectangles[delegate.ThumbnailRect].contains(event.pos()):
                 widget = ThumbnailsContextMenu(index, parent=self)
             else:
@@ -1726,7 +1726,7 @@ class BaseListWidget(QtWidgets.QListView):
             )
         else:
             widget = self.ContextMenu(index, parent=self)
-            widget.move(QtGui.QCursor().pos())
+            widget.move(common.cursor.pos())
 
         widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())
         common.move_widget_to_available_geo(widget)
@@ -1740,7 +1740,7 @@ class BaseListWidget(QtWidgets.QListView):
         if not isinstance(event, QtGui.QMouseEvent):
             return
 
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         index = self.indexAt(cursor_position)
         if not index.isValid():
             self.selectionModel().setCurrentIndex(
@@ -1761,7 +1761,7 @@ class BaseListWidget(QtWidgets.QListView):
         if not isinstance(event, QtGui.QMouseEvent):
             return
 
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         index = self.indexAt(cursor_position)
         if not index.isValid():
             return
@@ -1769,7 +1769,7 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
         description_rectangle = self.itemDelegate().get_description_rect(rectangles, index)
 
         if description_rectangle.contains(cursor_position):
@@ -1863,26 +1863,30 @@ class BaseListWidget(QtWidgets.QListView):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         o = common.INDICATOR_WIDTH()
 
-        _s = self._get_status_string()
-        if not _s:
+        text = self._get_status_string()
+        if not text:
             return
 
         rect = rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o))
-        painter.setPen(QtCore.Qt.NoPen)
-        font = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
-        painter.setFont(font)
-        painter.setBrush(QtGui.QColor(0, 0, 0, 50))
         painter.setOpacity(0.3)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(0, 0, 0, 50))
         painter.drawRoundedRect(rect, o, o)
-        painter.setOpacity(1.0)
 
-        painter.setPen(common.TEXT_DISABLED)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
-            _s,
-            boundingRect=rect,
+        font, metrics = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
+        text = metrics.elidedText(
+            text,
+            QtCore.Qt.ElideRight,
+            rect.width()
         )
+
+        x = rect.center().x() - (metrics.width(text) / 2.0)
+        y = rect.center().y() + (metrics.ascent() / 2.0)
+
+        painter.setOpacity(1.0)
+        painter.setBrush(common.REMOVE)
+        path = delegate.get_painter_path(x, y, font, text)
+        painter.drawPath(path)
         painter.end()
 
     def paint_background_icon(self, widget, event):
@@ -2008,7 +2012,7 @@ class BaseListWidget(QtWidgets.QListView):
 
     def dragMoveEvent(self, event):
         self._thumbnail_drop = (-1, False)
-        pos = QtGui.QCursor().pos()
+        pos = common.cursor.pos()
         pos = self.mapFromGlobal(pos)
 
         index = self.indexAt(pos)
@@ -2037,7 +2041,7 @@ class BaseListWidget(QtWidgets.QListView):
     def dropEvent(self, event):
         self._thumbnail_drop = (-1, False)
 
-        pos = QtGui.QCursor().pos()
+        pos = common.cursor.pos()
         pos = self.mapFromGlobal(pos)
 
         index = self.indexAt(pos)
@@ -2095,7 +2099,7 @@ class BaseInlineIconWidget(BaseListWidget):
             self.reset_multitoggle()
             return
 
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         index = self.indexAt(cursor_position)
         if not index.isValid():
             super(BaseInlineIconWidget, self).mousePressEvent(event)
@@ -2105,7 +2109,7 @@ class BaseInlineIconWidget(BaseListWidget):
         self.reset_multitoggle()
 
         rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
 
         if rectangles[delegate.FavouriteRect].contains(cursor_position):
             self.multi_toggle_pos = QtCore.QPoint(0, cursor_position.y())
@@ -2159,8 +2163,8 @@ class BaseInlineIconWidget(BaseListWidget):
 
         # Responding the click-events based on the position:
         rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
 
         self.reset_multitoggle()
 
@@ -2197,22 +2201,23 @@ class BaseInlineIconWidget(BaseListWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return
 
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         app = QtWidgets.QApplication.instance()
         index = self.indexAt(cursor_position)
         if not index.isValid():
             app.restoreOverrideCursor()
             return
 
-        rectangles = self.itemDelegate().get_rectangles(self.visualRect(index))
+        rectangles = delegate.get_rectangles(self.visualRect(index), self.inline_icons_count())
         for k in (
-                delegate.BookmarkPropertiesRect,
-                delegate.AddAssetRect,
-                delegate.DataRect,
-                delegate.TodoRect,
-                delegate.RevealRect,
-                delegate.ArchiveRect,
-                delegate.FavouriteRect):
+            delegate.BookmarkPropertiesRect,
+            delegate.AddAssetRect,
+            delegate.DataRect,
+            delegate.TodoRect,
+            delegate.RevealRect,
+            delegate.ArchiveRect,
+            delegate.FavouriteRect
+        ):
             if rectangles[k].contains(cursor_position):
                 self.update(index)
 
@@ -2378,7 +2383,7 @@ class BaseInlineIconWidget(BaseListWidget):
         the selected subfolder from the view.
 
         """
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         index = self.indexAt(cursor_position)
 
         if not index.isValid():
@@ -2390,13 +2395,13 @@ class BaseInlineIconWidget(BaseListWidget):
         control_modifier = modifiers & QtCore.Qt.ControlModifier
 
         rect = self.visualRect(index)
-        rectangles = self.itemDelegate().get_rectangles(rect)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
         clickable_rectangles = self.itemDelegate().get_clickable_rectangles(
             index, rectangles)
         if not clickable_rectangles:
             return
 
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
 
         for idx, item in enumerate(clickable_rectangles):
             if idx == 0:

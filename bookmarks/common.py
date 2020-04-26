@@ -122,10 +122,11 @@ GetSequenceRegex = re.compile(
     ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{1,})$',
     flags=re.IGNORECASE | re.UNICODE)
 
+
 WindowsPath = 0
-UnixPath = 1
-SlackPath = 2
-MacOSPath = 3
+UnixPath = WindowsPath + 1
+SlackPath = UnixPath + 1
+MacOSPath = SlackPath + 1
 
 
 def get_platform():
@@ -151,6 +152,9 @@ UI_SCALE = 1.0
 """The global UI scale value. Depending on context, this should correspond to
 any UI scaling set in the host DCC. In standalone mode the app factors in the
 current DPI scaling and scales the UI accordingly."""
+
+
+cursor = QtGui.QCursor()
 
 
 if get_platform() == u'mac':
@@ -197,11 +201,7 @@ THUMBNAIL_FORMAT = u'png'
 
 
 def psize(n):
-    """There is a platform difference between font sizes on OSX and Win platforms.
-    As defined sizes refer to appearance on Windows platforms, as this is
-    where development happened so we'll scale values on MacOSX.
-
-    """
+    """Returns a dpi-aware and accordingly scaled value."""
     return (float(n) * (float(DPI) / 72.0)) * float(UI_SCALE)
 
 
@@ -319,6 +319,7 @@ def rgb(color):
 
 
 def get_username():
+    """Get the name of the currently logged-in user."""
     n = QtCore.QFileInfo(os.path.expanduser(u'~')).fileName()
     n = re.sub(ur'[^a-zA-Z0-9]*', u'', n, flags=re.IGNORECASE | re.UNICODE)
     return n
@@ -398,6 +399,12 @@ def export_favourites():
 
 
 def import_favourites(source=None):
+    """Import a previously exported favourites file.
+
+    Args:
+        source (unicode): Path to a file. Defaults to `None`.
+
+    """
     try:
         import bookmarks.settings as settings
         import bookmarks.bookmark_db as bookmark_db
@@ -460,6 +467,7 @@ def import_favourites(source=None):
 
 
 def clear_favourites():
+    """Clear the list of saved items."""
     import bookmarks.settings as settings
     mbox = QtWidgets.QMessageBox()
     mbox.setWindowTitle(u'Clear favourites')
@@ -509,8 +517,8 @@ def namekey(s):
 
 
 def move_widget_to_available_geo(widget):
-    """Moves the widget inside the available screen geomtery, if any of the edges
-    fall outside.
+    """Moves the widget inside the available screen geomtery, if any of the
+    edges fall outside of it.
 
     """
     app = QtWidgets.QApplication.instance()
@@ -545,7 +553,7 @@ def move_widget_to_available_geo(widget):
 
 
 def set_custom_stylesheet(widget):
-    """Applies the custom stylesheet to the given widget."""
+    """Applies the app's custom stylesheet to the given widget."""
     import bookmarks.images as images
 
     path = os.path.normpath(
@@ -565,8 +573,8 @@ def set_custom_stylesheet(widget):
 
     try:
         qss = qss.format(
-            PRIMARY_FONT=font_db.primary_font(MEDIUM_FONT_SIZE()).family(),
-            SECONDARY_FONT=font_db.secondary_font(SMALL_FONT_SIZE()).family(),
+            PRIMARY_FONT=font_db.primary_font(MEDIUM_FONT_SIZE())[0].family(),
+            SECONDARY_FONT=font_db.secondary_font(SMALL_FONT_SIZE())[0].family(),
             SMALL_FONT_SIZE=int(SMALL_FONT_SIZE()),
             MEDIUM_FONT_SIZE=int(MEDIUM_FONT_SIZE()),
             LARGE_FONT_SIZE=int(LARGE_FONT_SIZE()),
@@ -617,7 +625,7 @@ def reveal(path):
     """Reveals the specified folder in the file explorer.
 
     Args:
-        name(str): A path to the file.
+        name(unicode): A path to the file.
 
     """
     path = get_sequence_endpath(path)
@@ -638,6 +646,74 @@ def reveal(path):
 
     raise NotImplementedError('{} os has not been implemented.'.format(
         QtCore.QSysInfo().productType()))
+
+
+def copy_path(path, mode=WindowsPath, first=True, copy=True):
+    """Copy a file path to the clipboard.
+
+    The path will be conformed to the given `mode` (eg. forward slashes
+    converted to back-slashes for `WindowsPath`).
+
+    Args:
+        path (unicode): Description of parameter `path`.
+        mode (int):     Any of `WindowsPath`, `UnixPath`, `SlackPath` or
+                        `MacOSPath`. Defaults to `WindowsPath`.
+        first (bool):   If `True` copy the first item of a sequence.
+        copy (bool):    If copy is false the converted path won't be copied to
+                        the clipboard. Defaults to `True`.
+
+    Returns:
+        unicode: The converted path.
+
+    """
+    if first:
+        path = get_sequence_startpath(path)
+    else:
+        path = get_sequence_endpath(path)
+
+    # Normalise path
+    path = re.sub(ur'[\/\\]', ur'/', path,
+                  flags=re.IGNORECASE | re.UNICODE).strip(u'/')
+
+    if mode == WindowsPath:
+        prefix = u'//' if u':' not in path else u''
+    elif mode == UnixPath:
+        prefix = u'//' if u':' not in path else u''
+    elif mode == SlackPath:
+        prefix = u'file://'
+    elif mode == MacOSPath:
+        prefix = u'smb://'
+        path = path.replace(u':', u'')
+    else:
+        prefix = u''
+    path = prefix + path
+    if mode == WindowsPath:
+        path = re.sub(ur'[\/\\]', ur'\\', path,
+                      flags=re.IGNORECASE | re.UNICODE)
+
+    if copy:
+        QtGui.QClipboard().setText(path)
+
+        import bookmarks.log as log
+        log.success(u'Copied {}'.format(path))
+
+    return path
+
+
+@QtCore.Slot(QtCore.QModelIndex)
+def execute(index, first=False):
+    """Given the model index, executes the index's path using `QDesktopServices`."""
+    if not index.isValid():
+        return
+    path = index.data(QtCore.Qt.StatusTipRole)
+    if first:
+        path = get_sequence_startpath(path)
+    else:
+        path = get_sequence_endpath(path)
+
+    url = QtCore.QUrl.fromLocalFile(path)
+    QtGui.QDesktopServices.openUrl(url)
+
 
 
 def get_ranges(arr, padding):
@@ -795,6 +871,9 @@ def get_sequence_paths(index):
     """Given the index, returns a tuple of filenames referring to the
     individual sequence items.
 
+    Args:
+        index (QtCore.QModelIndex): A baselistview index.
+
     """
     path = index.data(QtCore.Qt.StatusTipRole)
     if not is_collapsed(path):
@@ -827,6 +906,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
         int: The width of the drawn text in pixels.
 
     """
+    import bookmarks.delegate as delegate
     painter.save()
 
     painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
@@ -862,65 +942,11 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.setBrush(color)
     painter.setPen(QtCore.Qt.NoPen)
 
-    path = QtGui.QPainterPath()
-    path.addText(x, y, font, text)
+    path = delegate.get_painter_path(x, y, font, text)
     painter.drawPath(path)
 
     painter.restore()
     return width
-
-
-def copy_path(path, mode=WindowsPath, first=True, copy=True):
-    """Copies a path to the clipboard after converting it to `mode`.
-
-    """
-    if first:
-        path = get_sequence_startpath(path)
-    else:
-        path = get_sequence_endpath(path)
-
-    # Normalise path
-    path = re.sub(ur'[\/\\]', ur'/', path,
-                  flags=re.IGNORECASE | re.UNICODE).strip(u'/')
-
-    if mode == WindowsPath:
-        prefix = u'//' if u':' not in path else u''
-    elif mode == UnixPath:
-        prefix = u'//' if u':' not in path else u''
-    elif mode == SlackPath:
-        prefix = u'file://'
-    elif mode == MacOSPath:
-        prefix = u'smb://'
-        path = path.replace(u':', u'')
-    else:
-        prefix = u''
-    path = prefix + path
-    if mode == WindowsPath:
-        path = re.sub(ur'[\/\\]', ur'\\', path,
-                      flags=re.IGNORECASE | re.UNICODE)
-
-    if copy:
-        QtGui.QClipboard().setText(path)
-
-        import bookmarks.log as log
-        log.success(u'Copied {}'.format(path))
-
-    return path
-
-
-@QtCore.Slot(QtCore.QModelIndex)
-def execute(index, first=False):
-    """Given the model index, executes the index's path using QDesktopServices."""
-    if not index.isValid():
-        return
-    path = index.data(QtCore.Qt.StatusTipRole)
-    if first:
-        path = get_sequence_startpath(path)
-    else:
-        path = get_sequence_endpath(path)
-
-    url = QtCore.QUrl.fromLocalFile(path)
-    QtGui.QDesktopServices.openUrl(url)
 
 
 def walk(path):
@@ -1045,15 +1071,26 @@ def push_to_rv(path):
         return
 
 
-class FontDatabase(QtGui.QFontDatabase):
+PrimaryFontRole = 0
+SecondaryFontRole = PrimaryFontRole + 1
+HeaderFontRole = SecondaryFontRole + 1
+MetricsRole = HeaderFontRole + 1
 
+
+class FontDatabase(QtGui.QFontDatabase):
+    """Utility class for loading and supplying custom fonts."""
+    CACHE = {
+        PrimaryFontRole: {},
+        SecondaryFontRole: {},
+        HeaderFontRole: {},
+        MetricsRole: {},
+    }
     def __init__(self, parent=None):
         if not QtWidgets.QApplication.instance():
             raise RuntimeError(
                 'FontDatabase must be created after a QApplication was initiated.')
         super(FontDatabase, self).__init__(parent=parent)
 
-        self._fonts = {}
         self._metrics = {}
         self.add_custom_fonts()
 
@@ -1083,41 +1120,28 @@ class FontDatabase(QtGui.QFontDatabase):
 
     def primary_font(self, font_size):
         """Returns the primary font used by the application"""
-        k = u'bmRobotoBold' + unicode(font_size)
-        if k in self._fonts:
-            return self._fonts[k]
-
-        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', font_size)
-        self._fonts[k].setPixelSize(font_size)
-
-        if self._fonts[k].family() != u'bmRobotoBold':
+        if font_size in self.CACHE[PrimaryFontRole]:
+            return self.CACHE[PrimaryFontRole][font_size]
+        font = self.font(u'bmRobotoBold', u'Bold', font_size)
+        if font.family() != u'bmRobotoBold':
             raise RuntimeError(
                 u'Failed to add required font to the application')
-        return self._fonts[k]
+        font.setPixelSize(font_size)
+        metrics = QtGui.QFontMetrics(font)
+        self.CACHE[PrimaryFontRole][font_size] = (font, metrics)
+        return self.CACHE[PrimaryFontRole][font_size]
 
     def secondary_font(self, font_size=SMALL_FONT_SIZE()):
-        k = u'bmRobotoMedium' + unicode(font_size)
-        if k in self._fonts:
-            return self._fonts[k]
-
-        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', font_size)
-        self._fonts[k].setPixelSize(font_size)
-
-        if self._fonts[k].family() != u'bmRobotoMedium':
+        if font_size in self.CACHE[SecondaryFontRole]:
+            return self.CACHE[SecondaryFontRole][font_size]
+        font = self.font(u'bmRobotoMedium', u'Medium', font_size)
+        if font.family() != u'bmRobotoMedium':
             raise RuntimeError(
                 u'Failed to add required font to the application')
-        return self._fonts[k]
-
-    def header_font(self, font_size=MEDIUM_FONT_SIZE() * 1.5):
-        k = u'bmRobotoBlack' + unicode(float(font_size))
-        if k in self._fonts:
-            return self._fonts[k]
-
-        self._fonts[k] = self.font(u'bmRobotoBlack', u'Black', font_size)
-        if self._fonts[k].family() != u'bmRobotoBlack':
-            raise RuntimeError(
-                u'Failed to add required font to the application')
-        return self._fonts[k]
+        font.setPixelSize(font_size)
+        metrics = QtGui.QFontMetrics(font)
+        self.CACHE[SecondaryFontRole][font_size] = (font, metrics)
+        return self.CACHE[SecondaryFontRole][font_size]
 
 
 class DataDict(dict):

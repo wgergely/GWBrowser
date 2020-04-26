@@ -287,15 +287,13 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        metrics = QtGui.QFontMetrics(font)
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
 
@@ -963,7 +961,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             painter = QtGui.QPainter()
             painter.begin(self)
             font = common.font_db.secondary_font(
-                font_size=common.MEDIUM_FONT_SIZE())
+                font_size=common.MEDIUM_FONT_SIZE())[0]
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 

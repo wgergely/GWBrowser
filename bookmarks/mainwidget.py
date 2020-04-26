@@ -85,7 +85,7 @@ class StatusBar(QtWidgets.QStatusBar):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        font = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
+        font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
         common.draw_aliased_text(
             painter,
             font,
@@ -345,7 +345,7 @@ class ToggleModeButton(QtWidgets.QWidget):
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
         if self.rect().contains(cursor_position):
             self.clicked.emit()
 
@@ -895,7 +895,7 @@ class MainWidget(QtWidgets.QWidget):
             painter.drawRect(rect)
 
         if not self._initialized:
-            font = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+            font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter
             color = QtGui.QColor(255, 255, 255, 80)
@@ -924,7 +924,6 @@ class MainWidget(QtWidgets.QWidget):
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
             painter.setOpacity(1.0)
 
-            metrics = QtGui.QFontMetrics(font)
             rect.setTop(pixmaprect.bottom() + (o * 0.5))
             rect.setHeight(metrics.height())
             common.draw_aliased_text(
