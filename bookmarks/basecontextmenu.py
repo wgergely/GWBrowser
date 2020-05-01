@@ -1,22 +1,7 @@
 # -*- coding: utf-8 -*-
 """All context-menus derive from the `BaseContextMenu` defined below.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
-
 import os
 import functools
 import collections
@@ -99,7 +84,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             for action in parent.actions():
                 if not action.text():
                     continue
-                font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+                font, metrics = common.font_db.primary_font(
+                    common.MEDIUM_FONT_SIZE())
                 width = metrics.width(action.text())
                 width += (common.MARGIN() * 4)
                 w.append(int(width))
@@ -191,7 +177,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         for action in self.actions():
             if not action.text():
                 continue
-            font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+            font, metrics = common.font_db.primary_font(
+                common.MEDIUM_FONT_SIZE())
             width = metrics.width(action.text())
             width += (common.MARGIN() * 4)
             w.append(int(width))
@@ -274,10 +261,11 @@ class BaseContextMenu(QtWidgets.QMenu):
         """Creates a menu containing"""
         if not self.index.isValid():
             return menu_set
+        if not self.index.data(QtCore.Qt.StatusTipRole):
+            return
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
-
         path = common.get_sequence_startpath(
             self.index.data(QtCore.Qt.StatusTipRole))
         menu_set['Push to RV'] = {

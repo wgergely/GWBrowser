@@ -3,21 +3,7 @@
 
 Thumbnail and file-load work on carried out on secondary threads.
 Each thread is assigned a single Worker - usually responsible for taking
-*QModelIndexes* from the thread's python Queue.
-
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+a *weakref.ref* from the thread's queue.
 
 """
 import base64
@@ -36,6 +22,7 @@ import bookmarks.bookmark_db as bookmark_db
 
 
 THREADS = {}
+"""Global thread controller cache."""
 
 FileThumbnailQueue = 1
 FavouriteThumbnailQueue = FileThumbnailQueue + 1
@@ -46,6 +33,7 @@ FavouriteInfoQueue = FileInfoQueue + 1
 AssetInfoQueue = FavouriteInfoQueue + 1
 BookmarkInfoQueue = AssetInfoQueue + 1
 TaskFolderInfoQueue = BookmarkInfoQueue + 1
+
 
 QUEUES = {
     FileThumbnailQueue: collections.deque([], 99),
@@ -58,6 +46,7 @@ QUEUES = {
     BookmarkInfoQueue: collections.deque([], common.MAXITEMS),
     TaskFolderInfoQueue: collections.deque([], common.MAXITEMS),
 }
+"""Global thread queues."""
 
 
 class ModelLoadedDummy(object):
@@ -68,6 +57,12 @@ class ModelLoadedDummy(object):
 
 
 def verify_thread_affinity():
+    """Prohibits running methods from the main gui thread.
+
+    Raises:
+        RuntimeError: If the calling thread is the main gui thread.
+
+    """
     if QtCore.QThread.currentThread() == QtWidgets.QApplication.instance().thread():
         s = u'Method cannot be called from the main gui thread'
         log.error(s)
@@ -113,7 +108,7 @@ def process(func):
             self.updateRow.emit(ref()[common.IdRole])
 
         except IndexError:
-            pass # ignore index errors
+            pass  # ignore index errors
         except (ValueError, RuntimeError, TypeError):
             log.error(u'Error processing data - {}'.format(self))
         finally:
@@ -170,18 +165,25 @@ class ThreadMonitor(QtWidgets.QWidget):
 
 
 class BaseThread(QtCore.QThread):
-    """Thread controller with a worker and a timer.
+    """Thread controller.
 
-    The timer is used to get items from a queue periodically and ask the
-    worker to consume it. The worker's thread affinity will be set
-    to the thread after it is started.
+    The threads are associated with workers and are used to consume items
+    from their associated queues.
+
+    Signals:
+        * resetQueue: Empty the worker's queue.
+        * startCheckQueue: Start the worker's queue timer.
+        * stopCheckQueue: Stop the worker's queue timer.
+        * updateRow: Called when the worker finished processing an item and a row repaint is needed.
+        * queueModel: Request the worker to load the entire model data to the queue.
+        * modelLoaded: Called by the worker when all items previously added by queueModel have finished processing.
 
     """
     resetQueue = QtCore.Signal()
-    queueModel = QtCore.Signal(str)
     startCheckQueue = QtCore.Signal()
     stopCheckQueue = QtCore.Signal()
     updateRow = QtCore.Signal(int)
+    queueModel = QtCore.Signal(str)
     modelLoaded = QtCore.Signal(int)
 
     def __init__(self, worker, parent=None):
@@ -208,6 +210,12 @@ class BaseThread(QtCore.QThread):
 
     @QtCore.Slot()
     def move_worker_to_thread(self):
+        """Slot called when the thread is started.
+
+        We'll move the worker to the thread and connnect all signals needed to
+        communicate with the worker.
+
+        """
         log.debug(u'move_worker_to_thread()', self)
 
         self.worker.moveToThread(self)
@@ -250,20 +258,19 @@ class BaseThread(QtCore.QThread):
 
 
 class BaseWorker(QtCore.QObject):
-    """Worker, used by a thread to process item information.
+    """Workers are used to load file and thumbnail information.
 
-    Workers must be associated with a global queue by initiating the class
-    with a `queue_type`.
+    Each worker is associated with global queues using `queue_type` and their signals
+    are connected to the respective thread signals. This is so that we can
+    rely on Qt's event queue for communicating between threads.
 
     """
     resetQueue = QtCore.Signal()
-    queueModel = QtCore.Signal(str)
-
-    updateRow = QtCore.Signal(int)
-    modelLoaded = QtCore.Signal(int)
-
     startCheckQueue = QtCore.Signal()
     stopCheckQueue = QtCore.Signal()
+    updateRow = QtCore.Signal(int)
+    queueModel = QtCore.Signal(str)
+    modelLoaded = QtCore.Signal(int)
 
     def __init__(self, queue_type, parent=None):
         if not isinstance(queue_type, int):
@@ -281,14 +288,25 @@ class BaseWorker(QtCore.QObject):
         self.check_queue_timer.setInterval(333)
 
         self.resetQueue.connect(self.reset_queue, QtCore.Qt.DirectConnection)
-        self.queueModel.connect(self.add_model_to_queue, QtCore.Qt.DirectConnection)
+        self.queueModel.connect(self.add_model_to_queue,
+                                QtCore.Qt.DirectConnection)
 
-        self.startCheckQueue.connect(self.check_queue_timer.start, QtCore.Qt.DirectConnection)
-        self.stopCheckQueue.connect(self.check_queue_timer.stop, QtCore.Qt.DirectConnection)
-        self.check_queue_timer.timeout.connect(self.check_queue, QtCore.Qt.DirectConnection)
+        self.startCheckQueue.connect(
+            self.check_queue_timer.start, QtCore.Qt.DirectConnection)
+        self.stopCheckQueue.connect(
+            self.check_queue_timer.stop, QtCore.Qt.DirectConnection)
+        self.check_queue_timer.timeout.connect(
+            self.check_queue, QtCore.Qt.DirectConnection)
 
     @QtCore.Slot()
     def check_queue(self):
+        """Slot called to see if a queue contains any items waiting to be
+        consumed.
+
+        If the queue is not empty we will call :func:`.BaseWorker.process_data`
+        untiol the queue is empty.
+
+        """
         verify_thread_affinity()
 
         q = QUEUES[self.queue_type]
@@ -367,6 +385,10 @@ class BaseWorker(QtCore.QObject):
 
     @QtCore.Slot()
     def reset_queue(self):
+        """Slot called by the `resetQueue` signal and is responsible for
+        clearing the worker's queue.
+
+        """
         verify_thread_affinity()
         log.debug(u'reset_queue()', self)
         self.interrupt = True
@@ -376,6 +398,7 @@ class BaseWorker(QtCore.QObject):
     @process
     @QtCore.Slot()
     def process_data(self, ref):
+        """This is an abstract method and must be overwritten in the subclass."""
         if not ref() or self.interrupt:
             return False
         return True
@@ -384,14 +407,14 @@ class BaseWorker(QtCore.QObject):
 class InfoWorker(BaseWorker):
     """A worker used to retrieve file information.
 
-    For large number of files this involves multiple IO calls that while
-    don't want to do in the main thread.
+    We will query the file system for file size, and the bookmark database
+    for the description, and file flags.
 
     """
     @process
     @QtCore.Slot(weakref.ref)
     def process_data(self, ref):
-        """Populates the DataDict instance with the missing file information.
+        """Populates the item with the missing file information.
 
         Args:
             ref (weakref): An internal model data DataDict instance's weakref.
@@ -400,7 +423,8 @@ class InfoWorker(BaseWorker):
             bool: `True` if all went well, `False` otherwise.
 
         """
-        is_valid = lambda: False if not ref() or self.interrupt or ref()[common.FileInfoLoaded] else True
+        def is_valid(): return False if not ref() or self.interrupt or ref()[
+            common.FileInfoLoaded] else True
 
         if not is_valid():
             return False
@@ -409,13 +433,24 @@ class InfoWorker(BaseWorker):
             pp = ref()[common.ParentPathRole]
             db = bookmark_db.get_db(pp[0], pp[1], pp[2])
 
-            # DATABASE --BEGIN--
-            with db.transactions():
-                # Item description
+            if not is_valid():
+                return False
+
+            collapsed = common.is_collapsed(ref()[QtCore.Qt.StatusTipRole])
+            seq = ref()[common.SequenceRole]
+
+            if not is_valid():
+                return False
+            proxy_k = common.proxy_path(ref())
+            if collapsed:
+                k = proxy_k
+            else:
                 if not is_valid():
                     return False
-                k = common.proxy_path(ref())
+                k = ref()[QtCore.Qt.StatusTipRole]
 
+            # Issues SQLite "BEGIN"
+            with db.transactions():
                 # Description
                 v = db.value(k, u'description')
                 if v:
@@ -444,7 +479,11 @@ class InfoWorker(BaseWorker):
                     return False
                 flags = ref()[
                     common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
+
                 v = db.value(k, u'flags')
+                if v:
+                    flags = flags | v
+                v = db.value(proxy_k, u'flags')
                 if v:
                     flags = flags | v
 
@@ -452,7 +491,7 @@ class InfoWorker(BaseWorker):
                     return False
                 ref()[common.FlagsRole] = flags
 
-            # For sequence items we will work out the name of the sequence based on
+            # For sequences we will work out the name of the sequence based on
             # the frames.
             if not is_valid():
                 return False
@@ -600,7 +639,8 @@ class ThumbnailWorker(BaseWorker):
             ref or None: `ref` if loaded successfully, else `None`.
 
         """
-        is_valid = lambda: False if not ref() or self.interrupt or ref()[common.ThumbnailLoaded] or ref()[common.FlagsRole] & common.MarkedAsArchived else True
+        def is_valid(): return False if not ref() or self.interrupt or ref()[
+            common.ThumbnailLoaded] or ref()[common.FlagsRole] & common.MarkedAsArchived else True
 
         if not is_valid():
             return False
@@ -625,7 +665,7 @@ class ThumbnailWorker(BaseWorker):
         image = images.ImageCache.get_image(
             destination,
             int(size),
-            force=True # force=True will refresh the cache
+            force=True  # force=True will refresh the cache
         )
 
         try:
@@ -682,6 +722,7 @@ class ThumbnailWorker(BaseWorker):
 
 
 class TaskFolderWorker(BaseWorker):
+    """Used by the TaskFolderModel to count the number of files in a folder."""
     @process
     @QtCore.Slot()
     def process_data(self, ref):

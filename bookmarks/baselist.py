@@ -2,38 +2,21 @@
 """Core model and view widgets.
 
 BaseModel is the core container for item data. The all data is stored
-internally in `BaseModel.INTERNAL_MODEL_DATA` and is populated by
-`BaseModel.__initdata__()`.
+internally in :const:`.BaseModel.INTERNAL_MODEL_DATA` and is populated by
+:func:`.BaseModel.__initdata__`.
 
 Multi-threading:
     Each BaseModel instance can be initiated with threads, used to load secondary
     file information, like custom descriptions and thumbnails.
-    See the `bookmarks.threads` module for more information.
+    See :mod:`.bookmarks.threads` for more information.
 
-Data is filtered with QSortFilterProxyModels.
+Data is filtered with QSortFilterProxyModels but we're not using sorting.
+Sorting is implemented for performance reasons in the BaseModel directly.
 
-The main view tabs derive from the base list view classes:
-
-BaseListWidget:         Defines core list behaviours.
-BaseInlineIconWidget:   Adds the methods needed to respond to custom
-                        inline button events.
-ThreadedBaseWidget:     Implements the methods needed to use custom worker
-                        threads.
-
-
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+The main tabs derive from the following custom QListViews:
+    :class:`.BaseListWidget`: Defines core list behaviours.
+    :class:`.BaseInlineIconWidget`: Adds the methods needed to respond to custom inline button events.
+    :class:`.ThreadedBaseWidget`: Implements the methods needed to utilse custom worker threads.
 
 """
 import re
@@ -53,6 +36,9 @@ import bookmarks.images as images
 import bookmarks.alembicpreview as alembicpreview
 
 import bookmarks.threads as threads
+
+
+BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 50)
 
 
 def validate_index(func):
@@ -158,10 +144,10 @@ class ProgressWidget(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
-        color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(150)
+        color = common.SEPARATOR
         painter.setBrush(color)
         painter.drawRect(self.rect())
+        painter.setOpacity(0.8)
         common.draw_aliased_text(
             painter,
             common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
@@ -505,7 +491,6 @@ class BaseModel(QtCore.QAbstractListModel):
         return True
 
     def dropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
-        """Handles the thumbnail drop."""
         source = data.urls()[0].toLocalFile()
         if not images.oiio_get_buf(source):
             return False
@@ -514,13 +499,6 @@ class BaseModel(QtCore.QAbstractListModel):
             source
         )
         return True
-
-    def get_text_segments(self, index):
-        """A utility function that provides rich text-like text segments and
-        colors for the delegate to use.
-
-        """
-        return {}
 
     def initialize_default_sort_values(self):
         """Loads the saved sorting values from the local preferences.
@@ -835,15 +813,12 @@ class BaseModel(QtCore.QAbstractListModel):
 
     @flagsmethod
     def flags(self, index):
-        """The flag values are stored in the model as a separate role."""
         return self.data(index, role=common.FlagsRole)
 
     def parent(self, child):
-        """We don't implement parented indexes."""
         return QtCore.QModelIndex()
 
     def setData(self, index, data, role=QtCore.Qt.DisplayRole):
-        """Data setter method."""
         if not index.isValid():
             return False
         if index.row() not in self.model_data():
@@ -1178,48 +1153,66 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
-        """"`save_activated` is abstract and has to be implemented in the subclass."""
+        """`save_activated` is abstract and has to be implemented in the subclass."""
         pass
 
     @QtCore.Slot()
     def save_selection(self):
-        """Saves the currently selected path."""
+        """Saves the current selection."""
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
 
+        model = self.model().sourceModel()
+        data_type = model.data_type()
         cls = self.__class__.__name__
-        k = u'widget/{}/{}/selected_item'.format(
-            cls,
-            self.model().sourceModel().task_folder(),
-        )
-        v = common.proxy_path(index)
-        settings.local_settings.setValue(k, v)
+        file_k = u'widget/{}/{}/selected_fileitem'.format(
+            cls, model.task_folder())
+        seq_k = u'widget/{}/{}/selected_sequenceitem'.format(
+            cls, model.task_folder())
+        path = index.data(QtCore.Qt.StatusTipRole)
+
+        if data_type == common.FileItem:
+            settings.local_settings.setValue(file_k, path)
+            settings.local_settings.setValue(seq_k, common.proxy_path(path))
+
+        if data_type == common.SequenceItem:
+            settings.local_settings.setValue(
+                file_k, common.get_sequence_startpath(path))
+            settings.local_settings.setValue(seq_k, common.proxy_path(path))
+
 
     @QtCore.Slot()
     def reselect_previous(self):
-        """Slot called when the model has finished a reset operation.
-        The method will try to reselect the previously selected path."""
-        cls = self.__class__.__name__
-        k = u'widget/{}/{}/selected_item'.format(
-            cls,
-            self.model().sourceModel().task_folder(),
-        )
-        val = settings.local_settings.value(k)
-
-        if not val:
+        """Slot called to reselect the previously selected item."""
+        proxy = self.model()
+        if not proxy.rowCount():
             return
 
-        proxy = self.model()
-        for n in xrange(proxy.rowCount()):
-            index = proxy.index(n, 0)
-            path = common.proxy_path(index)
-            if val.lower() == path.lower():
-                self.selectionModel().setCurrentIndex(
-                    index, QtCore.QItemSelectionModel.ClearAndSelect)
-                self.scrollTo(
-                    index, QtWidgets.QAbstractItemView.PositionAtCenter)
-                return
+        model = proxy.sourceModel()
+        data_type = model.data_type()
+        cls = self.__class__.__name__
+        if data_type == common.FileItem:
+            k = u'widget/{}/{}/selected_fileitem'.format(
+                cls, model.task_folder())
+        if data_type == common.SequenceItem:
+            k = u'widget/{}/{}/selected_sequenceitem'.format(
+            cls, model.task_folder())
+
+        previous = settings.local_settings.value(k)
+        if previous:
+            for n in xrange(proxy.rowCount()):
+                index = proxy.index(n, 0)
+                if data_type == common.SequenceItem:
+                    current = common.proxy_path(index.data(QtCore.Qt.StatusTipRole))
+                else:
+                    current = index.data(QtCore.Qt.StatusTipRole)
+                if current == previous:
+                    self.selectionModel().setCurrentIndex(
+                        index, QtCore.QItemSelectionModel.ClearAndSelect)
+                    self.scrollTo(
+                        index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                    return
 
         index = proxy.sourceModel().active_index()
         if index.isValid():
@@ -1228,19 +1221,16 @@ class BaseListWidget(QtWidgets.QListView):
             self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
             return
 
-        if not proxy.rowCount():
-            return
-
         index = proxy.index(0, 0)
         self.selectionModel().setCurrentIndex(
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
     def toggle_item_flag(self, index, flag, state=None):
-        """Sets the index's `flag` value based `state`.
+        """Sets the index's `flag` value based on `state`.
 
-        We're using the method to mark items archived, or favourite and save the changes
-        to the database or the local config file.
+        We're using the method to mark items archived, or favourite and save the
+        changes to the database or the local config file.
 
         Args:
             index (QModelIndex): The index containing the
@@ -1251,7 +1241,8 @@ class BaseListWidget(QtWidgets.QListView):
             unicode: The key used to find and match items.
 
         """
-        def _func(mode, data, flag):
+        def dummy_func(mode, data, flag):
+            """Does nothing."""
             pass
 
         def save_to_db(k, mode, flag):
@@ -1283,13 +1274,13 @@ class BaseListWidget(QtWidgets.QListView):
             pass
 
         if flag == common.MarkedAsArchived:
-            func = save_to_db
+            save_func = save_to_db
         elif flag == common.MarkedAsFavourite:
-            func = save_to_local_settings
+            save_func = save_to_local_settings
         elif flag == common.MarkedAsActive:
-            func = save_active
+            save_func = save_active
         else:
-            func = _func
+            save_func = dummy_func
 
         def _set_flag(k, mode, data, flag, commit=False):
             """Sets a single flag value based on the given mode."""
@@ -1297,19 +1288,45 @@ class BaseListWidget(QtWidgets.QListView):
                 data[common.FlagsRole] = data[common.FlagsRole] | flag
             else:
                 data[common.FlagsRole] = data[common.FlagsRole] & ~flag
-            if not commit:
-                return
-            func(k, mode, flag)
+            if commit:
+                save_func(k, mode, flag)
 
-        def _set_flags(it, sequence_key, mode, flag):
+        def _set_flags(DATA, k, mode, flag, commit=False, proxy=False):
             """Sets flags for multiple items."""
-            for data in it:
-                if not data[common.SequenceRole]:
-                    continue
-                k = common.proxy_path(data)
-                if sequence_key != k:
-                    continue
-                _set_flag(k, mode, data, flag, commit=False)
+            for item in DATA.itervalues():
+                if proxy:
+                    _k = common.proxy_path(item[QtCore.Qt.StatusTipRole])
+                else:
+                    _k = item[QtCore.Qt.StatusTipRole]
+                if k == _k:
+                    _set_flag(_k, mode, item, flag, commit=commit)
+
+        def can_toggle_flag(k, mode, data, flag):
+            seq = common.get_sequence(k)
+            if not seq:
+                return True
+            proxy_k = common.proxy_path(k)
+            if flag == common.MarkedAsActive:
+                pass
+            elif flag == common.MarkedAsArchived:
+                db = bookmark_db.get_db(
+                    index.data(common.ParentPathRole)[0],
+                    index.data(common.ParentPathRole)[1],
+                    index.data(common.ParentPathRole)[2],
+                )
+                flags = db.value(proxy_k, u'flags')
+                if not flags:
+                    return True
+                if flags & common.MarkedAsArchived:
+                    return False
+                return True
+            elif flag == common.MarkedAsFavourite:
+                favourites = settings.local_settings.favourites()
+                sfavourites = set(favourites)
+                if proxy_k.lower() in sfavourites:
+                    return False
+                return True
+            return False
 
         if not index.isValid():
             return None
@@ -1328,6 +1345,7 @@ class BaseListWidget(QtWidgets.QListView):
         SEQ_DATA = model.INTERNAL_MODEL_DATA[task_folder][common.SequenceItem]
 
         applied = data[common.FlagsRole] & flag
+        collapsed = common.is_collapsed(data[QtCore.Qt.StatusTipRole])
 
         # Determine the mode of operation
         if state is None and applied:
@@ -1337,14 +1355,27 @@ class BaseListWidget(QtWidgets.QListView):
         elif state is not None:
             mode = state
 
-        # Sequence-agnosic key based on the file-name
-        k = common.proxy_path(data)
-
-        _set_flag(k, mode, data, flag, commit=True)
-
-        if data[common.SequenceRole]:
-            _set_flags(FILE_DATA.itervalues(), k, mode, flag)
-            _set_flags(SEQ_DATA.itervalues(), k, mode, flag)
+        if collapsed:
+            k = common.proxy_path(data[QtCore.Qt.StatusTipRole])
+            _set_flag(k, mode, data, flag, commit=True)
+            if self.model().sourceModel().model_data() == FILE_DATA:
+                _set_flags(SEQ_DATA, k, mode, flag, commit=False, proxy=True)
+            else:
+                _set_flags(FILE_DATA, k, mode, flag, commit=False, proxy=True)
+        else:
+            k = data[QtCore.Qt.StatusTipRole]
+            if not can_toggle_flag(k, mode, data, flag):
+                common_ui.MessageBox(
+                    u'Oops. It looks like this item belongs to a sequence that has a flag set already.',
+                    u'To modify individual sequence items, remove the flag from the sequence first and try again.'
+                ).open()
+                self.reset_multitoggle()
+                return
+            _set_flag(k, mode, data, flag, commit=True)
+            if self.model().sourceModel().model_data() == FILE_DATA:
+                _set_flags(SEQ_DATA, k, mode, flag, commit=True, proxy=False)
+            else:
+                _set_flags(FILE_DATA, k, mode, flag, commit=True, proxy=False)
 
         self.repaint()
         return k
@@ -1523,10 +1554,12 @@ class BaseListWidget(QtWidgets.QListView):
                 return
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
+                self.save_selection()
                 return
             elif event.key() == QtCore.Qt.Key_Tab:
                 if not self.description_editor_widget.isVisible():
                     self.key_tab()
+                    self.save_selection()
                     return
                 else:
                     self.key_down()
@@ -1537,6 +1570,7 @@ class BaseListWidget(QtWidgets.QListView):
             elif event.key() == QtCore.Qt.Key_Backtab:
                 if not self.description_editor_widget.isVisible():
                     self.key_tab()
+                    self.save_selection()
                     return
                 else:
                     self.key_up()
@@ -1621,14 +1655,17 @@ class BaseListWidget(QtWidgets.QListView):
                     return common.copy_path(path, mode=mode, first=False)
 
             if event.key() == QtCore.Qt.Key_Plus:
+                self.save_selection()
                 self.increase_row_size()
                 return
 
             if event.key() == QtCore.Qt.Key_0:
+                self.save_selection()
                 self.reset_row_size()
                 return
 
             if event.key() == QtCore.Qt.Key_Minus:
+                self.save_selection()
                 self.decrease_row_size()
                 return
 
@@ -1646,6 +1683,7 @@ class BaseListWidget(QtWidgets.QListView):
                 return
 
             if event.key() == QtCore.Qt.Key_S:
+                self.save_selection()
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsFavourite
@@ -1655,6 +1693,7 @@ class BaseListWidget(QtWidgets.QListView):
                 return
 
             if event.key() == QtCore.Qt.Key_A:
+                self.save_selection()
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsArchived
@@ -1667,10 +1706,12 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_Tab:
                 self.key_up()
                 self.key_tab()
+                self.save_selection()
                 return
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
+                self.save_selection()
                 return
 
     def wheelEvent(self, event):
@@ -1747,7 +1788,6 @@ class BaseListWidget(QtWidgets.QListView):
                 QtCore.QModelIndex(),
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
-        self.save_selection()
         super(BaseListWidget, self).mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
@@ -1870,7 +1910,7 @@ class BaseListWidget(QtWidgets.QListView):
         rect = rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o))
         painter.setOpacity(0.3)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QColor(0, 0, 0, 50))
+        painter.setBrush(BACKGROUND_COLOR)
         painter.drawRoundedRect(rect, o, o)
 
         font, metrics = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
@@ -1893,7 +1933,7 @@ class BaseListWidget(QtWidgets.QListView):
         painter = QtGui.QPainter()
         painter.begin(self)
         pixmap = images.ImageCache.get_rsc_pixmap(
-            self._background_icon, QtGui.QColor(0, 0, 0, 30), common.ROW_HEIGHT() * 3)
+            self._background_icon, BACKGROUND_COLOR, common.ROW_HEIGHT() * 3)
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -2061,6 +2101,9 @@ class BaseListWidget(QtWidgets.QListView):
     def showEvent(self, event):
         self.scheduleDelayedItemsLayout()
 
+    def mouseReleaseEvent(self, event):
+        super(BaseListWidget, self).mouseReleaseEvent(event)
+        self.save_selection()
 
 class BaseInlineIconWidget(BaseListWidget):
     """Multi-toggle capable widget with clickable in-line icons."""

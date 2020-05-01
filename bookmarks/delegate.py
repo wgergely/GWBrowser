@@ -1,33 +1,29 @@
 # -*- coding: utf-8 -*-
 """The delegate used to  paint the bookmark, asset and file widgets.
 
-Copyright (C) 2020 Gergely Wootsch
+The delegate is fully integerated with the BaseListViews because we're relying
+on the drawing of the elements to define clickable regions on a row.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+The delegate itself is very slow - we're using QPainterPaths to draw aliased
+text output and hence backing some of the operations by simple caches.
 
 """
 import re
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.images as images
+
 
 regex_remove_version = re.compile(
     ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE | re.UNICODE)
 regex_remove_bracket = re.compile(
     ur'[\[\]]*', flags=re.IGNORECASE | re.UNICODE)
+
+
+HOVER_COLOR = QtGui.QColor(255, 255, 255, 10)
+BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 100)
 
 
 BackgroundRect = 0
@@ -48,6 +44,7 @@ PATH_CACHE = {}
 
 
 def get_painter_path(x, y, font, text):
+    """Creates, populates and caches a QPainterPath instance."""
     k = u'{}{}{}{}'.format(x, y, font, text)
     if k not in PATH_CACHE:
         path = QtGui.QPainterPath()
@@ -126,6 +123,7 @@ def get_rectangles(rectangle, count):
     return RECTANGLE_CACHE[k]
 
 
+TEXT_SEGMENT_CACHE = {}
 
 
 def paintmethod(func):
@@ -176,7 +174,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         favourite = flags & common.MarkedAsFavourite
         archived = flags & common.MarkedAsArchived
         active = flags & common.MarkedAsActive
-        rectangles = get_rectangles(option.rect, self.parent().inline_icons_count())
+        rectangles = get_rectangles(
+            option.rect, self.parent().inline_icons_count())
         font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         painter.setFont(font)
 
@@ -282,13 +281,30 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         pixmap = images.ImageCache.get_pixmap(thumbnail_path, size)
         if not pixmap:
-            # Let's load a placeholder if there's not generated thumbnail
-            pixmap = images.ImageCache.get_pixmap(
-                images.get_placeholder_path(source, fallback=self.fallback_thumb),
-                size
+            # If this item is an un-collapsed sequence item, the sequence
+            # might have a thumbnail...
+            thumbnail_path = images.get_thumbnail_path(
+                _p[0],
+                _p[1],
+                _p[2],
+                source,
+                proxy=True
             )
-            if not pixmap:
-                return
+            pixmap = images.ImageCache.get_pixmap(thumbnail_path, size)
+            if pixmap:
+                color = images.ImageCache.get_color(thumbnail_path)
+                if color:
+                    painter.setBrush(color)
+                    painter.drawRect(rectangles[ThumbnailRect])
+            else:
+                # Let's load a placeholder if there's not generated thumbnail
+                pixmap = images.ImageCache.get_pixmap(
+                    images.get_placeholder_path(
+                        source, fallback=self.fallback_thumb),
+                    size
+                )
+                if not pixmap:
+                    return
         else:
             color = images.ImageCache.get_color(thumbnail_path)
             if color:
@@ -316,7 +332,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawRect(option.rect)
 
             painter.setPen(common.ADD)
-            font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
+            font, metrics = common.font_db.secondary_font(
+                common.SMALL_FONT_SIZE())
             painter.setFont(font)
 
             text = u'Drop image to add as thumbnail'
@@ -366,7 +383,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             _rect = QtCore.QRect(rect)
             _rect.setBottom(_rect.bottom() + common.INDICATOR_WIDTH())
             _rect.setTop(_rect.bottom() - common.INDICATOR_WIDTH())
-            _rect.setLeft(common.INDICATOR_WIDTH() + option.rect.height() - common.ROW_SEPARATOR())
+            _rect.setLeft(common.INDICATOR_WIDTH() +
+                          option.rect.height() - common.ROW_SEPARATOR())
             painter.drawRect(_rect)
 
         # Active indicator
@@ -375,7 +393,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                          common.INDICATOR_WIDTH() + option.rect.height())
             painter.setOpacity(0.5)
             painter.setBrush(common.ADD)
-            painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+            painter.drawRoundedRect(
+                rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
             painter.setOpacity(0.8)
             pen = QtGui.QPen(common.ADD)
             pen.setWidth(common.ROW_SEPARATOR() * 2)
@@ -383,11 +402,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(QtCore.Qt.NoBrush)
             o = common.ROW_SEPARATOR()
             rect = rect.marginsRemoved(QtCore.QMargins(o, o, o * 1.5, o * 1.5))
-            painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+            painter.drawRoundedRect(
+                rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
 
         # Hover indicator
         if hover:
-            painter.setBrush(QtGui.QColor(255, 255, 255, 10))
+            painter.setBrush(HOVER_COLOR)
             painter.drawRect(rect)
 
     @paintmethod
@@ -515,7 +535,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[IndicatorRect]
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        color = common.TEXT_SELECTED if selected else QtGui.QColor(0, 0, 0, 0)
+        color = common.TEXT_SELECTED if selected else common.TRANSPARENT
         painter.setBrush(color)
         painter.drawRoundedRect(rect, rect.width() * 0.5, rect.width() * 0.5)
 
@@ -619,7 +639,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         _datarect = QtCore.QRect(rectangles[DataRect])
         if not self.parent().buttons_hidden():
-            rectangles[DataRect].setRight(rectangles[DataRect].right() - common.MARGIN())
+            rectangles[DataRect].setRight(
+                rectangles[DataRect].right() - common.MARGIN())
 
         if hover or selected or active:
             painter.setOpacity(1.0)
@@ -645,8 +666,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
         if (r.right() + o) > rect.right():
             r.setRight(rect.right() - o)
 
-        color = common.ADD.darker(120) if active else common.FAVOURITE.darker(120)
-        color = common.ADD.darker(150) if r.contains(cursor_position) else color
+        color = common.ADD.darker(
+            120) if active else common.FAVOURITE.darker(120)
+        color = common.ADD.darker(150) if r.contains(
+            cursor_position) else color
         f_subpath = u'"/' + index.data(common.ParentPathRole)[1] + u'/"'
 
         filter_text = self.parent().model().filter_text()
@@ -989,7 +1012,7 @@ class FilesWidgetDelegate(BaseDelegate):
                             QtCore.QMargins(o_, o_, o_, o_)))
 
                 painter.setOpacity(0.6)
-                pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 100))
+                pen = QtGui.QPen(BACKGROUND_COLOR)
                 pen.setWidth(common.ROW_SEPARATOR())
                 painter.setPen(pen)
                 o = common.INDICATOR_WIDTH()
@@ -1015,8 +1038,7 @@ class FilesWidgetDelegate(BaseDelegate):
                         continue
 
                 # Background
-                color = common.SEPARATOR if n == 0 else QtGui.QColor(
-                    55, 55, 55)
+                color = common.SEPARATOR if n == 0 else common.SECONDARY_BACKGROUND
                 color = common.ADD if r.contains(cursor_position) else color
 
                 if n >= len(rootdirs):
@@ -1028,7 +1050,7 @@ class FilesWidgetDelegate(BaseDelegate):
                         color = common.ADD
 
                 painter.setBrush(color)
-                pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 100))
+                pen = QtGui.QPen(BACKGROUND_COLOR)
                 pen.setWidth(common.ROW_SEPARATOR())
                 painter.setPen(pen)
                 o = common.INDICATOR_WIDTH() * 0.5
@@ -1059,7 +1081,8 @@ class FilesWidgetDelegate(BaseDelegate):
             if large_mode:
                 left_limit = rectangles[DataRect].left()
                 right_limit = rectangles[DataRect].right() - common.MARGIN()
-                font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+                font, metrics = common.font_db.primary_font(
+                    common.MEDIUM_FONT_SIZE())
 
             text = index.data(common.DescriptionRole)
             text = metrics.elidedText(
@@ -1100,7 +1123,8 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.drawPath(path)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
-        font, metrics = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
+        font, metrics = common.font_db.primary_font(
+            font_size=common.SMALL_FONT_SIZE())
         it = self.get_text_segments(index).itervalues()
         offset = 0
 
@@ -1263,7 +1287,6 @@ class FilesWidgetDelegate(BaseDelegate):
             QtCore.QPoint(description_rect.center().x(),
                           name_rect.center().y() + metrics.lineSpacing())
         )
-
         return description_rect
 
     def get_text_segments(self, index):
@@ -1272,17 +1295,22 @@ class FilesWidgetDelegate(BaseDelegate):
         name, and sequence.
 
         Args:
-            index (QModelIndex): The index currently being painted..
+            index (QModelIndex): The index currently being painted.
 
         Returns:
             dict: A dictionary of tuples. (unicode, QtGui.QColor)
 
         """
         if not index.isValid():
-            return []
+            return {}
         s = index.data(QtCore.Qt.DisplayRole)
         if not s:
-            return []
+            return {}
+
+        k = index.data(QtCore.Qt.StatusTipRole)
+        if k in TEXT_SEGMENT_CACHE:
+            return TEXT_SEGMENT_CACHE[k]
+
         s = regex_remove_version.sub(ur'\1\3', s)
         d = {}
         # Item is a collapsed sequence
@@ -1306,6 +1334,7 @@ class FilesWidgetDelegate(BaseDelegate):
             # Filename
             d[len(d)] = (
                 match.group(1).upper(), common.TEXT_SELECTED)
+            TEXT_SEGMENT_CACHE[k] = d
             return d
 
         # Item is a non-collapsed sequence
@@ -1325,6 +1354,7 @@ class FilesWidgetDelegate(BaseDelegate):
             # Prefix
             d[len(d)] = (
                 match.group(1).upper(), common.TEXT_SELECTED)
+            TEXT_SEGMENT_CACHE[k] = d
             return d
 
         # Items is not collapsed and it isn't a sequence either
@@ -1334,9 +1364,20 @@ class FilesWidgetDelegate(BaseDelegate):
         else:
             s = s[0].upper()
         d[len(d)] = (s, common.TEXT_SELECTED)
+        TEXT_SEGMENT_CACHE[k] = d
         return d
 
     def get_filedetail_text_segments(self, index):
+        """Returns the `FilesWidget` item `common.FileDetailsRole` segments
+        associated with custom colors.
+
+        Args:
+            index (QModelIndex): The index currently being painted.
+
+        Returns:
+            dict: A dictionary of tuples "{0: (unicode, QtGui.QColor)}".
+
+        """
         d = {}
 
         if not index.data(common.FileInfoLoaded):

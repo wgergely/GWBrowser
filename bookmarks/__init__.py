@@ -1,22 +1,5 @@
 # -*- coding: utf-8 -*-
-"""**Bookmarks is a simple asset browser used to create and navigate
-the files and folders of animation or film productions.**
-
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+"""
 """
 import sys
 import os
@@ -28,14 +11,10 @@ name = u'bookmarks'
 author = 'Gergely Wootsch'
 website = 'https://gergely-wootsch.com'
 email = 'hello@gergely-wootsch.com'
-__version__ = u'0.3.6'
+__version__ = u'0.3.7'
 
 
 def get_info():
-    """Returns an array of string with the dependent library versions and information
-    about the author.
-
-    """
     return (
         u'Copyright (C) 2020  {}'.format(author),
         u'Email:    {}'.format(email),
@@ -54,7 +33,7 @@ def get_info():
 
 
 def exec_():
-    """Starts the product as a standalone PySide2 application.
+    """Start Bookmarks as a standalone PySide2 application.
 
     .. code-block:: python
 

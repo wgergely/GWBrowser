@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
 """The widget, model and context menu needed for interacting with bookmarks.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import json
 import base64
@@ -29,7 +15,7 @@ import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
 import bookmarks.threads as threads
 import bookmarks._scandir as _scandir
-import bookmarks.baselistwidget as baselistwidget
+import bookmarks.baselist as baselist
 import bookmarks.basecontextmenu as basecontextmenu
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
@@ -84,7 +70,7 @@ class BookmarksWidgetContextMenu(basecontextmenu.BaseContextMenu):
         self.add_refresh_menu()
 
 
-class BookmarksModel(baselistwidget.BaseModel):
+class BookmarksModel(baselist.BaseModel):
     """The model used store the data necessary to display bookmarks.
 
     """
@@ -102,7 +88,7 @@ class BookmarksModel(baselistwidget.BaseModel):
             has_threads=has_threads, parent=parent)
         self.parent_path = (u'.',)
 
-    @baselistwidget.initdata
+    @baselist.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -318,7 +304,7 @@ class BookmarksModel(baselistwidget.BaseModel):
         return d
 
 
-class BookmarksWidget(baselistwidget.ThreadedBaseWidget):
+class BookmarksWidget(baselist.ThreadedBaseWidget):
     """The view used to display the contents of a ``BookmarksModel`` instance."""
     SourceModel = BookmarksModel
     Delegate = delegate.BookmarksWidgetDelegate

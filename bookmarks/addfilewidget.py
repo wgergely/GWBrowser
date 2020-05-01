@@ -8,14 +8,14 @@ Example:
 
     .. code-block:: python
 
-      w = AddFileWidget(u'ma')
-      if w.exec_() == QtWidgets.QDialog.Accepted:
-          file_path = w.get_file_path()
+          w = AddFileWidget(u'ma')
+          if w.exec_() == QtWidgets.QDialog.Accepted:
+              file_path = w.get_file_path()
 
-      w = AddFileWidget(None, file='C:/myfiletoincrement_v0001.ma')
-      if w.exec_() == QtWidgets.QDialog.Accepted:
-          # Incremented version number to v0002 > C:/myfiletoincrement_v0002.ma
-          file_path = w.get_file_path()
+          w = AddFileWidget(None, file='C:/myfiletoincrement_v0001.ma')
+          if w.exec_() == QtWidgets.QDialog.Accepted:
+              # Incremented version number to v0002 > C:/myfiletoincrement_v0002.ma
+              file_path = w.get_file_path()
 
 
 The widget will generate a valid filepath based on bookmark, asset and folder
@@ -25,21 +25,6 @@ automatically be incremented to be the hightest in the destination folder.
 The path is generated using the tokens set in ``FILE_NAME_PATTERN``. The
 destination folder will also depend on the task the file is associated with.
 These task, or modes, are defined in ``SCENE_FOLDERS`` and ``EXPORT_FOLDERS``.
-
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import functools
@@ -52,17 +37,14 @@ import bookmarks.bookmark_db as bookmark_db
 import bookmarks.settings as settings
 import bookmarks._scandir as _scandir
 import bookmarks.common_ui as common_ui
-from bookmarks.bookmarkswidget import BookmarksModel
-from bookmarks.assetswidget import AssetModel
-
-from bookmarks.delegate import AssetsWidgetDelegate
-from bookmarks.delegate import BookmarksWidgetDelegate
-
-from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
-from bookmarks.baselistwidget import BaseInlineIconWidget
-
+import bookmarks.delegate as delegate
+import bookmarks.baselist as baselist
+import bookmarks.basecontextmenu as basecontextmenu
 import bookmarks.images as images
 import bookmarks.defaultpaths as defaultpaths
+
+from bookmarks.bookmarkswidget import BookmarksModel
+from bookmarks.assetswidget import AssetModel
 
 
 class SelectButton(QtWidgets.QLabel):
@@ -287,10 +269,10 @@ class SelectButton(QtWidgets.QLabel):
         self.widgetMoved.emit(self.rect())
 
 
-class BaseListView(BaseInlineIconWidget):
+class BaseListView(baselist.BaseInlineIconWidget):
     """The base class used to view the ``BookmarksModel`` and ``AssetModel``
     models. The class is a control icon-less version of the
-    ``BaseInlineIconWidget`` widget.
+    ``baselist.BaseInlineIconWidget`` widget.
 
     The ``activated`` signal will hide the view but the activated signal itself
     is **not** connected in this class.
@@ -379,7 +361,7 @@ class ThreadlessBookmarksModel(BookmarksModel):
 
 class BookmarksListView(BaseListView):
     SourceModel = ThreadlessBookmarksModel
-    Delegate = BookmarksWidgetDelegate
+    Delegate = delegate.BookmarksWidgetDelegate
     ContextMenu = None
 
     @QtCore.Slot()
@@ -406,7 +388,7 @@ class ThreadlessAssetModel(AssetModel):
 
 class AssetsListView(BaseListView):
     SourceModel = ThreadlessAssetModel
-    Delegate = AssetsWidgetDelegate
+    Delegate = delegate.AssetsWidgetDelegate
     ContextMenu = None
 
     @QtCore.Slot()
@@ -425,7 +407,7 @@ class AssetsListView(BaseListView):
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
 
-class SelectFolderViewContextMenu(BaseContextMenu):
+class SelectFolderViewContextMenu(basecontextmenu.BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
 
     def __init__(self, index, parent=None):
@@ -440,7 +422,7 @@ class SelectFolderViewContextMenu(BaseContextMenu):
         self.add_separator()
         self.add_view_options()
 
-    @contextmenu
+    @basecontextmenu.contextmenu
     def add_view_options(self, menu_set):
         menu_set[u'expand_all'] = {
             u'text': u'Expand all',
@@ -452,7 +434,7 @@ class SelectFolderViewContextMenu(BaseContextMenu):
         }
         return menu_set
 
-    @contextmenu
+    @basecontextmenu.contextmenu
     def add_new_folder_menu(self, menu_set):
         if not self.index.isValid():
             return menu_set
@@ -485,7 +467,7 @@ class SelectFolderViewContextMenu(BaseContextMenu):
         }
         return menu_set
 
-    @contextmenu
+    @basecontextmenu.contextmenu
     def add_reveal_item_menu(self, menu_set):
         def reveal():
             file_path = self.parent().model().filePath(self.index)
@@ -834,7 +816,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self._context_menu_open = False
 
 
-class ThumbnailContextMenu(BaseContextMenu):
+class ThumbnailContextMenu(basecontextmenu.BaseContextMenu):
     """Context menu associated with the thumbnail."""
 
     def __init__(self, parent=None):
@@ -842,7 +824,7 @@ class ThumbnailContextMenu(BaseContextMenu):
             QtCore.QModelIndex(), parent=parent)
         self.add_thumbnail_menu()
 
-    @contextmenu
+    @basecontextmenu.contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_pixmap = images.ImageCache.get_rsc_pixmap(
@@ -1032,9 +1014,9 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         pixmap = self.pixmap()
         rect = self.rect()
 
-        rect_ = rect.marginsRemoved(QtCore.QMargins(o * 0.5, o * 0.5, o * 0.5, o * 0.5))
+        rect_ = rect.marginsRemoved(QtCore.QMargins(
+            o * 0.5, o * 0.5, o * 0.5, o * 0.5))
         painter.drawRoundedRect(rect_, o * 2, o * 2)
-
 
         s = float(rect_.height())
         longest_edge = float(max((pixmap.width(), pixmap.height())))

@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Bookmark DB is an SQLite database used to store custom data.
+"""BookmarkDB is used to store all custom item information, like descriptions,
+notes and todos, item flags.
 
-Various data is stored in the database, eg. the bookmarks width, height,
-framerate properties, or the filter flags and descriptions set for an item.
-
-See `bookmark_db.KEYS` `BookmarkDB.and init_tables()` for table/column
-definitions. Use the `bookmar_db.get_db()` interface get a new thread-specific
+The database uses SQLite3. See :const:`.KEYS` and
+:func:`.BookmarkDB.init_tables` for table/column definitions. Don't initiate
+:class:`.BookmarkDB` directly but use the :func:`.get_db` get a thread-specific
 BookmarkDB instance.
 
-code-block:: python
+.. code-block:: python
 
     import bookmarks.bookmark_db as bookmark_db
     db = bookmark_db.get_db(
@@ -16,25 +15,8 @@ code-block:: python
         u'MYJOB',
         u'DATA/SHOTS'
     )
-    value = db.value(u
-        u'//server/myjob/data/shots/sh0010/scene/myscene.ma',
-        u'description'
-    )
-
-
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+    source = u'//server/myjob/data/shots/sh0010/scene/myscene.ma'
+    value = db.value(source, u'description')
 
 """
 from contextlib import contextmanager
@@ -54,9 +36,10 @@ KEYS = {
     'info': (u'server', u'job', u'root', u'user', u'host', u'created'),
     'properties': (u'width', u'height', u'framerate', u'prefix', u'startframe', u'duration', u'identifier', u'slacktoken'),
 }
+"""Database table/column structure definition."""
+
 
 DB_CONNECTIONS = {}
-"""We will store our db connection instances here. They will be created per thread."""
 
 
 def get_db(server, job, root):
@@ -123,13 +106,10 @@ def remove_db(index, server=None, job=None, root=None):
     """Helper function to return the bookmark database connection associated
     with an index. We will create the connection if it doesn't exists yet.
     Connection instances cannot be shared between threads hence we will
-    create each instance _per thread_.
+    create each instance per thread.
 
     Args:
         index (QModelIndex): A valid QModelIndex()
-
-    Returns:
-        BookmarkDB: A BookmarkDB instance that lives in the current thread.
 
     """
     try:
@@ -171,8 +151,11 @@ class BookmarkDB(QtCore.QObject):
 
         self._connection = None
         self._server = server.lower().encode(u'utf-8')
+        self._server_u = server.lower()
         self._job = job.lower().encode(u'utf-8')
+        self._job_u = job.lower()
         self._root = root.lower().encode(u'utf-8')
+        self._root_u = root.lower()
         self._bookmark = server + u'/' + job + u'/' + root
         self._database_path = u'{server}/{job}/{root}/.bookmark/bookmark.db'.format(
             server=server,
@@ -291,6 +274,13 @@ CREATE TABLE IF NOT EXISTS info (
     def value(self, source, key, table=u'data'):
         """Returns a value from the `bookmark.db`.
 
+        Example:
+
+            .. code-block:: python
+
+                source = u'server/job/my/file.txt'
+                v = db.value(source, u'description')
+
         Args:
             source (unicode): Path to a file or a row id.
             key (unicode): A column name.
@@ -301,13 +291,14 @@ CREATE TABLE IF NOT EXISTS info (
 
         """
         if not isinstance(source, (unicode, int)):
-            raise TypeError(u'Invalid type.')
+            raise TypeError(
+                u'Invalid type. Expected <type \'unicode or int\', got {}'.format(type(source)))
 
         if key not in KEYS[table]:
             raise ValueError(u'Key "{}" is invalid. Expected one of "{}"'.format(
                 key, u'", "'.join(KEYS[table])))
 
-        hash = common.get_hash(source, server=self._server)
+        hash = common.get_hash(source, server=self._server_u)
 
         _cursor = self._connection.cursor()
         kw = {u'table': table, u'key': key, u'id': hash}
@@ -364,8 +355,6 @@ CREATE TABLE IF NOT EXISTS info (
     def setValue(self, source, key, value, table=u'data'):
         """Sets a value in the database.
 
-        The `source` is either a file name or a row number.
-
         The method does NOT commit the transaction! Use ``transactions`` context
         manager to issue a BEGIN statement. The transactions will be commited
         once the context manager goes out of scope.
@@ -374,9 +363,9 @@ CREATE TABLE IF NOT EXISTS info (
 
             .. code-block:: python
 
-            with db.transactions:
-                source = u'server/job/my/file.txt'
-                db.setValue(source, u'description', u'hello world')
+                with db.transactions:
+                    source = u'server/job/my/file.txt'
+                    db.setValue(source, u'description', u'hello world')
 
         Args:
             source (unicode or int): A row id.
@@ -391,7 +380,7 @@ CREATE TABLE IF NOT EXISTS info (
             raise ValueError(u'Key "{}" is invalid. Expected one of {}'.format(
                 key, u', '.join(KEYS[table])))
 
-        hash = common.get_hash(source, server=self._server)
+        hash = common.get_hash(source, server=self._server_u)
         values = []
 
         # Earlier versions of the SQLITE library lack `UPSERT` or `WITH`

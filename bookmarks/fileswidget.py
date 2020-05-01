@@ -1,31 +1,11 @@
 # -*- coding: utf-8 -*-
-"""The view and model used to store and view files.
-
-We're heavily relying on 'Python 3's ``scandir.walk()`` to querry the
-On my tests ``scandir`` outperformed Qt's ``QDirIterator`` many fold.
-
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+"""The view and model used to browse files.
 
 """
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.baselistwidget import ThreadedBaseWidget
-from bookmarks.baselistwidget import BaseModel
-from bookmarks.baselistwidget import initdata
-
+import bookmarks.basecontextmenu as basecontextmenu
+import bookmarks.baselist as baselist
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.threads as threads
@@ -36,8 +16,7 @@ import bookmarks.defaultpaths as defaultpaths
 import bookmarks.images as images
 
 
-
-class FilesWidgetContextMenu(BaseContextMenu):
+class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
     """Context menu associated with the `FilesWidget`."""
 
     def __init__(self, index, parent=None):
@@ -70,7 +49,7 @@ class FilesWidgetContextMenu(BaseContextMenu):
         self.add_refresh_menu()
 
 
-class FilesModel(BaseModel):
+class FilesModel(baselist.BaseModel):
     """The model used store individual and file sequences found in `parent_path`.
 
     File data is saved ``self.INTERNAL_MODEL_DATA`` using the **task folder**,
@@ -99,7 +78,7 @@ class FilesModel(BaseModel):
             else:
                 yield entry
 
-    @initdata
+    @baselist.initdata
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and
         sequence definitions by running a file-iterator stemming from
@@ -150,16 +129,16 @@ class FilesModel(BaseModel):
         server, job, root, asset = self.parent_path
         task_folder_extensions = defaultpaths.get_task_folder_extensions(
             task_folder)
-        location_path = u'/'.join(self.parent_path).lower() + \
+        parent_path = u'/'.join(self.parent_path).lower() + \
             u'/' + task_folder
 
         nth = 987
         c = 0
 
-        if not QtCore.QFileInfo(location_path).exists():
+        if not QtCore.QFileInfo(parent_path).exists():
             return
 
-        for entry in self._entry_iterator(location_path):
+        for entry in self._entry_iterator(parent_path):
             if self._interrupt_requested:
                 break
 
@@ -187,14 +166,14 @@ class FilesModel(BaseModel):
                 QtWidgets.QApplication.instance().processEvents()
 
             # Getting the fileroot
-            fileroot = filepath.replace(location_path, u'')
+            fileroot = filepath.replace(parent_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
             seq = common.get_sequence(filepath)
 
             flags = dflags()
 
             if seq:
-                seqpath = seq.group(1) + u'[0]' + \
+                seqpath = seq.group(1) + common.SEQPROXY + \
                     seq.group(3) + u'.' + seq.group(4)
                 seqpath = seqpath.lower()
                 if seqpath in sfavourites:
@@ -332,7 +311,7 @@ class FilesModel(BaseModel):
         """Current key to the data dictionary."""
         if not self._task_folder:
             val = None
-            key = u'activepath/location'
+            key = u'activepath/task_folder'
             savedval = settings.local_settings.value(key)
             return savedval.lower() if savedval else val
         return self._task_folder
@@ -353,7 +332,7 @@ class FilesModel(BaseModel):
         """
         log.debug('set_task_folder({})'.format(val), self)
         try:
-            k = u'activepath/location'
+            k = u'activepath/task_folder'
             stored_value = settings.local_settings.value(k)
             stored_value = stored_value.lower() if stored_value else stored_value
             self._task_folder = self._task_folder.lower(
@@ -456,7 +435,7 @@ class FilesModel(BaseModel):
                 raise TypeError(s)
 
             path = QtCore.QFileInfo(path).absoluteFilePath()
-            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path),])
+            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path), ])
 
             path = QtCore.QDir.toNativeSeparators(path).encode('utf-8')
             _bytes = QtCore.QByteArray(path)
@@ -561,7 +540,7 @@ class DragPixmap(QtWidgets.QWidget):
         painter.end()
 
 
-class FilesWidget(ThreadedBaseWidget):
+class FilesWidget(baselist.ThreadedBaseWidget):
     """The view used to display the contents of a ``FilesModel`` instance.
     """
     SourceModel = FilesModel

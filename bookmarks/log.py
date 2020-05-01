@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """Basic logging classes and methods.
 
-We use a custom stdout-like object to print errors to.
+Our custom log is stored in :const:`.stdout`. By default logging is inactive,
+use :class:`.LogView` to browse the contents if the log. Logging will
+automatically enabled when the widget is visible.
 
 """
 import re
@@ -15,7 +17,10 @@ import bookmarks.common as common
 
 
 mutex = QtCore.QMutex()
+
 stdout = cStringIO.StringIO()
+"""File-like object to store our temporary log."""
+
 _viewer_widget = None
 
 HEADER = (0b000000001, u'\033[95m')
@@ -108,7 +113,6 @@ def error(message):
 def reset(self):
     global stdout
     stdout = cStringIO.StringIO()
-
 
 
 def _r(v): return v[1].replace(u'[', u'\\[')
@@ -270,7 +274,6 @@ class LogView(QtWidgets.QTextBrowser):
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.load_log)
 
-
     def load_log(self):
         app = QtWidgets.QApplication.instance()
         if app.mouseButtons() != QtCore.Qt.NoButton:
@@ -282,7 +285,7 @@ class LogView(QtWidgets.QTextBrowser):
             return
 
         self._cached = v
-        self.setText(v[-99999:]) # Limit the number of characters
+        self.setText(v[-99999:])  # Limit the number of characters
         self.highlighter.rehighlight()
         v = self.format_regex.sub(u'', self.document().toHtml())
         self.setHtml(v)
@@ -333,7 +336,8 @@ class LogWidget(QtWidgets.QWidget):
             u'Console', size=common.LARGE_FONT_SIZE(), parent=self)
 
         self.reset_button = common_ui.PaintedButton(u'Clear log', parent=self)
-        self.enable_debug = QtWidgets.QCheckBox('Log debug messages', parent=self)
+        self.enable_debug = QtWidgets.QCheckBox(
+            'Log debug messages', parent=self)
         self.enable_debug.toggled.connect(self.toggle_debug)
 
         row.layout().addWidget(label)

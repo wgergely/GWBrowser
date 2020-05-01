@@ -7,20 +7,6 @@ folder.
 
 See the `defaultpaths` module for implemented task folder descriptions.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import weakref
 from functools import partial
@@ -31,8 +17,8 @@ import bookmarks.log as log
 import bookmarks.common as common
 
 from bookmarks.delegate import paintmethod
-from bookmarks.baselistwidget import BaseModel
-from bookmarks.baselistwidget import initdata
+from bookmarks.baselist import BaseModel
+from bookmarks.baselist import initdata
 from bookmarks.delegate import BaseDelegate
 import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu
@@ -282,6 +268,7 @@ class TaskFolderModel(BaseModel):
 class TaskFolderWidget(QtWidgets.QListView):
     """The view responsonsible for displaying the available data-keys."""
     ContextMenu = TaskFolderContextMenu
+
     def __init__(self, parent=None, altparent=None):
         super(TaskFolderWidget, self).__init__(parent=parent)
         self.altparent = altparent

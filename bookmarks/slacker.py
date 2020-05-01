@@ -19,20 +19,6 @@ slack channels.
 
 See http://api.slack.com/apps for more information.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import urllib2
 from slackclient import SlackClient
@@ -657,18 +643,20 @@ class LoadingWidget(QtWidgets.QWidget):
         painter.begin(self)
         o = common.MARGIN()
         o = 0
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
         painter.setBrush(common.SEPARATOR)
         painter.setPen(QtCore.Qt.NoPen)
 
         painter.setOpacity(0.5)
-        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        painter.drawRoundedRect(
+            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
         painter.setOpacity(1.0)
 
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(common.TEXT)
-        painter.setFont(common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0])
+        painter.setFont(common.font_db.primary_font(
+            common.MEDIUM_FONT_SIZE())[0])
 
         painter.drawText(
             rect,
@@ -676,7 +664,6 @@ class LoadingWidget(QtWidgets.QWidget):
             self._text
         )
         painter.end()
-
 
 
 if __name__ == '__main__':

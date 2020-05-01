@@ -11,20 +11,6 @@ Thumbnails:
 
 All generated thumbnails and ui resources are cached in ``ImageCache``.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import uuid
 import os
@@ -191,7 +177,7 @@ def pick_from_library(index):
     widget.open()
 
 
-def get_thumbnail_path(server, job, root, file_path):
+def get_thumbnail_path(server, job, root, file_path, proxy=False):
     """Returns the path of a thumbnail.
 
     If the `file_path` is a sequence, we will use the sequence's first
@@ -207,7 +193,8 @@ def get_thumbnail_path(server, job, root, file_path):
         unicode:                The resolved thumbnail path.
 
     """
-    file_path = common.proxy_path(file_path)
+    if common.is_collapsed(file_path) or proxy:
+        file_path = common.proxy_path(file_path)
     name = common.get_hash(file_path) + u'.' + common.THUMBNAIL_FORMAT
     return (server + u'/' + job + u'/' + root + u'/.bookmark/' + name).lower()
 
@@ -1215,7 +1202,8 @@ class Viewer(QtWidgets.QGraphicsView):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
-            font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
+            font, metrics = common.font_db.secondary_font(
+                common.SMALL_FONT_SIZE())
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)

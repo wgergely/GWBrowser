@@ -15,20 +15,6 @@ When saving, names are generated based on the value of `FILE_NAME_PATTERN`.
 It is used, for instance, by the `FilesModel` to ignore invalid extensions - eg.
 to make sure that the `render` folder does not contain scene files, etc.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import re
 import OpenImageIO
@@ -78,6 +64,8 @@ FORMAT_FILTERS = {
         u'value': None,
     },
 }
+"""Defines a list of file extensions, a description and the search filter
+associated with the list."""
 
 
 TASK_FOLDERS = {
@@ -130,6 +118,7 @@ TASK_FOLDERS = {
         u'filter': NoFilter,
     },
 }
+"""A list of common task folders and the list of extensions we accept."""
 
 SCENE_FOLDERS = {
     u'anim': {
@@ -183,6 +172,8 @@ SCENE_FOLDERS = {
         u'description': u'Render scenes'
     }
 }
+"""A list of common scene folders used by the file saver to save scene files."""
+
 
 EXPORT_FOLDERS = {
     u'abc': {
@@ -211,8 +202,11 @@ EXPORT_FOLDERS = {
         u'description': u'USD caches'
     },
 }
+"""A list of common cache folders and the list of extensions we accept."""
+
 
 FILE_NAME_PATTERN = u'{folder}/{prefix}_{asset}_{mode}_{user}_{version}.{ext}'
+"""Used by the file saver to generate a new valid file name."""
 
 
 def get_description(item):
@@ -334,7 +328,8 @@ def save_value(data, key, value):
     """Saves the given data/key/value to `local_settings`."""
     idx = None
     if data == FILE_NAME_PATTERN:
-        settings.local_settings.setValue(u'defaultpaths/filenamepattern', value)
+        settings.local_settings.setValue(
+            u'defaultpaths/filenamepattern', value)
 
     if data == FORMAT_FILTERS:
         idx = 0

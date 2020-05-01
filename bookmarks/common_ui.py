@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
 """Common UI methods used accross the product.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -399,7 +385,8 @@ QWidget {{
 }}
             """.format(
             SIZE=common.LARGE_FONT_SIZE(),
-            FAMILY=common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0].family(),
+            FAMILY=common.font_db.primary_font(
+                common.MEDIUM_FONT_SIZE())[0].family(),
             TEXT=common.rgb(self.secondary_color.darker(150)),
             BG=common.rgb(self.secondary_color)))
 
@@ -585,7 +572,11 @@ class DescriptionEditorWidget(LineEdit):
             self.hide()
             return
 
-        k = common.proxy_path(index)
+        p = index.data(QtCore.Qt.StatusTipRole)
+        if common.is_collapsed(p):
+            k = common.proxy_path(index)
+        else:
+            k = p
 
         db = bookmark_db.get_db(
             index.data(common.ParentPathRole)[0],
@@ -608,7 +599,8 @@ class DescriptionEditorWidget(LineEdit):
             return
 
         rect = self.parent().visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.parent().inline_icons_count())
+        rectangles = delegate.get_rectangles(
+            rect, self.parent().inline_icons_count())
         description_rect = self.parent().itemDelegate(
         ).get_description_rect(rectangles, index)
 

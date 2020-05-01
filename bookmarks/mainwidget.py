@@ -3,20 +3,6 @@
 
 This is where the UI is assembled and signals & slots are connected.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import os
 import gc
@@ -35,7 +21,7 @@ import bookmarks.threads as threads
 import bookmarks.basecontextmenu as basecontextmenu
 
 from bookmarks.assetswidget import AssetsWidget
-from bookmarks.baselistwidget import StackedWidget
+from bookmarks.baselist import StackedWidget
 from bookmarks.bookmarkswidget import BookmarksWidget
 from bookmarks.favouriteswidget import FavouritesWidget
 from bookmarks.fileswidget import FilesWidget
@@ -44,9 +30,11 @@ from bookmarks.listcontrolwidget import ListControlWidget
 
 _instance = None
 
+
 def instance():
     global _instance
     return _instance
+
 
 @QtCore.Slot()
 def show_window():
@@ -374,7 +362,8 @@ class MainWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         global _instance
         if _instance is not None:
-            raise RuntimeError('{} cannot be initialised more than once.'.format(self.__class__.__name__))
+            raise RuntimeError(
+                '{} cannot be initialised more than once.'.format(self.__class__.__name__))
         _instance = self
 
         super(MainWidget, self).__init__(parent=parent)
@@ -594,7 +583,7 @@ class MainWidget(QtWidgets.QWidget):
                     for child in widget.children():
                         child.deleteLater()
                 except Exception as err:
-                    print err
+                    log.error(u'Error occured deleteing the ui.')
 
             for widget in (self.listcontrolwidget, self.headerwidget, self.stackedwidget, self.statusbar):
                 widget.setUpdatesEnabled(False)
@@ -895,7 +884,8 @@ class MainWidget(QtWidgets.QWidget):
             painter.drawRect(rect)
 
         if not self._initialized:
-            font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+            font, metrics = common.font_db.primary_font(
+                common.MEDIUM_FONT_SIZE())
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter
             color = QtGui.QColor(255, 255, 255, 80)

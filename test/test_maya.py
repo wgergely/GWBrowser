@@ -140,21 +140,21 @@ class TestMaya(unittest.TestCase):
         r = maya.widget._instance.open_scene(new_scene)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget._instance.open_scene('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.open_scene(u'BOGUS/SCENE/null.ma')
 
         cmds.file(newFile=True, force=True)
 
         r = maya.widget._instance.import_scene(new_scene)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget._instance.import_scene('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_scene(u'BOGUS/SCENE/null.ma')
 
         cmds.file(newFile=True, force=True)
 
         r = maya.widget._instance.import_referenced_scene(new_scene)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget._instance.import_scene('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_scene(u'BOGUS/SCENE/null.ma')
 
 
     def test_outliner_sets(self):
@@ -180,7 +180,7 @@ class TestMaya(unittest.TestCase):
         k = u'testMesh_geo_set'
         dest = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.TempLocation)
         dest = dest + os.path.sep + '{}.abc'.format(k)
-        bogus_destination = 'INVALID_PATH/TO/NOWHERE/alembic.abc'
+        bogus_destination = u'INVALID_PATH/TO/NOWHERE/alembic.abc'
 
         with self.assertRaises(TypeError):
             maya.widget.export_alembic(dest, k, 1.0, 10.0, step=1.0)
@@ -194,19 +194,19 @@ class TestMaya(unittest.TestCase):
         r = maya.widget._instance.open_alembic(dest)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget._instance.open_alembic('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.open_alembic(u'BOGUS/SCENE/null.ma')
 
         cmds.file(newFile=True, force=True)
 
         r = maya.widget._instance.import_alembic(dest)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget._instance.import_alembic('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_alembic(u'BOGUS/SCENE/null.ma')
 
         r = maya.widget._instance.import_referenced_alembic(dest)
         self.assertIsInstance(r, unicode)
         with self.assertRaises(RuntimeError):
-            r = maya.widget._instance.import_referenced_alembic('BOGUS/SCENE/null.ma')
+            r = maya.widget._instance.import_referenced_alembic(u'BOGUS/SCENE/null.ma')
 
         os.remove(dest)
 

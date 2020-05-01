@@ -1,40 +1,22 @@
 # -*- coding: utf-8 -*-
 """The widget, model and context menu needed for interacting with assets.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import re
 from PySide2 import QtCore, QtWidgets
 
-import bookmarks.log as log
 import bookmarks.common as common
-import bookmarks.common_ui as common_ui
 import bookmarks._scandir as _scandir
 import bookmarks.threads as threads
-from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.baselistwidget import ThreadedBaseWidget
-from bookmarks.baselistwidget import BaseModel
-from bookmarks.baselistwidget import initdata
-from bookmarks.delegate import AssetsWidgetDelegate
+import bookmarks.delegate as delegate
+import bookmarks.baselist as baselist
+import bookmarks.basecontextmenu as basecontextmenu
 import bookmarks.bookmark_db as bookmark_db
 
 import bookmarks.settings as settings
 
 
-class AssetsWidgetContextMenu(BaseContextMenu):
+class AssetsWidgetContextMenu(basecontextmenu.BaseContextMenu):
     """The context menu associated with the AssetsWidget."""
 
     def __init__(self, index, parent=None):
@@ -58,7 +40,7 @@ class AssetsWidgetContextMenu(BaseContextMenu):
         self.add_refresh_menu()
 
 
-class AssetModel(BaseModel):
+class AssetModel(baselist.BaseModel):
     """Asset data model.
 
     Assets are  folders with a special indentier
@@ -82,7 +64,7 @@ class AssetModel(BaseModel):
         super(AssetModel, self).__init__(
             has_threads=has_threads, parent=parent)
 
-    @initdata
+    @baselist.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model by querrying
         the path stored in ``self.parent_path``.
@@ -194,10 +176,10 @@ class AssetModel(BaseModel):
         return common.FileItem
 
 
-class AssetsWidget(ThreadedBaseWidget):
+class AssetsWidget(baselist.ThreadedBaseWidget):
     """The view used to display the contents of a ``AssetModel`` instance."""
     SourceModel = AssetModel
-    Delegate = AssetsWidgetDelegate
+    Delegate = delegate.AssetsWidgetDelegate
     ContextMenu = AssetsWidgetContextMenu
 
     def __init__(self, parent=None):

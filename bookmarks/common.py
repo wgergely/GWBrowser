@@ -5,25 +5,12 @@ File sequences are recognised using regexes defined in this module. See
 :func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
 :func:`.get_sequence_startpath`,  :func:`.get_ranges` for more information.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import os
 import re
 import zipfile
 import hashlib
+import weakref
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
@@ -53,7 +40,10 @@ ThumbnailThread = 1
 """Thread types."""
 
 MAXITEMS = 999999
-"""The maximum number of items to load."""
+"""The maximum number of items a model is allowed to load."""
+
+SEQPROXY = u'[0]'
+""""""
 
 
 def get_oiio_namefilters():
@@ -100,9 +90,11 @@ SortByNameRole = AssetCountRole + 1
 SortByLastModifiedRole = SortByNameRole + 1
 SortBySizeRole = SortByLastModifiedRole + 1
 TextSegmentRole = SortBySizeRole + 1
+"""Model data roles."""
 
 FileItem = 1100
 SequenceItem = 1200
+"""Model data types."""
 
 SORT_WITH_BASENAME = False
 
@@ -200,8 +192,31 @@ THUMBNAIL_IMAGE_SIZE = 512.0
 THUMBNAIL_FORMAT = u'png'
 
 
+BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
+SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
+BACKGROUND = QtGui.QColor(80, 80, 80)
+
+TEXT = QtGui.QColor(220, 220, 220)
+TEXT_SELECTED = QtGui.QColor(250, 250, 250)
+TEXT_DISABLED = QtGui.QColor(140, 140, 140)
+
+TEXT_NOTE = QtGui.QColor(150, 150, 255)
+SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
+
+SEPARATOR = QtGui.QColor(45, 45, 45)
+FAVOURITE = QtGui.QColor(107, 135, 165)
+REMOVE = QtGui.QColor(219, 114, 114)
+ADD = QtGui.QColor(90, 200, 155)
+THUMBNAIL_BACKGROUND = SEPARATOR
+
+TRANSPARENT = QtGui.QColor(0, 0, 0, 0)
+
+
 def psize(n):
-    """Returns a dpi-aware and accordingly scaled value."""
+    """Returns a scaled UI value.
+    All UI values are assumed to be in `pixels`.
+
+    """
     return (float(n) * (float(DPI) / 72.0)) * float(UI_SCALE)
 
 
@@ -209,14 +224,14 @@ HASH_DATA = {}
 
 
 def get_hash(key, server=None):
-    """MD5 hash of a string.
+    """Calculate md5 hash for a file path.
 
-    The passed value is usually a file path and the resulting hash is used by
-    the ImageCache and BookmarkDB to store associated data. If `key` is not
-    unicode, it will be returned without modification.
+    The resulting hash is used by the ImageCache. local settings and BookmarkDB to store
+    associated data.
 
     Args:
         key (unicode): A unicode string to calculate a md5 hash for.
+        server (unicode): The name of the server.
 
     Returns:
         str: Value of the calculated md5 hexadecimal digest.
@@ -228,23 +243,26 @@ def get_hash(key, server=None):
 
     if isinstance(key, int):
         return key
-
-    if not isinstance(key, (unicode)):
+    if not isinstance(key, unicode):
         raise TypeError(
             u'Expected <type \'unicode\'>, got {}'.format(type(key)))
 
-    # Sanitize the key and remove the server
+    # Path must be lower-case and must not contain backslashes
     key = key.lower()
     if u'\\' in key:
         key = key.replace(u'\\', u'/')
-    if server:
+
+    # The hash should also be server agnostic
+    if server is not None and not isinstance(server, unicode):
+        raise TypeError(
+            u'Expected <type \'unicode\'>, got {}'.format(type(key)))
         server = server.lower()
         server = server.replace(u'\\', u'/')
         if key.startswith(server):
             key = key[len(server):]
-    key = key.encode('utf-8')
 
     # ...and return it if already created
+    key = key.encode('utf-8')
     if key in HASH_DATA:
         return HASH_DATA[key]
 
@@ -269,39 +287,26 @@ def proxy_path(v):
         preferences and the bookmarks database.
 
     """
+    if isinstance(v, weakref.ref):
+        v = v()[QtCore.Qt.StatusTipRole]
     if isinstance(v, dict):
-        k = v[QtCore.Qt.StatusTipRole]
-
-        if v[TypeRole] == FileItem:
-            return k
-
-        m = v[SequenceRole]
-        if not m:
-            return k
-
-        return m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
-
-    if isinstance(v, QtCore.QModelIndex):
-        k = v.data(QtCore.Qt.StatusTipRole)
-
-        if v.data(TypeRole) == FileItem:
-            return k
-
-        m = v.data(SequenceRole)
-        if not m:
-            return k
-        return m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
-
-    if not (isinstance, unicode):
+        v = v[QtCore.Qt.StatusTipRole]
+    elif isinstance(v, QtCore.QModelIndex):
+        v = v.data(QtCore.Qt.StatusTipRole)
+    elif isinstance(v, unicode):
+        pass
+    else:
         import bookmarks.log as log
         s = u'Invalid type. Expected `<type \'unicode\'>'
         log.error(s)
         raise ValueError(s)
 
-    m = is_collapsed(v)
-    if m:
-        return m.group(1) + u'[0]' + m.group(3)
-
+    collapsed = is_collapsed(v)
+    if collapsed:
+        return collapsed.group(1) + SEQPROXY + collapsed.group(3)
+    seq = get_sequence(v)
+    if seq:
+        return seq.group(1) + SEQPROXY + seq.group(3) + u'.' + seq.group(4)
     return v
 
 
@@ -485,24 +490,6 @@ def clear_favourites():
     settings.local_settings.setValue(u'favourites', [])
 
 
-BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
-SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
-BACKGROUND = QtGui.QColor(80, 80, 80)
-
-TEXT = QtGui.QColor(220, 220, 220)
-TEXT_SELECTED = QtGui.QColor(250, 250, 250)
-TEXT_DISABLED = QtGui.QColor(140, 140, 140)
-
-TEXT_NOTE = QtGui.QColor(150, 150, 255)
-SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
-
-SEPARATOR = QtGui.QColor(45, 45, 45)
-FAVOURITE = QtGui.QColor(107, 135, 165)
-REMOVE = QtGui.QColor(219, 114, 114)
-ADD = QtGui.QColor(90, 200, 155)
-THUMBNAIL_BACKGROUND = SEPARATOR
-
-
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
@@ -574,7 +561,8 @@ def set_custom_stylesheet(widget):
     try:
         qss = qss.format(
             PRIMARY_FONT=font_db.primary_font(MEDIUM_FONT_SIZE())[0].family(),
-            SECONDARY_FONT=font_db.secondary_font(SMALL_FONT_SIZE())[0].family(),
+            SECONDARY_FONT=font_db.secondary_font(
+                SMALL_FONT_SIZE())[0].family(),
             SMALL_FONT_SIZE=int(SMALL_FONT_SIZE()),
             MEDIUM_FONT_SIZE=int(MEDIUM_FONT_SIZE()),
             LARGE_FONT_SIZE=int(LARGE_FONT_SIZE()),
@@ -715,7 +703,6 @@ def execute(index, first=False):
     QtGui.QDesktopServices.openUrl(url)
 
 
-
 def get_ranges(arr, padding):
     """Given an array of numbers the method will return a string representation of
     the ranges contained in the array.
@@ -771,8 +758,8 @@ def is_valid_filename(text):
     return ValidFilenameRegex.search(text)
 
 
-def get_sequence(text):
-    """This method will check if the given text contains a sequence element.
+def get_sequence(s):
+    """Check if the given text contains a sequence element.
 
     Strictly speaking, a sequence is any file that has a valid number element.
     There can only be **one** incrementable element - it will always be the
@@ -787,34 +774,48 @@ def get_sequence(text):
     be **0001**, and not 010 or 002.
 
     Args:
+        s (unicode): A file path.
+
+    Returns:
         group 1 (SRE_Match):    All the characters **before** the sequence number.
         group 2 (SRE_Match):    The sequence number, as a string.
-        group 3 (SRE_Match):    All the characters **after** the sequence number.
+        group 3 (SRE_Match):    All the characters **after** the sequence number up until the file extensions.
+        group 4 (SRE_Match):    The file extension **without** the '.' dot.
 
     .. code-block:: python
 
-       filename = 'job_sh010_animation_v002_wgergely.c4d'
-       match = get_sequence(filename)
-       if match:
-           prefix = match.group(1) # 'job_sh010_animation_v'
-           sequence_number = match.group(2) # '002'
-           suffix = match.group(3) # '_wgergely.c4d'
+       s = u'job_sh010_animation_v002_wgergely.c4d'
+       m = get_sequence(s)
+       if m:
+           prefix = match.group(1)
+           sequence_number = match.group(2)
+           suffix = match.group(3)
+           extension = match.group(4)
 
     Returns:
         ``SRE_Match``: ``None`` if the text doesn't contain a number or an ``SRE_Match`` object.
 
     """
-    return GetSequenceRegex.search(text)
+    if not isinstance(s, unicode):
+        raise ValueError(
+            u'Expected <type \'unicode\'>, got {}'.format(type(s)))
+    if is_collapsed(s):
+        raise RuntimeError(
+            'Cannot extract sequence number from collapsed items.')
+    return GetSequenceRegex.search(s)
 
 
-def is_collapsed(text):
-    """This method will check for the presence of the bracket-enclosed sequence markers.
+def is_collapsed(s):
+    """Check for the presence of the bracket-enclosed sequence markers.
 
     When Bookmarks is displaying a sequence of files as a single item,
     the item is *collapsed*. Every collapsed item contains a start and an end number
     enclosed in brackets. For instance: ``image_sequence_[001-233].png``
 
     Args:
+        s (unicode): A file path.
+
+    Returns:
         group 1 (SRE_Match):    All the characters **before** the sequence marker.
         group 2 (SRE_Match):    The sequence marker(eg. ``[01-50]``), as a string.
         group 3 (SRE_Match):    All the characters **after** the sequence marker.
@@ -822,8 +823,8 @@ def is_collapsed(text):
     .. code-block:: python
 
        filename = 'job_sh010_animation_[001-299]_wgergely.png'
-       match = get_sequence(filename)
-       if match:
+       m = is_collapsed(filename)
+       if m:
            prefix = match.group(1) # 'job_sh010_animation_'
            sequence_string = match.group(2) # '[001-299]'
            suffix = match.group(3) # '_wgergely.png'
@@ -832,18 +833,27 @@ def is_collapsed(text):
         ``SRE_Match``: If the given name is indeed collpased it returns a ``SRE_Match`` object, otherwise ``None``.
 
     """
-    return IsSequenceRegex.search(text)
+    if not isinstance(s, unicode):
+        raise ValueError(
+            u'Expected <type \'unicode\'>, got {}'.format(type(s)))
+    return IsSequenceRegex.search(s)
 
 
 def get_sequence_startpath(path):
-    """If the given path refers to a collapsed item, it will get the name of the
-    the first item in the sequence. In the case of **[0-99]**, the first item is
-    **0**.
+    """Checks the given string and if it denotes a seuqence returns the path for
+    the first file.
+
+    Args:
+        s (unicode): A collapsed sequence name.
 
     Returns:
-        ``unicode``: The name of the first element in the sequence.
+        unicode: The path to the first file of the sequence.
 
     """
+    if not isinstance(path, unicode):
+        raise ValueError(
+            u'Expected <type \'unicode\'>, got {}'.format(type(path)))
+
     if not is_collapsed(path):
         return path
 
@@ -857,7 +867,17 @@ def get_sequence_endpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the last file.
 
+    Args:
+        s (unicode): A collapsed sequence name.
+
+    Returns:
+        unicode: The path to the last file of the sequence.
+
     """
+    if not isinstance(path, unicode):
+        raise ValueError(
+            u'Expected <type \'unicode\'>, got {}'.format(type(path)))
+
     if not is_collapsed(path):
         return path
 
@@ -1073,18 +1093,19 @@ def push_to_rv(path):
 
 PrimaryFontRole = 0
 SecondaryFontRole = PrimaryFontRole + 1
-HeaderFontRole = SecondaryFontRole + 1
-MetricsRole = HeaderFontRole + 1
+MetricsRole = SecondaryFontRole + 1
 
 
 class FontDatabase(QtGui.QFontDatabase):
-    """Utility class for loading and supplying custom fonts."""
+    """Utility class for loading and getting the application's custom fonts.
+
+    """
     CACHE = {
         PrimaryFontRole: {},
         SecondaryFontRole: {},
-        HeaderFontRole: {},
         MetricsRole: {},
     }
+
     def __init__(self, parent=None):
         if not QtWidgets.QApplication.instance():
             raise RuntimeError(
@@ -1095,7 +1116,8 @@ class FontDatabase(QtGui.QFontDatabase):
         self.add_custom_fonts()
 
     def add_custom_fonts(self):
-        """Adds our custom fonts to the QApplication.
+        """Load the fonts used by Bookmarks to the font database.
+
         """
         if u'bmRobotoMedium' in self.families():
             return
@@ -1119,7 +1141,7 @@ class FontDatabase(QtGui.QFontDatabase):
                     u'Failed to add required font to the application')
 
     def primary_font(self, font_size):
-        """Returns the primary font used by the application"""
+        """The primary font used by the application."""
         if font_size in self.CACHE[PrimaryFontRole]:
             return self.CACHE[PrimaryFontRole][font_size]
         font = self.font(u'bmRobotoBold', u'Bold', font_size)
@@ -1132,6 +1154,7 @@ class FontDatabase(QtGui.QFontDatabase):
         return self.CACHE[PrimaryFontRole][font_size]
 
     def secondary_font(self, font_size=SMALL_FONT_SIZE()):
+        """The secondary font used by the application."""
         if font_size in self.CACHE[SecondaryFontRole]:
             return self.CACHE[SecondaryFontRole][font_size]
         font = self.font(u'bmRobotoMedium', u'Medium', font_size)

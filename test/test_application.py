@@ -3,7 +3,71 @@
 import unittest
 
 
-class TestScandir(unittest.TestCase):
+class BaseCase(unittest.TestCase):
+    """Base test class.
+
+    Responsible for creating the sandbox environment used for testing.
+
+    """
+    app = None
+    root_dir = None
+    server = None
+    job = None
+    bookmarks = (u'apple', u'banana', u'orange')
+
+    @classmethod
+    def setUpClass(cls):
+        import uuid
+        from PySide2 import QtCore, QtWidgets
+        import bookmarks.common as common
+        import bookmarks.settings as settings
+        import bookmarks.standalone as standalone
+
+        common.PRODUCT = u'bookmarks_unittest'
+
+        settings.local_settings.deleteLater()
+        settings.local_settings = settings.LocalSettings()
+        settings.local_settings.setValue(u'servers', None)
+
+        # Add mock server dir
+        tempdir = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.TempLocation)
+        cls.server = tempdir
+
+        # Mock job dir
+        _id = uuid.uuid4()
+        cls.job = u'testroot_{id}'.format(id=_id)
+
+        cls.root_dir = u'{tempdir}/testroot_{id}'.format(
+            tempdir=tempdir, id=_id)
+        _dir = QtCore.QDir(cls.root_dir)
+        _dir.mkpath(u'.')
+        for bookmark in cls.bookmarks:
+            _dir.mkpath(u'./{}'.format(bookmark))
+
+        if not QtWidgets.QApplication.instance():
+            cls.app = standalone.StandaloneApp([])
+        else:
+            cls.app = QtWidgets.QApplication.instance()
+
+    @classmethod
+    def tearDownClass(cls):
+        from PySide2 import QtCore
+        import bookmarks.settings as settings
+
+        # Remove local settings file
+        s = settings.local_settings.fileName()
+        f = QtCore.QFileInfo(s)
+        if f.exists():
+            f.dir().removeRecursively()
+
+        # Remove temp directory
+        _dir = QtCore.QDir(cls.root_dir)
+        if _dir.exists():
+            _dir.removeRecursively()
+
+
+class TestScandir(BaseCase):
     def test_scandir(self):
         import bookmarks._scandir as scandir
         import os
@@ -17,7 +81,7 @@ class TestScandir(unittest.TestCase):
             self.assertIsInstance(entry.path, unicode)
 
 
-class TestDependencies(unittest.TestCase):
+class TestDependencies(BaseCase):
     def test_oiio_import(self):
         try:
             import OpenImageIO
@@ -67,56 +131,18 @@ class TestDependencies(unittest.TestCase):
             self.fail(err)
 
 
-class TestSQLite(unittest.TestCase):
-    server = None
-    job = None
-    root_dir = None
-    db = None
+class TestSQLite(BaseCase):
 
     @classmethod
     def setUpClass(cls):
-        import uuid
-        import os
-
-        from PySide2 import QtCore
-
+        super(TestSQLite, cls).setUpClass()
         import bookmarks.bookmark_db as bookmark_db
 
-        tempdir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        _id = uuid.uuid4()
-
-        cls.root_dir = u'{tempdir}/testroot_{id}'.format(
-            tempdir=tempdir,
-            id=_id
+        cls.db = bookmark_db.get_db(
+            cls.server,
+            cls.job,
+            cls.bookmarks[0]
         )
-        _dir = QtCore.QDir(cls.root_dir)
-        _dir.mkpath(u'.')
-
-        cls.server = tempdir
-        cls.job = u'testroot_{id}'.format(id=_id)
-        if not _dir.mkpath(u'./bookmark_a'):
-            cls.fail('Error making folders')
-
-        exists = os.path.exists(cls.root_dir)
-        if not exists:
-            cls.fail('Test directory does not exists')
-
-        try:
-            cls.db = bookmark_db.get_db(
-                cls.server,
-                cls.job,
-                u'bookmark_a'
-            )
-        except Exception as err:
-            raise
-
-    @classmethod
-    def tearDownClass(cls):
-        from PySide2 import QtCore
-        _dir = QtCore.QDir(cls.root_dir)
-        if _dir.exists():
-            _dir.removeRecursively()
 
     def test_get_hash(self):
         import bookmarks.common as common
@@ -230,58 +256,7 @@ class TestSQLite(unittest.TestCase):
         self.assertNotEqual(data, None)
 
 
-class TestBookmarksWidget(unittest.TestCase):
-    app = None
-    root_dir = None
-    server = None
-    job = None
-
-    @classmethod
-    def setUpClass(cls):
-        import uuid
-        from PySide2 import QtCore
-
-        import bookmarks.common as common
-        common.PRODUCT = u'bookmarks_unittest'
-
-        tempdir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        _id = uuid.uuid4()
-        cls.root_dir = u'{tempdir}/testroot_{id}'.format(
-            tempdir=tempdir,
-            id=_id
-        )
-        _dir = QtCore.QDir(cls.root_dir)
-        _dir.mkpath(u'.')
-        cls.server = tempdir
-        cls.job = u'testroot_{id}'.format(id=_id)
-        _dir.mkpath(u'./bookmark_a')
-        ########################################
-
-        import bookmarks.settings as settings
-        from bookmarks.settings import LocalSettings
-        settings.local_settings.deleteLater()
-        settings.local_settings = LocalSettings()
-        settings.local_settings.setValue(u'servers', None)
-
-        from PySide2 import QtWidgets
-        import bookmarks.standalone as standalone
-
-        if not QtWidgets.QApplication.instance():
-            cls.app = standalone.StandaloneApp([])
-        else:
-            cls.app = QtWidgets.QApplication.instance()
-
-    @classmethod
-    def tearDownClass(cls):
-        import bookmarks.settings as settings
-        from PySide2 import QtCore
-        QtCore.QFileInfo(settings.local_settings.fileName()
-                         ).dir().removeRecursively()
-
-        _dir = QtCore.QDir(cls.root_dir)
-        if _dir.exists():
-            _dir.removeRecursively()
+class TestBookmarksWidget(BaseCase):
 
     def setUp(self):
         import bookmarks.settings as settings
@@ -335,110 +310,80 @@ class TestBookmarksWidget(unittest.TestCase):
         self.assertNotEqual(idx, -1)
 
 
-class TestGui(unittest.TestCase):
-    app = None
-    root_dir = None
-    server = None
-    job = None
-
-    @classmethod
-    def setUpClass(cls):
-        import uuid
-        from PySide2 import QtCore
-
-        import bookmarks.common as common
-        common.PRODUCT = u'bookmarks_unittest'
-
-        tempdir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        _id = uuid.uuid4()
-        cls.root_dir = u'{tempdir}/testroot_{id}'.format(
-            tempdir=tempdir,
-            id=_id
-        )
-        _dir = QtCore.QDir(cls.root_dir)
-        _dir.mkpath(u'.')
-        cls.server = tempdir
-        cls.job = u'testroot_{id}'.format(id=_id)
-        _dir.mkpath(u'./bookmark_a')
-        _dir.mkpath(u'./bookmark_a/asset_a')
-        _dir.mkpath(u'./bookmark_a/taskdir_a')
-
-        from PySide2 import QtWidgets
-        import bookmarks.standalone as standalone
-        if not QtWidgets.QApplication.instance():
-            cls.app = standalone.StandaloneApp([])
-        else:
-            cls.app = QtWidgets.QApplication.instance()
-
-    @classmethod
-    def tearDownClass(cls):
-        from PySide2 import QtCore
-        _dir = QtCore.QDir(cls.root_dir)
-        if _dir.exists():
-            _dir.removeRecursively()
+class TestGui(BaseCase):
 
     def test_addassetwidget(self):
         import bookmarks.addassetwidget as addassetwidget
         w = addassetwidget.AddAssetWidget(
             self.server,
             self.job,
-            u'bookmark_a',
+            self.bookmarks[0],
         )
+        w.open()
 
     def test_addfilewidget(self):
         import bookmarks.addfilewidget as addfilewidget
         w = addfilewidget.AddFileWidget(u'ma')
+        w.open()
 
     def test_assetwidget(self):
         import bookmarks.assetswidget as assetswidget
         widget = assetswidget.AssetsWidget()
         widget.model().sourceModel().parent_path = (
-            self.server, self.job, 'bookmark_b',)
+            self.server, self.job, self.bookmarks[1 ],)
         widget.model().sourceModel().modelDataResetRequested.emit()
+        widget.show()
 
     def test_basecontextmenu(self):
         from PySide2 import QtCore
         import bookmarks.basecontextmenu as basecontextmenu
-        basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
+        w = basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
+        w.show()
 
     def test_bookmark_properties_widget(self):
         from PySide2 import QtCore
         import bookmarks.bookmark_properties as bookmark_properties
-        bookmark_properties.BookmarkPropertiesWidget(
+        w = bookmark_properties.BookmarkPropertiesWidget(
             server=self.server,
             job=self.job,
-            root=u'bookmark_a'
+            root=self.bookmarks[0]
         )
+        w.open()
 
     def test_baselist_widget(self):
-        import bookmarks.baselistwidget as baselistwidget
+        import bookmarks.baselist as baselist
 
     def test_bookmarks_widget(self):
         import bookmarks.bookmarkswidget as bookmarkswidget
         widget = bookmarkswidget.BookmarksWidget()
         widget.model().sourceModel().modelDataResetRequested.emit()
+        widget.show()
 
     def test_taskfolders_widget(self):
         import bookmarks.taskfolderwidget as taskfolderwidget
         widget = taskfolderwidget.TaskFolderWidget()
         widget.model().modelDataResetRequested.emit()
+        widget.show()
 
     def test_main_widget(self):
         import bookmarks.mainwidget as mainwidget
         widget = mainwidget.MainWidget()
+        widget.show()
 
     def test_favourites_widget(self):
         import bookmarks.favouriteswidget as favouriteswidget
         widget = favouriteswidget.FavouritesWidget()
+        widget.show()
 
     def test_preferences_widget(self):
         import bookmarks.preferenceswidget as preferenceswidget
         widget = preferenceswidget.PreferencesWidget()
+        widget.open()
 
     def test_slacker_widget(self):
         import bookmarks.slacker as slacker
         widget = slacker.SlackWidget(None, None)
+        widget.open()
 
     def test_standalone_widget(self):
         import bookmarks.standalone as standalone
@@ -448,6 +393,7 @@ class TestGui(unittest.TestCase):
             mainwidget._instance = None
 
         widget = standalone.StandaloneMainWidget()
+        widget.show()
         with self.assertRaises(RuntimeError):
             standalone.StandaloneMainWidget()
 
@@ -455,9 +401,10 @@ class TestGui(unittest.TestCase):
         import bookmarks.fileswidget as fileswidget
         widget = fileswidget.FilesWidget()
         widget.model().sourceModel().parent_path = (
-            self.server, self.job, 'bookmark_a', u'asset_a')
+            self.server, self.job, self.bookmarks[0], u'asset_a')
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.model().sourceModel().taskFolderChanged.emit('taskdir_a')
+        widget.show()
 
     def test_todo_editor(self):
         from PySide2 import QtCore
@@ -469,11 +416,16 @@ class TestGui(unittest.TestCase):
             idx=1, text=u'Hello world', checked=True)
         widget.add_item(idx=2, text='file://test.com', checked=False)
         widget.add_item(idx=0, text='First item', checked=False)
+        widget.open()
 
+class TestVersionControl(BaseCase):
     def test_versioncontrol(self):
         from PySide2 import QtCore
         import bookmarks.versioncontrol.versioncontrol as versioncontrol
-        versioncontrol.check()
+        try:
+            versioncontrol.check()
+        except Exception as e:
+            raise
 
 
 class TestLocalSettings(unittest.TestCase):
@@ -542,19 +494,7 @@ class TestLocalSettings(unittest.TestCase):
         self.assertEqual(val, v)
 
 
-class TestImages(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from PySide2 import QtWidgets
-        import bookmarks.standalone as standalone
-
-        import bookmarks.common as common
-        common.PRODUCT = u'bookmarks_unittest'
-
-        app = QtWidgets.QApplication.instance()
-        if not app:
-            app = standalone.StandaloneApp([])
-
+class TestImages(BaseCase):
     def setUp(self):
         self.source = None
         import bookmarks.images as images
@@ -756,47 +696,16 @@ class TestImages(unittest.TestCase):
         self.assertEqual(path, self.source.replace(u'\\', u'/'))
 
 
-class TestAddFileWidget(unittest.TestCase):
-    app = None
-    root_dir = None
-    server = None
-    job = None
-
+class TestAddFileWidget(BaseCase):
     @classmethod
     def setUpClass(cls):
-        import uuid
         from PySide2 import QtCore
-        tempdir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        _id = uuid.uuid4()
-        cls.root_dir = u'{tempdir}/testroot_{id}'.format(
-            tempdir=tempdir,
-            id=_id
-        )
+        super(TestAddFileWidget, cls).setUpClass()
         _dir = QtCore.QDir(cls.root_dir)
-        _dir.mkpath(u'.')
-        cls.server = tempdir
-        cls.job = u'testroot_{id}'.format(id=_id)
-        _dir.mkpath(u'./bookmark_a')
-        _dir.mkpath(u'./bookmark_a/asset_a')
-        _dir.mkpath(u'./bookmark_a/taskdir_a')
-
-        import bookmarks.common as common
-        common.PRODUCT = u'bookmarks_unittest'
-
-        from PySide2 import QtWidgets
-        import bookmarks.standalone as standalone
-        if not QtWidgets.QApplication.instance():
-            cls.app = standalone.StandaloneApp([])
-        else:
-            cls.app = QtWidgets.QApplication.instance()
-
-    @classmethod
-    def tearDownClass(cls):
-        from PySide2 import QtCore
-        _dir = QtCore.QDir(cls.root_dir)
-        if _dir.exists():
-            _dir.removeRecursively()
+        for bookmark in cls.bookmarks:
+            _dir.mkpath(u'./{}'.format(bookmark))
+            _dir.mkpath(u'./{}/asset_a'.format(bookmark))
+            _dir.mkpath(u'./{}/taskdir_a'.format(bookmark))
 
     def setUp(self):
         import os
@@ -851,6 +760,7 @@ if __name__ == '__main__':
         loader.loadTestsFromTestCase(TestAddFileWidget),
         loader.loadTestsFromTestCase(TestBookmarksWidget),
         loader.loadTestsFromTestCase(TestGui),
+        loader.loadTestsFromTestCase(TestVersionControl),
     )
     suite = unittest.TestSuite(cases)
-    unittest.TextTestRunner(verbosity=2, failfast=True).run(suite)
+    unittest.TextTestRunner(verbosity=3, failfast=True).run(suite)

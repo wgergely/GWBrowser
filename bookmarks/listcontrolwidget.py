@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
 """The bar above the bookmark/asset/file widgets.
 
-Copyright (C) 2020 Gergely Wootsch
-
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -29,7 +15,6 @@ from bookmarks.taskfolderwidget import TaskFolderWidget
 import bookmarks.images as images
 import bookmarks.delegate as delegate
 import bookmarks.settings as settings
-
 
 
 class QuickSwitchMenu(BaseContextMenu):
@@ -89,7 +74,8 @@ class QuickSwitchMenu(BaseContextMenu):
                 item[common.ParentPathRole][2],
                 item[QtCore.Qt.StatusTipRole],
             )
-            pixmap = images.ImageCache.get_pixmap(thumbnail_path, common.MARGIN() * 2)
+            pixmap = images.ImageCache.get_pixmap(
+                thumbnail_path, common.MARGIN() * 2)
             pixmap = pixmap if pixmap else off_pixmap
             pixmap = on_pixmap if active else pixmap
             icon = QtGui.QIcon(pixmap)
@@ -486,7 +472,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
     def get_width(self):
         o = common.INDICATOR_WIDTH() * 3
-        font, metrics =common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
         return metrics.width(self.text()) + (o * 2)
 
     @QtCore.Slot()
@@ -593,6 +579,7 @@ class BookmarksTabButton(PaintedTextButton):
         pos = self.mapToGlobal(event.pos())
         menu.move(pos)
         menu.exec_()
+
 
 class AssetsTabButton(PaintedTextButton):
     """The button responsible for revealing the ``AssetsWidget``"""

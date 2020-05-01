@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
-"""The local settings file used to store active paths, widget and user options.
+"""Contains :class:`.LocalSettings`, a customized QSettings instance  used to
+store active paths, widget and user options.
 
-Copyright (C) 2020 Gergely Wootsch
+Also contains the session lock used to `lock` a running Bookmark instance. See
+:func:`.get_lockfile_path` and the relevant functions in :class:`.LocalSettings`.
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version.
+.. code-block:: python
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program.  If not, see <https://www.gnu.org/licenses/>.
+    favourites = settings.local_settings.favourites()
 
 """
-
 import collections
 import os
 import re
@@ -30,7 +23,9 @@ import bookmarks.common as common
 import bookmarks._scandir as _scandir
 
 
-ACTIVE_KEYS = (u'server', u'job', u'root', u'asset', u'location', u'file')
+ACTIVE_KEYS = (u'server', u'job', u'root', u'asset', u'task_folder', u'file')
+"""The list of keys used to store currently activated paths segments."""
+
 local_settings = None
 
 
@@ -90,28 +85,20 @@ def prune_lockfile(func):
 
 
 class LocalSettings(QtCore.QSettings):
-    """An `ini` based `QSettings` object to _get_ and _set_ app settings.
+    """An `ini` config file.
 
-    The current path selection are stored under the ``activepath`` section.
-    LocalSettings provides signals that respond to value changes of the
-    `activepath` entried. This is used to sync Bookmarks's state with other
-    running instances.
+    A fully set active path is made up of the following key/values:
 
-    Note:
-        The fully set active path is made up of the ``server``, ``job``, ``root``,
-        ``asset``, ``location`` and ``file`` components.
-
-    `activepath` keys:
-        activepath/server (unicode):    Server, eg. '//server/data'.
-        activepath/job (unicode):       Job folder name inside the server.
-        activepath/root (unicode):      Job-relative bookmark path, eg. 'seq_010/shots'.
-        activepath/asset (unicode):     Job folder name inside the root, eg. 'shot_010'.
-        activepath/location (unicode):  A mode folder, 'scenes', 'renders', etc.
-        activepath/file (unicode):      Location-relative file path.
+    * activepath/server (unicode):    Server, eg. '//server/data'.
+    * activepath/job (unicode):       Job folder name inside the server.
+    * activepath/root (unicode):      Job-relative bookmark path, eg. 'seq_010/shots'.
+    * activepath/asset (unicode):     Job folder name inside the root, eg. 'shot_010'.
+    * activepath/task_folder (unicode):  A folder, eg. 'scenes', 'renders', etc.
+    * activepath/file (unicode):      A relative file path.
 
     """
     filename = u'settings.ini'
-    keys = (u'server', u'job', u'root', u'asset', u'location', u'file')
+    keys = (u'server', u'job', u'root', u'asset', u'task_folder', u'file')
 
     def __init__(self, parent=None):
         self.config_path = QtCore.QStandardPaths.writableLocation(
@@ -142,8 +129,8 @@ class LocalSettings(QtCore.QSettings):
     def value(self, k):
         """An override for the default get value method.
 
-        When solo mode is on we have to disable saving `activepath` values to
-        the local settings and redirect querries instead to a temporary proxy
+        When solo mode is on we disable saving `activepath` values to
+        the local settings and redirect instead to an in-memory
         dictionary.
 
         """
@@ -155,8 +142,8 @@ class LocalSettings(QtCore.QSettings):
         return _bool(super(LocalSettings, self).value(k))
 
     def setValue(self, k, v):
-        """This is a global override for our preferences to disable the setting
-        of the active path settings.
+        """Override to allow redirecting `activepath` keys to be saved in memory
+        when solo mode is on.
 
         """
         if self.current_mode() and k.lower().startswith(u'activepath'):
@@ -169,15 +156,15 @@ class LocalSettings(QtCore.QSettings):
 
     @QtCore.Slot()
     def verify_paths(self):
-        """This slot verifies and returns the saved ``active paths`` wrapped
-        in a dictionary.
+        """This slot verifies and returns the saved ``active paths`` wrapped in
+        a dictionary.
 
         If the resulting active path is not an existing file, we will
         progressively unset the invalid path segments until we get a valid file
-        path. The slot does not emit any changed signals.
+        path.
 
         Returns:
-            OrderedDict:    Verified active paths.
+            OrderedDict:    Path segments of an existing file.
 
         """
         d = collections.OrderedDict()
@@ -221,6 +208,7 @@ class LocalSettings(QtCore.QSettings):
 
     @prune_lockfile
     def get_mode(self):
+        """Return the current application mode."""
         lockfile_info = QtCore.QFileInfo(get_lockfile_path())
         for entry in _scandir.scandir(lockfile_info.path()):
             if entry.is_dir():
@@ -245,6 +233,12 @@ class LocalSettings(QtCore.QSettings):
         self._current_mode = val
 
     def favourites(self):
+        """Get all saved favourites as a list
+
+        Returns:
+            list: A list opf file paths the user marked favourite.
+
+        """
         v = self.value(u'favourites')
         if isinstance(v, (str, unicode)):
             v = [v.lower(), ]
@@ -253,3 +247,4 @@ class LocalSettings(QtCore.QSettings):
 
 
 local_settings = LocalSettings()
+"""Global local settings instance."""
