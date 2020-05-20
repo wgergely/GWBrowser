@@ -15,7 +15,6 @@ All generated thumbnails and ui resources are cached in ``ImageCache``.
 import uuid
 import os
 import functools
-import numpy as np
 import OpenImageIO
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -28,7 +27,7 @@ import bookmarks.defaultpaths as defaultpaths
 
 oiio_cache = OpenImageIO.ImageCache(shared=True)
 oiio_cache.attribute(u'max_memory_MB', 4096.0)
-oiio_cache.attribute(u'max_open_files', 100)
+oiio_cache.attribute(u'max_open_files', 0)
 oiio_cache.attribute(u'trust_file_extensions', 1)
 
 
@@ -293,6 +292,7 @@ def oiio_get_qimage(path, buf=None, force=True):
     """
     if buf is None:
         buf = oiio_get_buf(path, force=force)
+        oiio_cache.invalidate(path, force=True)
         if buf is None:
             return None
 
@@ -1225,12 +1225,19 @@ class Viewer(QtWidgets.QGraphicsView):
         painter.end()
 
     def set_image(self, path):
+        """Loads an image using OpenImageIO and displays the contents as a
+        QPoxmap item.
+
+        """
         image = oiio_get_qimage(path)
+
         if not image:
             return None
-
         if image.isNull():
             return None
+
+        # Let's make sure we're not locking the resource
+        oiio_cache.invalidate(path, force=True)
 
         pixmap = QtGui.QPixmap.fromImage(image)
         if pixmap.isNull():
@@ -1244,8 +1251,6 @@ class Viewer(QtWidgets.QGraphicsView):
         size = self.item.pixmap().size()
         if size.height() > self.height() or size.width() > self.width():
             self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
-        # self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
-
         return self.item
 
     def wheelEvent(self, event):
@@ -1290,33 +1295,6 @@ class ImageViewer(QtWidgets.QDialog):
         global _viewer_widget
         _viewer_widget = self
         super(ImageViewer, self).__init__(parent=parent)
-        if not isinstance(path, unicode):
-            raise ValueError(
-                u'Expected <type \'unicode\'>, got {}'.format(type(path)))
-
-        import bookmarks.common_ui as common_ui
-
-        self.path = path
-
-        if not self.parent():
-            common.set_custom_stylesheet(self)
-
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
-            s = '{} does not exists.'.format(path)
-            common_ui.ErrorBox(
-                u'Error previewing image.', s).open()
-            log.error(s)
-            self.deleteLater()
-            raise RuntimeError(s)
-
-        if not oiio_get_buf(path, force=True):
-            s = u'{} seems invalid.'.format(path)
-            common_ui.ErrorBox(
-                u'Error previewing image.', s).open()
-            log.error(s)
-            self.deleteLater()
-            raise RuntimeError(s)
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
@@ -1338,6 +1316,35 @@ class ImageViewer(QtWidgets.QDialog):
         self.load_timer.setSingleShot(True)
         self.load_timer.setInterval(10)
         self.load_timer.timeout.connect(self.load_timer.deleteLater)
+
+        if not isinstance(path, unicode):
+            self.done(QtWidgets.QDialog.Rejected)
+            raise ValueError(
+                u'Expected <type \'unicode\'>, got {}'.format(type(path)))
+
+        import bookmarks.common_ui as common_ui
+
+        self.path = path
+
+        if not self.parent():
+            common.set_custom_stylesheet(self)
+
+        file_info = QtCore.QFileInfo(path)
+        if not file_info.exists():
+            s = u'{} does not exists.'.format(path)
+            common_ui.ErrorBox(
+                u'Error previewing image.', s).open()
+            log.error(s)
+            self.done(QtWidgets.QDialog.Rejected)
+            raise RuntimeError(s)
+
+        if not oiio_get_buf(path, force=True):
+            s = u'{} seems invalid.'.format(path)
+            common_ui.ErrorBox(
+                u'Error previewing image.', s).open()
+            log.error(s)
+            self.done(QtWidgets.QDialog.Rejected)
+            raise RuntimeError(s)
 
         QtWidgets.QVBoxLayout(self)
         height = common.ROW_HEIGHT() * 0.6
