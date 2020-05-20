@@ -1159,6 +1159,8 @@ class BaseListWidget(QtWidgets.QListView):
     @QtCore.Slot()
     def save_selection(self):
         """Saves the current selection."""
+        if not self.selectionModel().hasSelection():
+            return
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
@@ -1432,17 +1434,18 @@ class BaseListWidget(QtWidgets.QListView):
                     common_ui.ErrorBox(
                         u'Error previewing image.', s).open()
                     log.error(s)
-                    self.deleteLater()
                     raise RuntimeError(s)
 
         if not source:
-            raise RuntimeError(u'Invalid source value')
+            s = u'Invalid source value'
+            log.error(s)
+            raise RuntimeError(s)
 
         # Finally, we'll create and show our widget, and destroy it when the
         # selection changes
         widget = images.ImageViewer(source, parent=self)
         self.selectionModel().currentChanged.connect(widget.delete_timer.start)
-        widget.show()
+        widget.open()
 
     def key_down(self):
         """Custom action on  `down` arrow key-press.
@@ -1774,7 +1777,12 @@ class BaseListWidget(QtWidgets.QListView):
         widget.exec_()
 
     def action_on_enter_key(self):
-        self.activate(self.selectionModel().currentIndex())
+        if not self.selectionModel().hasSelection():
+            return
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        self.activate(index)
 
     def mousePressEvent(self, event):
         """Deselecting item when the index is invalid."""
@@ -1845,7 +1853,12 @@ class BaseListWidget(QtWidgets.QListView):
                     return
 
         if rectangles[delegate.DataRect].contains(cursor_position):
-            self.activate(self.selectionModel().currentIndex())
+            if not self.selectionModel().hasSelection():
+                return
+            index = self.selectionModel().currentIndex()
+            if not index.isValid():
+                return
+            self.activate(index)
             return
 
     def _get_status_string(self):
@@ -1981,17 +1994,21 @@ class BaseListWidget(QtWidgets.QListView):
     def _reset_rows(self):
         """Reinitializes the rows to apply size-change."""
         proxy = self.model()
-        row = self.selectionModel().currentIndex().row()
+        index = self.selectionModel().currentIndex()
+        row = -1
+        if self.selectionModel().hasSelection() and index.isValid():
+            row = index.row()
 
         self.scheduleDelayedItemsLayout()
         self.start_queue_timers()
         self.repaint_visible_rows()
 
-        index = proxy.index(row, 0)
-        self.selectionModel().setCurrentIndex(
-            index, QtCore.QItemSelectionModel.ClearAndSelect)
-        self.scrollTo(
-            index, QtWidgets.QAbstractItemView.PositionAtCenter)
+        if row >= 0:
+            index = proxy.index(row, 0)
+            self.selectionModel().setCurrentIndex(
+                index, QtCore.QItemSelectionModel.ClearAndSelect)
+            self.scrollTo(
+                index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
     def _save_row_size(self, v):
         """Saves the current row size to the local settings."""
