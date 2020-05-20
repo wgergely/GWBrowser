@@ -48,7 +48,7 @@ FORMAT_FILTERS = {
     ExportFilter: {
         u'name': u'ExportFilter',
         u'description': u'CG cache formats',
-        u'default': sort(u'abc,ass,bgeo,fbx,geo,ifd,obj,rs,sc,sim,vdb'),
+        u'default': sort(u'abc,ass,bgeo,fbx,geo,ifd,obj,rs,sc,sim,vdb,usd,usda,usdc,usdz'),
         u'value': None,
     },
     MiscFilter: {
