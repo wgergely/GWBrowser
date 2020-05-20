@@ -58,7 +58,7 @@ class FilesModel(baselist.BaseModel):
     .. code-block:: python
 
         data = self.model_data() # the currently exposed dataset
-        print data == self.INTERNAL_MODEL_DATA[self.task_folder()][self.data_type()] # True
+        data == self.INTERNAL_MODEL_DATA[self.task_folder()][self.data_type()]
 
     """
     DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT())
@@ -154,7 +154,6 @@ class FilesModel(baselist.BaseModel):
 
             filepath = entry.path.lower().replace(u'\\', u'/')
             ext = filename.split(u'.')[-1]
-
             if task_folder_extensions and ext not in task_folder_extensions:
                 continue
 
@@ -168,7 +167,12 @@ class FilesModel(baselist.BaseModel):
             # Getting the fileroot
             fileroot = filepath.replace(parent_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
-            seq = common.get_sequence(filepath)
+
+            try:
+                seq = common.get_sequence(filepath)
+            except RuntimeError:
+                log.error(u'"' + filename + u'" named incorrectly. Skipping.')
+                continue
 
             flags = dflags()
 
