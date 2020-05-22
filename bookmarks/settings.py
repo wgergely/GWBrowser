@@ -134,12 +134,18 @@ class LocalSettings(QtCore.QSettings):
         dictionary.
 
         """
-        if self.current_mode() and k.lower().startswith(u'activepath'):
+        activepath = k.lower().startswith(u'activepath')
+
+        if self.current_mode() and activepath:
             if k not in self.INTERNAL_SETTINGS_DATA:
                 v = super(LocalSettings, self).value(k)
-                self.INTERNAL_SETTINGS_DATA[k] = _bool(v)
+                self.INTERNAL_SETTINGS_DATA[k] = v
             return self.INTERNAL_SETTINGS_DATA[k]
-        return _bool(super(LocalSettings, self).value(k))
+
+        v = super(LocalSettings, self).value(k)
+        if activepath:
+            return v
+        return _bool(v)
 
     def setValue(self, k, v):
         """Override to allow redirecting `activepath` keys to be saved in memory
@@ -175,7 +181,7 @@ class LocalSettings(QtCore.QSettings):
         path = u''
         for idx, k in enumerate(d):
             if d[k]:
-                path += u'/{}'.format(common.get_sequence_startpath(d[k]))
+                path += u'/{}'.format(common.get_sequence_startpath(unicode(d[k])))
                 if idx == 0:
                     path = d[k]
             if not QtCore.QFileInfo(path).exists():
