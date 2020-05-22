@@ -16,6 +16,9 @@ import bookmarks.defaultpaths as defaultpaths
 import bookmarks.images as images
 
 
+FILTER_EXTENSIONS = False
+
+
 class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
     """Context menu associated with the `FilesWidget`."""
 
@@ -154,7 +157,7 @@ class FilesModel(baselist.BaseModel):
 
             filepath = entry.path.lower().replace(u'\\', u'/')
             ext = filename.split(u'.')[-1]
-            if task_folder_extensions and ext not in task_folder_extensions:
+            if FILTER_EXTENSIONS and task_folder_extensions and ext not in task_folder_extensions:
                 continue
 
             # Progress bar
