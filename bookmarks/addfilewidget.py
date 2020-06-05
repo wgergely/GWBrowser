@@ -35,7 +35,7 @@ import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.settings as settings
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 import bookmarks.common_ui as common_ui
 import bookmarks.delegate as delegate
 import bookmarks.baselist as baselist

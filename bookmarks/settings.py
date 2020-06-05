@@ -20,7 +20,7 @@ from PySide2 import QtCore
 
 import bookmarks.log as log
 import bookmarks.common as common
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 
 
 ACTIVE_KEYS = (u'server', u'job', u'root', u'asset', u'task_folder', u'file')

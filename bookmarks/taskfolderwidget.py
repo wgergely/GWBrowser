@@ -12,7 +12,7 @@ import weakref
 from functools import partial
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 import bookmarks.log as log
 import bookmarks.common as common
 

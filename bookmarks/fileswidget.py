@@ -9,7 +9,7 @@ import bookmarks.baselist as baselist
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.threads as threads
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
 import bookmarks.defaultpaths as defaultpaths

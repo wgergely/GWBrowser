@@ -13,7 +13,7 @@ from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.delegate import FilesWidgetDelegate
 from bookmarks.fileswidget import FilesModel
 from bookmarks.fileswidget import FilesWidget
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 
 
 class FavouritesWidgetContextMenu(BaseContextMenu):

@@ -14,7 +14,7 @@ import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
 import bookmarks.threads as threads
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 import bookmarks.baselist as baselist
 import bookmarks.basecontextmenu as basecontextmenu
 import bookmarks.settings as settings

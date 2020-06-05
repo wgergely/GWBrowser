@@ -6,7 +6,7 @@ import re
 from PySide2 import QtCore, QtWidgets
 
 import bookmarks.common as common
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 import bookmarks.threads as threads
 import bookmarks.delegate as delegate
 import bookmarks.baselist as baselist

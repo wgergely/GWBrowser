@@ -61,6 +61,8 @@ HEIF_ROOT = ur'I:\dev\libheif-build\libheif\Release'
 VCPKG_BIN = ur'I:\dev\vcpkg\installed\x64-windows\bin'
 #Python
 PYTHON_ROOT = ur'C:\Python27'
+# scandir
+LIB_SCANDIR_D = PYTHON_ROOT + os.path.sep + '_scandir.pyd'
 # sqlite3
 LIB_SQLITE = PYTHON_ROOT + os.path.sep + 'sqlite3.dll'
 # Alembic
@@ -106,6 +108,7 @@ LIB_SHIBOKEN_D = PYSIDE2_ROOT + os.path.sep + 'lib' + os.path.sep + \
 # except the libraries defined in `SYSTEM_LIBS`.
 ################################################################################
 TOP_LEVEL_LIBS = (
+    LIB_SCANDIR_D,
     LIB_SQLITE,
     LIB_ILMIMF,
     LIB_IEX,
@@ -390,6 +393,10 @@ def copy_libs(libs):
     shutil.copy2(
         LIB_OIIO_D,
         root + os.path.sep + 'shared' + os.path.sep + os.path.basename(LIB_OIIO_D))
+
+    shutil.copy2(
+        LIB_SCANDIR_D,
+        root + os.path.sep + 'shared' + os.path.sep + os.path.basename(LIB_SCANDIR_D))
 
 
 def build_bin():

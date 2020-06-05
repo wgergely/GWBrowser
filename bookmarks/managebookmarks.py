@@ -11,7 +11,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
-from bookmarks._scandir import scandir as scandir_it
+from _scandir import scandir as scandir_it
 import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 import bookmarks.settings as settings

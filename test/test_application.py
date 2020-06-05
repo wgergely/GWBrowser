@@ -69,7 +69,7 @@ class BaseCase(unittest.TestCase):
 
 class TestScandir(BaseCase):
     def test_scandir(self):
-        import bookmarks._scandir as scandir
+        import _scandir as scandir
         import os
 
         p = os.path.abspath(os.path.join(__file__, os.pardir))
@@ -90,7 +90,7 @@ class TestDependencies(BaseCase):
 
     def test_scandir_import(self):
         try:
-            import bookmarks._scandir
+            import _scandir
         except ImportError as err:
             self.fail(err)
 

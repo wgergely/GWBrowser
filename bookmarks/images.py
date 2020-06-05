@@ -21,7 +21,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.log as log
 import bookmarks.common as common
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 import bookmarks.defaultpaths as defaultpaths
 
 

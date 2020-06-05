@@ -753,7 +753,7 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         log.error(s)
         raise OSError(s)
 
-    import bookmarks._scandir as _scandir
+    import _scandir as _scandir
     for entry in _scandir.scandir(latest_dir):
         os.remove(entry.path)
 

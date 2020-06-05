@@ -15,7 +15,7 @@ import weakref
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
 
-import bookmarks._scandir as _scandir
+import _scandir as _scandir
 
 
 font_db = None  # Must be set before bookmarks is initialized
