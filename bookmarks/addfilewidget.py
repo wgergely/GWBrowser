@@ -1586,8 +1586,8 @@ class AddFileWidget(QtWidgets.QDialog):
         self.initialize_timer.timeout.connect(
             self.bookmark_widget.view().model().sourceModel().modelDataResetRequested)
 
-        self.bookmark_widget.view().clicked.connect(
-            self.asset_widget.view().model().sourceModel().set_active)
+        # self.bookmark_widget.view().clicked.connect(
+        #     self.asset_widget.view().model().sourceModel().set_active)
         self.bookmark_widget.view().clicked.connect(
             self.asset_widget.view().model().sourceModel().modelDataResetRequested)
 

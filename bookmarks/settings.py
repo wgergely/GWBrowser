@@ -150,8 +150,10 @@ class LocalSettings(QtCore.QSettings):
         val = self.value('servers')
         if not val:
             common.SERVERS = []
+            return
         if isinstance(val, (str, unicode)):
             common.SERVERS = [val.lower(), ]
+            return
         common.SERVERS = sorted([sep(f).lower() for f in val])
 
     def value(self, k):
