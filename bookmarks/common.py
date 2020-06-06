@@ -17,6 +17,7 @@ import OpenImageIO
 
 import _scandir as _scandir
 
+SERVERS = []
 
 font_db = None  # Must be set before bookmarks is initialized
 STANDALONE = True  # The current mode of bookmarks
@@ -223,7 +224,7 @@ def psize(n):
 HASH_DATA = {}
 
 
-def get_hash(key, server=None):
+def get_hash(key):
     """Calculate md5 hash for a file path.
 
     The resulting hash is used by the ImageCache. local settings and BookmarkDB to store
@@ -238,7 +239,7 @@ def get_hash(key, server=None):
 
     """
     # Let's check wheter the key has already been saved
-    if server is None and key in HASH_DATA:
+    if key in HASH_DATA:
         return HASH_DATA[key]
 
     if isinstance(key, int):
@@ -252,16 +253,18 @@ def get_hash(key, server=None):
     if u'\\' in key:
         key = key.replace(u'\\', u'/')
 
-    # The hash should also be server agnostic
-    if server is not None and not isinstance(server, unicode):
-        raise TypeError(
-            u'Expected <type \'unicode\'>, got {}'.format(type(key)))
-        server = server.lower()
-        server = server.replace(u'\\', u'/')
-        if key.startswith(server):
-            key = key[len(server):]
+    # The hash key should be server agnostic.
+    # This means, we will check the key against all saved servers and remove
+    # it from the key if found
+    # This will let us keep custom data and thumbnails even if the server
+    # changes.
+    s = [f for f in SERVERS if f in key]
+    if s:
+        s = s[0]
+        l = len(s)
+        if key[:l] == s:
+            key = key[l:]
 
-    # ...and return it if already created
     key = key.encode('utf-8')
     if key in HASH_DATA:
         return HASH_DATA[key]

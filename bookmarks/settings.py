@@ -137,6 +137,22 @@ class LocalSettings(QtCore.QSettings):
         self.server_mount_timer.timeout.connect(self.load_and_verify_stored_paths)
 
         self.load_and_verify_stored_paths()
+        self.load_saved_servers()
+
+    def load_saved_servers(self):
+        """Returns a list of saved servers."""
+
+        def sep(s):
+            return re.sub(
+                ur'[\\]', u'/', s, flags=re.UNICODE | re.IGNORECASE)
+
+        self.sync()
+        val = self.value('servers')
+        if not val:
+            common.SERVERS = []
+        if isinstance(val, (str, unicode)):
+            common.SERVERS = [val.lower(), ]
+        common.SERVERS = sorted([sep(f).lower() for f in val])
 
     def value(self, k):
         """An override for the default get value method.

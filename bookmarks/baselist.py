@@ -1069,6 +1069,8 @@ class BaseListWidget(QtWidgets.QListView):
         """Slot used to update the row associated with the data segment."""
         if not self.isVisible():
             return
+        if not isinstance(idx, int):
+            return
         index = self.model().sourceModel().index(idx, 0)
         self.model().mapFromSource(index)
         # super(BaseListWidget, self).update(index)

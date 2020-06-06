@@ -410,7 +410,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
         }
         menu_set[u'favourite'] = {
-            u'text': u'Remove favourite' if favourite else u'Favourite',
+            u'text': u'Toggle favourite',
             u'icon': favourite_off_icon if favourite else favourite_on_icon,
             u'checkable': False,
             u'action': functools.partial(
@@ -618,7 +618,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Manage bookmarks'] = {
             u'text': u'Manage bookmarks',
             u'icon': pixmap,
-            u'action': self.parent().manage_bookmarks.open
+            u'action': self.parent().manage_bookmarks.exec_
         }
         return menu_set
 
@@ -704,7 +704,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             state=not favourite
         )
         menu_set[u'favourite'] = {
-            u'text': u'Remove favourite',
+            u'text': u'Toggle favourite',
             u'icon': remove_icon,
             u'checkable': False,
             u'action': (toggle, self.parent().favouritesChanged.emit)

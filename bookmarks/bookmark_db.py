@@ -298,7 +298,7 @@ CREATE TABLE IF NOT EXISTS info (
             raise ValueError(u'Key "{}" is invalid. Expected one of "{}"'.format(
                 key, u'", "'.join(KEYS[table])))
 
-        hash = common.get_hash(source, server=self._server_u)
+        hash = common.get_hash(source)
 
         _cursor = self._connection.cursor()
         kw = {u'table': table, u'key': key, u'id': hash}
@@ -380,7 +380,7 @@ CREATE TABLE IF NOT EXISTS info (
             raise ValueError(u'Key "{}" is invalid. Expected one of {}'.format(
                 key, u', '.join(KEYS[table])))
 
-        hash = common.get_hash(source, server=self._server_u)
+        hash = common.get_hash(source)
         values = []
 
         # Earlier versions of the SQLITE library lack `UPSERT` or `WITH`

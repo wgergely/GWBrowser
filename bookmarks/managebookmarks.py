@@ -795,7 +795,7 @@ class ServerEditor(QtWidgets.QWidget):
         return label
 
     def add_rows(self):
-        for server in self.parent().get_saved_servers():
+        for server in common.SERVERS:
             self.add_row(server=server)
 
 
@@ -1035,15 +1035,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
         self.layout().addSpacing(common.MARGIN() * 0.5)
-
-        self.hide_button = common_ui.ClickableIconButton(
-            u'close',
-            (common.REMOVE, common.REMOVE),
-            common.MARGIN() * 1.2,
-            description=u'Hide',
-            parent=row
-        )
-        row.layout().addWidget(self.hide_button, 0)
 
         grp = common_ui.get_group(parent=self)
         label = QtWidgets.QLabel(parent=self)
@@ -1288,32 +1279,32 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         k = u'/'.join([r(f).rstrip(u'/') for f in args]).lower().rstrip(u'/')
         return k
 
-    def get_saved_servers(self):
-        """Returns a list of saved servers."""
-        def sep(s):
-            return re.sub(
-                ur'[\\]', u'/', s, flags=re.UNICODE | re.IGNORECASE)
-        val = settings.local_settings.value(self.SERVER_KEY)
-        if not val:
-            return []
-        if isinstance(val, (str, unicode)):
-            return [val, ]
-        return sorted([sep(f).lower() for f in val])
-
     def add_server(self, val):
-        s = self.get_saved_servers()
-        if val.lower() in s:
+        val = val.lower()
+        if val in [f.lower() for f in common.SERVERS]:
             return False
-        s.append(val.lower())
-        settings.local_settings.setValue(self.SERVER_KEY, list(set(s)))
-        settings.local_settings.sync()
+
+        common.SERVERS.append(val)
+        settings.local_settings.setValue(
+            self.SERVER_KEY,
+            list(set(common.SERVERS))
+        )
+
+        settings.local_settings.load_saved_servers()
         return True
 
     def remove_server(self, val):
-        s = self.get_saved_servers()
-        if val.lower() in s:
-            s.remove(val.lower())
-        settings.local_settings.setValue(self.SERVER_KEY, list(set(s)))
+        val = val.lower()
+        settings.local_settings.load_saved_servers()
+        if val in [f.lower() for f in common.SERVERS]:
+            common.SERVERS.remove(val)
+        settings.local_settings.setValue(
+            self.SERVER_KEY,
+            list(set(common.SERVERS))
+        )
+
+        settings.local_settings.load_saved_servers()
+        return True
 
     def _get_saved_bookmarks(self):
         val = settings.local_settings.value(self.BOOKMARK_KEY)
@@ -1386,7 +1377,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.server_combobox.clear()
 
-        for k in self.get_saved_servers():
+        for k in common.SERVERS:
             pixmap = images.ImageCache.get_rsc_pixmap(
                 u'server', common.TEXT, common.ROW_HEIGHT() * 0.8)
             pixmap_selected = images.ImageCache.get_rsc_pixmap(
@@ -1518,8 +1509,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.job_combobox.setCurrentIndex(idx)
 
         self.job_combobox.blockSignals(False)
-        if self.job_combobox.currentText() != current_text:
-            self.job_combobox.currentIndexChanged.emit(idx)
+        # if self.job_combobox.currentText() != current_text:
+        #     self.job_combobox.currentIndexChanged.emit(idx)
+        self.job_combobox.currentIndexChanged.emit(idx)
 
     def get_bookmark_dirs(self, path, count, limit, arr):
         """Recursive scanning function for finding the bookmark folders
@@ -1625,7 +1617,6 @@ class ManageBookmarks(QtWidgets.QDialog):
 
     def _connect_signals(self):
         self.scrollarea.widget().widgetShown.connect(self.ensure_visible)
-        self.scrollarea.widget().hide_button.clicked.connect(self.hide)
         self.scrollarea.widget().bookmark_list.bookmarkAdded.connect(self.bookmarkAdded)
         self.scrollarea.widget().bookmark_list.bookmarkRemoved.connect(self.bookmarkRemoved)
 

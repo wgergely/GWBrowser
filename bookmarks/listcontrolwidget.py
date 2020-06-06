@@ -552,7 +552,9 @@ class BookmarksTabButton(PaintedTextButton):
 
     @property
     def active_label(self):
-        return settings.ACTIVE['root'].split(u'/')[-1]
+        if settings.ACTIVE['root']:
+            return settings.ACTIVE['root'].split(u'/')[-1]
+        return self.default_label
 
     def contextMenuEvent(self, event):
         menu = QuickSwitchMenu(parent=self)
