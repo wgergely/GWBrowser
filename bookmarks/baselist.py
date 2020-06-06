@@ -233,7 +233,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             'Sorting on the proxy model is not implemented.')
 
     def initialize_filter_values(self):
-        """We're settings the settings saved in the local settings, and optional
+        """Load the settings stored in the local_settings, or optional
         default values if the settings has not yet been saved.
 
         """
@@ -885,6 +885,11 @@ class BaseListWidget(QtWidgets.QListView):
         self._layout_timer.timeout.connect(self.scheduleDelayedItemsLayout)
         self._layout_timer.timeout.connect(self.repaint_visible_rows)
 
+        self.validate_visible_timer = QtCore.QTimer(parent=self)
+        self.validate_visible_timer.setSingleShot(False)
+        self.validate_visible_timer.setInterval(250)
+        self.validate_visible_timer.timeout.connect(self.validate_visible)
+
         self._thumbnail_drop = (-1, False)  # row, accepted
         self._background_icon = u'icon_bw'
         self._generate_thumbnails_enabled = True
@@ -1069,6 +1074,38 @@ class BaseListWidget(QtWidgets.QListView):
         # super(BaseListWidget, self).update(index)
         self.update(index)
 
+    @QtCore.Slot()
+    def validate_visible(self):
+        """Checks the visible items and makes sure that no filtered items
+        creep in.
+
+        """
+        def _next(rect):
+            rect.moveTop(rect.top() + rect.height())
+            return self.indexAt(rect.topLeft())
+
+        proxy = self.model()
+        if not proxy.rowCount():
+            return
+
+        viewport_rect = self.viewport().rect()
+        index = self.indexAt(viewport_rect.topLeft())
+        if not index.isValid():
+            return
+
+        index_rect = self.visualRect(index)
+        show_archived = proxy.filter_flag(common.MarkedAsArchived)
+
+        while viewport_rect.intersects(index_rect):
+            is_archived = index.flags() & common.MarkedAsArchived
+            if show_archived is False and is_archived:
+                proxy.invalidateFilter()
+                return
+            index = _next(index_rect)
+            if not index.isValid():
+                break
+
+    @QtCore.Slot()
     def queue_visible_indexes(self, *args, **kwargs):
         pass
 
@@ -1165,7 +1202,6 @@ class BaseListWidget(QtWidgets.QListView):
             settings.local_settings.setValue(
                 file_k, path)
             settings.local_settings.setValue(seq_k, common.proxy_path(path))
-
 
     @QtCore.Slot()
     def reselect_previous(self):
@@ -1701,6 +1737,9 @@ class BaseListWidget(QtWidgets.QListView):
                 return
 
     def wheelEvent(self, event):
+        """Custom wheel event responsible for scrolling the list.
+
+        """
         event.accept()
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
 
@@ -2100,10 +2139,15 @@ class BaseListWidget(QtWidgets.QListView):
 
     def showEvent(self, event):
         self.scheduleDelayedItemsLayout()
+        self.validate_visible_timer.start()
+
+    def hideEvent(self, event):
+        self.validate_visible_timer.stop()
 
     def mouseReleaseEvent(self, event):
         super(BaseListWidget, self).mouseReleaseEvent(event)
         self.save_selection()
+
 
 class BaseInlineIconWidget(BaseListWidget):
     """Multi-toggle capable widget with clickable in-line icons."""
@@ -2652,22 +2696,21 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     @QtCore.Slot(int)
     @QtCore.Slot(int)
-    def queue_visible_indexes(self, check_role, thread_type):
+    def queue_visible_indexes(self, DataRole, thread_type):
         """Queue previously not loaded and visible indexes for processing.
 
         Args:
-            check_role (int): Role to check the state of the index.
+            DataRole (int): The model data role used for checking the state of the index.
             thread_type (int): Use the threads of `thread_type` to process the data.
-
 
         """
         def _next(rect):
             rect.moveTop(rect.top() + rect.height())
             return self.indexAt(rect.topLeft())
 
-        if not isinstance(check_role, (int, long)):
+        if not isinstance(DataRole, (int, long)):
             raise TypeError(
-                u'Invalid `check_role`, expected <type \'int\', got {}'.format(type(check_role)))
+                u'Invalid `DataRole`, expected <type \'int\', got {}'.format(type(DataRole)))
         if not isinstance(thread_type, int):
             raise TypeError(u'Invalid `thread_type`, expected <type \'int\', got {}'.format(
                 type(thread_type)))
@@ -2696,11 +2739,13 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         i = 0
         l = []
         while viewport_rect.intersects(index_rect):
+            # Don't check more than 999 items
             if i >= 999:
                 break
             i += 1
 
-            # If we encounter an archived item, we need to invalidate the proxy
+            # If we encounter an archived item, we should to invalidate the
+            # proxy to hide it
             is_archived = index.flags() & common.MarkedAsArchived
             if show_archived is False and is_archived:
                 proxy.invalidateFilter()
@@ -2719,7 +2764,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                 continue
 
             # We will skip the time if it has alrady been loaded
-            skip = data[idx][check_role]
+            skip = data[idx][DataRole]
             if skip:
                 index = _next(index_rect)
                 continue
