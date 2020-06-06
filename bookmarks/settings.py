@@ -23,10 +23,21 @@ import bookmarks.common as common
 import _scandir as _scandir
 
 
+ACTIVE = collections.OrderedDict()
 ACTIVE_KEYS = (u'server', u'job', u'root', u'asset', u'task_folder', u'file')
 """The list of keys used to store currently activated paths segments."""
 
+
 local_settings = None
+
+
+def set_active(k, v):
+    if local_settings is None:
+        raise RuntimeError('LocalSettings is not initialized.')
+    if k not in ACTIVE_KEYS:
+        raise ValueError('{} is invalid, expected one of {}'.format(k, ACTIVE_KEYS))
+    local_settings.setValue(u'activepath/{}'.format(k), v)
+    local_settings.load_and_verify_stored_paths()
 
 
 def _bool(v):
@@ -117,14 +128,15 @@ class LocalSettings(QtCore.QSettings):
 
         self.INTERNAL_SETTINGS_DATA = {}  # Internal data storage
         self._current_mode = self.get_mode()
-        self._active_paths = self.verify_paths()
 
         # Simple timer to verify the state of the current changes
         self.server_mount_timer = QtCore.QTimer(parent=self)
         self.server_mount_timer.setInterval(15000)
         self.server_mount_timer.setSingleShot(False)
         self.server_mount_timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.server_mount_timer.timeout.connect(self.verify_paths)
+        self.server_mount_timer.timeout.connect(self.load_and_verify_stored_paths)
+
+        self.load_and_verify_stored_paths()
 
     def value(self, k):
         """An override for the default get value method.
@@ -161,7 +173,7 @@ class LocalSettings(QtCore.QSettings):
         return self._current_mode
 
     @QtCore.Slot()
-    def verify_paths(self):
+    def load_and_verify_stored_paths(self):
         """This slot verifies and returns the saved ``active paths`` wrapped in
         a dictionary.
 
@@ -173,21 +185,21 @@ class LocalSettings(QtCore.QSettings):
             OrderedDict:    Path segments of an existing file.
 
         """
-        d = collections.OrderedDict()
-        for k in ACTIVE_KEYS:
-            d[k] = self.value(u'activepath/{}'.format(k))
+        self.sync() # load any changes from the config file
 
-        # Let's check the path and unset the invalid parts
+        for k in ACTIVE_KEYS:
+            ACTIVE[k] = self.value(u'activepath/{}'.format(k))
+
+        # Let's check the path and unset any invalid parts
         path = u''
-        for idx, k in enumerate(d):
-            if d[k]:
-                path += u'/{}'.format(common.get_sequence_startpath(unicode(d[k])))
-                if idx == 0:
-                    path = d[k]
+        for k in ACTIVE:
+            if ACTIVE[k]:
+                path += ACTIVE[k]
             if not QtCore.QFileInfo(path).exists():
+                ACTIVE[k] = None
                 self.setValue(u'activepath/{}'.format(k), None)
-                d[k] = None
-        return d
+            path += u'/'
+        return ACTIVE
 
     @prune_lockfile
     def touch_mode_lockfile(self):

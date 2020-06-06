@@ -86,7 +86,6 @@ class BookmarksModel(baselist.BaseModel):
     def __init__(self, has_threads=True, parent=None):
         super(BookmarksModel, self).__init__(
             has_threads=has_threads, parent=parent)
-        self.parent_path = (u'.',)
 
     @baselist.initdata
     def __initdata__(self):
@@ -112,7 +111,6 @@ class BookmarksModel(baselist.BaseModel):
 
         task_folder = self.task_folder()
 
-        active_paths = settings.local_settings.verify_paths()
         favourites = settings.local_settings.favourites()
         bookmarks = settings.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
@@ -128,22 +126,16 @@ class BookmarksModel(baselist.BaseModel):
 
             if exists:
                 flags = dflags()
-                pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'bookmark_sm', common.ADD, _height)
             else:
                 flags = dflags() | common.MarkedAsArchived
-                pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'failed', common.REMOVE, _height)
-            placeholder_image = pixmap
-            default_thumbnail_image = pixmap
 
             filepath = file_info.filePath().lower()
 
             # Active Flag
             if all((
-                v[u'server'] == active_paths[u'server'],
-                v[u'job'] == active_paths[u'job'],
-                v[u'root'] == active_paths[u'root']
+                v[u'server'] == settings.ACTIVE[u'server'],
+                v[u'job'] == settings.ACTIVE[u'job'],
+                v[u'root'] == settings.ACTIVE[u'root']
             )):
                 flags = flags | common.MarkedAsActive
             # Favourite Flag
@@ -152,8 +144,7 @@ class BookmarksModel(baselist.BaseModel):
 
             text = u'{}  |  {}'.format(
                 v[u'job'],
-                v[u'root'],
-                # v[u'root'].split(u'/').pop(),
+                v[u'root']
             )
 
             data = self.INTERNAL_MODEL_DATA[task_folder][common.FileItem]
@@ -428,25 +419,20 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
         widget.show()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def save_activated(self, index):
+    def save_activated(self, index, reset=False):
         """Saves the activated index to ``LocalSettings``."""
-        if not index.isValid():
-            return
-        if not index.data(common.ParentPathRole):
-            return
-        server, job, root = index.data(common.ParentPathRole)
-        settings.local_settings.setValue(u'activepath/server', server)
-        settings.local_settings.setValue(u'activepath/job', job)
-        settings.local_settings.setValue(u'activepath/root', root)
-        settings.local_settings.verify_paths()  # Resetting invalid paths
+        if not reset:
+            if not index.isValid() and not reset:
+                return
+            if not index.data(common.ParentPathRole) :
+                return
+            server, job, root = index.data(common.ParentPathRole)
+        else:
+            server, job, root = None, None, None
 
-    def unset_activated(self):
-        """Saves the activated index to ``LocalSettings``."""
-        server, job, root = None, None, None
-        settings.local_settings.setValue(u'activepath/server', server)
-        settings.local_settings.setValue(u'activepath/job', job)
-        settings.local_settings.setValue(u'activepath/root', root)
-        settings.local_settings.verify_paths()  # Resetting invalid paths
+        settings.set_active(u'server', server)
+        settings.set_active(u'job', job)
+        settings.set_active(u'root', root)
 
     def toggle_item_flag(self, index, flag, state=None):
         if flag == common.MarkedAsArchived:
@@ -465,9 +451,9 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
             bookmark_db.remove_db(index)
 
             if self.model().sourceModel().active_index() == index:
-                self.unset_activated()
+                self.save_activated(QtCore.QModelIndex(), reset=True)
             else:
-                settings.local_settings.verify_paths()
+                settings.local_settings.load_and_verify_stored_paths()
         else:
             super(BookmarksWidget, self).toggle_item_flag(
                 index, flag, state=state)

@@ -75,10 +75,6 @@ def initdata(func):
     """
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
-        if not self.parent_path:
-            return
-        if not all(self.parent_path):
-            return
         if not self.task_folder():
             return
 
@@ -439,8 +435,6 @@ class BaseModel(QtCore.QAbstractListModel):
             common.ThumbnailThread: [],  # Thread for generating thumbnails
         })
 
-        self.parent_path = None
-
         self._model_loaded = {
             common.FileItem: False,
             common.SequenceItem: False,
@@ -605,22 +599,6 @@ class BaseModel(QtCore.QAbstractListModel):
         self.INTERNAL_MODEL_DATA[k][t] = d
 
         self.endResetModel()
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def set_active(self, index):
-        """Sets the model's ``self.parent_path``.
-
-        The parent path is used by the model to load it's data. It is saved
-        in the `common.ParentPathRole` with the exception of the bookmark
-        items - we don't have parents for these as the source data is stored
-        in a the local settings.
-
-        """
-        if not index.isValid():
-            self.parent_path = None
-            return
-        self.parent_path = index.data(common.ParentPathRole)
-        self.modelDataResetRequested.emit()
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -1164,6 +1142,8 @@ class BaseListWidget(QtWidgets.QListView):
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
+        if not index.data(QtCore.Qt.StatusTipRole):
+            return
 
         model = self.model().sourceModel()
         data_type = model.data_type()
@@ -1179,8 +1159,11 @@ class BaseListWidget(QtWidgets.QListView):
             settings.local_settings.setValue(seq_k, common.proxy_path(path))
 
         if data_type == common.SequenceItem:
+            if not path:
+                return
+            path = common.get_sequence_startpath(path)
             settings.local_settings.setValue(
-                file_k, common.get_sequence_startpath(path))
+                file_k, path)
             settings.local_settings.setValue(seq_k, common.proxy_path(path))
 
 

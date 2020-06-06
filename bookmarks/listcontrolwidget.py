@@ -408,6 +408,10 @@ class PaintedTextButton(QtWidgets.QLabel):
         self.timer.timeout.connect(self.adjust_size)
         self.timer.start()
 
+    @property
+    def active_label(self):
+        return self.default_label
+
     def stacked_widget(self):
         if not self.parent():
             return
@@ -458,22 +462,15 @@ class PaintedTextButton(QtWidgets.QLabel):
         self.doubleClicked.emit()
 
     def text(self):
-        if not self.stacked_widget():
-            return self.default_label
-        index = self.active_index(self.index)
-        if index.isValid():
-            text = index.data(QtCore.Qt.DisplayRole).split(u'/').pop().upper()
-            if self.parent().parent().width() < common.WIDTH():
-                if len(text) > 20:
-                    text = u'{}...{}'.format(text[0:8], text[-9:])
-        else:
-            text = self.default_label
+        text = self.active_label.upper() if self.active_label else self.default_label
+        if len(text) > 20:
+            text = u'{}...{}'.format(text[0:8], text[-9:])
         return text
 
     def get_width(self):
-        o = common.INDICATOR_WIDTH() * 3
-        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        return metrics.width(self.text()) + (o * 2)
+        o = common.INDICATOR_WIDTH() * 6
+        _, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        return metrics.width(self.text()) + o
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -512,16 +509,16 @@ class PaintedTextButton(QtWidgets.QLabel):
         font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         if (metrics.width(self.text()) + (common.MARGIN() * 0.5)) < self.rect().width():
-            text = metrics.elidedText(
-                self.text(),
-                QtCore.Qt.ElideRight,
-                self.rect().width()
-            )
-            width = metrics.width(text)
+            # text = metrics.elidedText(
+            #     self.text(),
+            #     QtCore.Qt.ElideRight,
+            #     self.rect().width()
+            # )
+            width = metrics.width(self.text())
 
             x = (self.width() / 2.0) - (width / 2.0)
             y = self.rect().center().y() + (metrics.ascent() * 0.5)
-            path = delegate.get_painter_path(x, y, font, text)
+            path = delegate.get_painter_path(x, y, font, self.text())
             painter.drawPath(path)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
@@ -563,15 +560,9 @@ class BookmarksTabButton(PaintedTextButton):
             parent=parent
         )
 
-    def text(self):
-        if not self.stacked_widget():
-            return self.default_label
-        index = self.active_index(self.index)
-        if index.isValid():
-            text = u'Bookmarks'
-        else:
-            text = self.default_label
-        return text
+    @property
+    def active_label(self):
+        return settings.ACTIVE['root'].split(u'/')[-1]
 
     def contextMenuEvent(self, event):
         menu = QuickSwitchMenu(parent=self)
@@ -594,6 +585,10 @@ class AssetsTabButton(PaintedTextButton):
         )
 
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+    @property
+    def active_label(self):
+        return settings.ACTIVE['asset']
 
     def contextMenuEvent(self, event):
         menu = QuickSwitchMenu(parent=self)
@@ -618,7 +613,7 @@ class FilesTabButton(PaintedTextButton):
 
     def __init__(self, parent=None):
         super(FilesTabButton, self).__init__(
-            u'Select task folder...',
+            u'Select task...',
             2,
             u'Click to see or change the current task folder',
             parent=parent)
@@ -643,20 +638,12 @@ class FilesTabButton(PaintedTextButton):
         self.setHidden(not index.isValid())
         super(FilesTabButton, self).adjust_size()
 
-    def text(self):
-        if not self.stacked_widget():
-            return self.default_label
-        task_folder = self.stacked_widget().widget(
-            2).model().sourceModel().task_folder()
-        if task_folder:
-            task_folder = task_folder.upper()
-            if len(task_folder) > 25:
-                task_folder = u'{}...{}'.format(
-                    task_folder[0:10], task_folder[-12:])
-        else:
-            task_folder = self.default_label
-        task_folder = task_folder + u'  ▼'
-        return task_folder
+    @property
+    def active_label(self):
+        v = settings.ACTIVE['task_folder']
+        if v:
+            v += u'  ▼'
+        return v
 
     def paintEvent(self, event):
         """Indicating the visibility of the TaskFolderWidget."""

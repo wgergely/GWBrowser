@@ -41,16 +41,7 @@ class AssetsWidgetContextMenu(basecontextmenu.BaseContextMenu):
 
 
 class AssetModel(baselist.BaseModel):
-    """Asset data model.
-
-    Assets are  folders with a special indentier
-    file in their root. Queries the current self.parent_path and
-    populates the `INTERNAL_MODEL_DATA` when `self.__initdata__()` is called.
-
-    The model is multithreaded and loads file and thumbnail data using
-    thread workers.
-
-    """
+    """Asset data model."""
     DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT())
     val = settings.local_settings.value(u'widget/assetmodel/rowheight')
     val = val if val else DEFAULT_ROW_SIZE.height()
@@ -67,7 +58,7 @@ class AssetModel(baselist.BaseModel):
     @baselist.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model by querrying
-        the path stored in ``self.parent_path``.
+        the active root folder.
 
         Note:
             Getting asset information is relatively cheap,
@@ -81,9 +72,8 @@ class AssetModel(baselist.BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        if not self.parent_path:
-            return
-        if not all(self.parent_path):
+        settings.local_settings.load_and_verify_stored_paths()
+        if not settings.ACTIVE['root']:
             return
 
         task_folder = self.task_folder()
@@ -97,12 +87,20 @@ class AssetModel(baselist.BaseModel):
         favourites = settings.local_settings.favourites()
         sfavourites = set(favourites)
 
-        activeasset = settings.local_settings.value(u'activepath/asset')
-        server, job, root = self.parent_path
-        bookmark_path = u'{}/{}/{}'.format(server, job, root)
+        if not settings.ACTIVE['root']:
+            return
+        bookmark_path = u'{}/{}/{}'.format(
+            settings.ACTIVE['server'],
+            settings.ACTIVE['job'],
+            settings.ACTIVE['root']
+        )
 
         # Let's get the identifier from the bookmark database
-        db = bookmark_db.get_db(server, job, root)
+        db = bookmark_db.get_db(
+            settings.ACTIVE['server'],
+            settings.ACTIVE['job'],
+            settings.ACTIVE['root']
+        )
         ASSET_IDENTIFIER = db.value(1, u'identifier', table='properties')
 
         nth = 1
@@ -134,8 +132,8 @@ class AssetModel(baselist.BaseModel):
             if filepath.lower() in sfavourites:
                 flags = flags | common.MarkedAsFavourite
 
-            if activeasset:
-                if activeasset.lower() == filename.lower():
+            if settings.ACTIVE['asset']:
+                if settings.ACTIVE['asset'].lower() == filename.lower():
                     flags = flags | common.MarkedAsActive
 
             idx = len(self.INTERNAL_MODEL_DATA[task_folder][dtype])
@@ -148,7 +146,12 @@ class AssetModel(baselist.BaseModel):
                 #
                 common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (server, job, root, filename),
+                common.ParentPathRole: (
+                    settings.ACTIVE['server'],
+                    settings.ACTIVE['job'],
+                    settings.ACTIVE['root'],
+                    filename
+                ),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
@@ -205,10 +208,7 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
             return
         if not index.data(common.ParentPathRole):
             return
-
-        settings.local_settings.setValue(
-            u'activepath/asset', index.data(common.ParentPathRole)[-1])
-        settings.local_settings.verify_paths()
+        settings.set_active(u'asset', index.data(common.ParentPathRole)[-1])
 
     def showEvent(self, event):
         source_index = self.model().sourceModel().active_index()

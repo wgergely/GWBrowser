@@ -484,7 +484,7 @@ class MainWidget(QtWidgets.QWidget):
         self._connect_signals()
         self._add_shortcuts()
 
-        settings.local_settings.verify_paths()
+        settings.local_settings.load_and_verify_stored_paths()
 
         # Proxy model
         b = self.bookmarkswidget.model()
@@ -755,9 +755,9 @@ class MainWidget(QtWidgets.QWidget):
 
         # Bookmark -> Asset
         b.model().sourceModel().activeChanged.connect(
-            a.model().sourceModel().set_active)
+            a.model().sourceModel().modelDataResetRequested)
         a.model().sourceModel().activeChanged.connect(
-            f.model().sourceModel().set_active)
+            f.model().sourceModel().modelDataResetRequested)
 
         # * -> Listcontrol
         b.model().sourceModel().activeChanged.connect(

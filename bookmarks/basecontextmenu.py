@@ -11,6 +11,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.images as images
+import bookmarks.settings as settings
 import bookmarks.defaultpaths as defaultpaths
 
 
@@ -657,7 +658,17 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'{}:icon'.format(key)] = taskfolder_pixmap
 
         model = self.parent().model().sourceModel()
-        parent_item = model.parent_path
+
+        settings.local_settings.load_and_verify_stored_paths()
+        if not settings.ACTIVE['asset']:
+            return menu_set
+        parent_item = (
+            settings.ACTIVE['server'],
+            settings.ACTIVE['job'],
+            settings.ACTIVE['root'],
+            settings.ACTIVE['asset'],
+        )
+
         if not parent_item:
             return menu_set
         if not all(parent_item):

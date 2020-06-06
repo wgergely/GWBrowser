@@ -73,6 +73,15 @@ class FilesModel(baselist.BaseModel):
     queue_type = threads.FileInfoQueue
     thumbnail_queue_type = threads.FileThumbnailQueue
 
+    @property
+    def parent_path(self):
+        return (
+            settings.ACTIVE['server'],
+            settings.ACTIVE['job'],
+            settings.ACTIVE['root'],
+            settings.ACTIVE['asset'],
+        )
+
     def _entry_iterator(self, path):
         for entry in _scandir.scandir(path):
             if entry.is_dir():
@@ -127,7 +136,6 @@ class FilesModel(baselist.BaseModel):
 
         favourites = settings.local_settings.favourites()
         sfavourites = set(favourites)
-        activefile = settings.local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
         task_folder_extensions = defaultpaths.get_task_folder_extensions(
@@ -188,10 +196,6 @@ class FilesModel(baselist.BaseModel):
             else:
                 if filepath in sfavourites:
                     flags = flags | common.MarkedAsFavourite
-
-            if activefile:
-                if activefile in filepath:
-                    flags = flags | common.MarkedAsActive
 
             parent_path_role = (server, job, root, asset,
                                 task_folder, fileroot)
@@ -294,21 +298,11 @@ class FilesModel(baselist.BaseModel):
                 if filepath.lower() in sfavourites:
                     flags = flags | common.MarkedAsFavourite
 
-                if activefile:
-                    if activefile in filepath:
-                        flags = flags | common.MarkedAsActive
-
                 v[common.FlagsRole] = flags
 
             elif len(v[common.FramesRole]) == 0:
                 v[common.TypeRole] = common.FileItem
-            else:
-                if activefile:
-                    _seq = v[common.SequenceRole]
-                    _firsframe = _seq.group(
-                        1) + min(v[common.FramesRole]) + _seq.group(3) + u'.' + _seq.group(4)
-                    if activefile in _firsframe:
-                        v[common.FlagsRole] = v[common.FlagsRole] | common.MarkedAsActive
+
             MODEL_DATA[common.SequenceItem][idx] = v
             MODEL_DATA[common.SequenceItem][idx][common.IdRole] = idx
 
@@ -316,12 +310,7 @@ class FilesModel(baselist.BaseModel):
 
     def task_folder(self):
         """Current key to the data dictionary."""
-        if not self._task_folder:
-            val = None
-            key = u'activepath/task_folder'
-            savedval = settings.local_settings.value(key)
-            return savedval.lower() if savedval else val
-        return self._task_folder
+        return settings.ACTIVE[u'task_folder']
 
     @QtCore.Slot(unicode)
     def set_task_folder(self, val):
@@ -339,68 +328,24 @@ class FilesModel(baselist.BaseModel):
         """
         log.debug('set_task_folder({})'.format(val), self)
         try:
-            k = u'activepath/task_folder'
-            stored_value = settings.local_settings.value(k)
-            stored_value = stored_value.lower() if stored_value else stored_value
-            self._task_folder = self._task_folder.lower(
-            ) if self._task_folder else self._task_folder
-            val = val.lower() if val else val
-
-            # Nothing to do for us when the parent is not set
-            if not self.parent_path:
+            settings.set_active(u'task_folder', val)
+            if settings.ACTIVE['task_folder']:
                 return
-
-            if self._task_folder is None and stored_value:
-                self._task_folder = stored_value.lower()
-
-            # We are in sync with a valid value set already
-            if stored_value is not None and self._task_folder == val == stored_value:
-                val = None
-                return
-
-            # We only have to update the local settings, the model is
-            # already set
-            if self._task_folder == val and val != stored_value:
-                settings.local_settings.setValue(k, val)
-                return
-
-            if val is not None and val == self._task_folder:
-                val = None
-                return
-
-            # Let's check the asset folder before setting
-            # the key to make sure we're pointing at a valid folder
-            path = u'/'.join(self.parent_path)
+            path = u'/'.join((
+                settings.ACTIVE['server'],
+                settings.ACTIVE['job'],
+                settings.ACTIVE['root'],
+                settings.ACTIVE['asset'],
+            ))
             entries = [f.name.lower() for f in _scandir.scandir(path)]
-            if not entries:
-                val = None
-                self._task_folder = val
-                return
-
-            # The key is valid
-            if val in entries:
-                self._task_folder = val
-                settings.local_settings.setValue(k, val)
-                return
-
-            # The new proposed task_folder does not exist but the old one is
-            # valid. We'll just stick with the old value instead...
-            if val not in entries and self._task_folder in entries:
-                val = self._task_folder.lower()
-                settings.local_settings.setValue(k, self._task_folder)
-                return
 
             # And finally, let's try to revert to a fall-back...
-            if val not in entries and u'scenes' in entries:
-                val = u'scenes'
-                self._task_folder = val
-                settings.local_settings.setValue(k, val)
+            scene = defaultpaths.TASK_FOLDERS['scene']['default'].lower()
+            if scene in entries:
+                settings.set_active(u'task_folder', scene)
                 return
-
-            # All else... let's select the first folder
-            val = entries[0].lower()
-            self._task_folder = val
-            settings.local_settings.setValue(k, val)
+            if entries:
+                settings.set_active('task_folder', entries[0].lower())
         except:
             log.error(u'Could not set task folder')
         finally:
@@ -635,7 +580,8 @@ class FilesWidget(baselist.ThreadedBaseWidget):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         filepath = parent_role[5] + u'/' + \
             common.get_sequence_startpath(file_info.fileName())
-        settings.local_settings.setValue(u'activepath/file', filepath)
+            
+        settings.save_active('file', filepath)
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""

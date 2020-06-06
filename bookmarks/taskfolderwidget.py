@@ -21,6 +21,7 @@ from bookmarks.baselist import BaseModel
 from bookmarks.baselist import initdata
 from bookmarks.delegate import BaseDelegate
 import bookmarks.images as images
+import bookmarks.settings as settings
 from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.threads as threads
 import bookmarks.defaultpaths as defaultpaths
@@ -191,10 +192,12 @@ class TaskFolderModel(BaseModel):
     @property
     def parent_path(self):
         """We will use the currently active asset as the parent."""
-        if self.view.parent():
-            view = self.view.parent().parent().parent().fileswidget
-            return view.model().sourceModel().parent_path
-        return None
+        return (
+            settings.ACTIVE['server'],
+            settings.ACTIVE['job'],
+            settings.ACTIVE['root'],
+            settings.ACTIVE['asset'],
+        )
 
     @parent_path.setter
     def parent_path(self, val):
@@ -225,6 +228,8 @@ class TaskFolderModel(BaseModel):
         data = self.model_data()
 
         if not self.parent_path:
+            return
+        if not all(self.parent_path):
             return
 
         # Thumbnail image
