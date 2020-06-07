@@ -1120,7 +1120,11 @@ class TodoEditorWidget(QtWidgets.QDialog):
                 u'text': editor.document().toHtml(),
             }
 
-        k = common.proxy_path(self.index)
+        if self.index.data(common.TypeRole) == common.FileItem:
+            k = self.index.data(QtCore.Qt.StatusTipRole)
+        elif self.index.data(common.TypeRole) == common.SequenceItem:
+            k = common.proxy_path(self.index)
+            
         db = bookmark_db.get_db(
             self.index.data(common.ParentPathRole)[0],
             self.index.data(common.ParentPathRole)[1],
