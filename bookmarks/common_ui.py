@@ -2,6 +2,7 @@
 """Common UI methods used accross the product.
 
 """
+import base64
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.common as common
@@ -583,10 +584,15 @@ class DescriptionEditorWidget(LineEdit):
             index.data(common.ParentPathRole)[1],
             index.data(common.ParentPathRole)[2]
         )
-        db.setValue(k, u'description', self.text())
+
+        # We'll encode the value so we can store it safely in the database
+        v = base64.b64encode(self.text())
+        db.setValue(k, u'description', v)
 
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
+
+        # But there's no need to encode for storying it in the model
         data[common.DescriptionRole] = self.text()
         self.parent().update(source_index)
         self.hide()

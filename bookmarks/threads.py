@@ -456,6 +456,7 @@ class InfoWorker(BaseWorker):
                 if v:
                     if not is_valid():
                         return False
+                    v = base64.b64decode(v)
                     ref()[common.DescriptionRole] = v
 
                 v = db.value(k, u'notes')
