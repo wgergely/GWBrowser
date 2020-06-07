@@ -113,6 +113,7 @@ class BookmarksModel(baselist.BaseModel):
 
         favourites = settings.local_settings.favourites()
         bookmarks = settings.local_settings.value(u'bookmarks')
+
         bookmarks = bookmarks if bookmarks else {}
 
         _height = self.ROW_SIZE.height() - common.ROW_SEPARATOR()
@@ -183,6 +184,9 @@ class BookmarksModel(baselist.BaseModel):
                 #
                 common.IdRole: idx
             })
+
+            if not exists:
+                continue
 
             db = None
             n = 0
