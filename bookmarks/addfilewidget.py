@@ -27,6 +27,7 @@ destination folder will also depend on the task the file is associated with.
 These task, or modes, are defined in ``SCENE_FOLDERS`` and ``EXPORT_FOLDERS``.
 
 """
+import base64
 import functools
 import uuid
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -1835,6 +1836,7 @@ class AddFileWidget(QtWidgets.QDialog):
         description = self.description_editor_widget.text()
         if description:
             db = bookmark_db.get_db(server, job, root)
+            description = base64.b64encode(description)
             db.setValue(file_path, u'description', description)
 
     @QtCore.Slot()
