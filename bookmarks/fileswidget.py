@@ -30,7 +30,7 @@ class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
         self.add_separator()
         self.add_collapse_sequence_menu()
         self.add_separator()
-        self.add_rv_menu()
+        self.add_external_applications_menu()
         #
         self.add_separator()
         if index.isValid():
@@ -580,8 +580,8 @@ class FilesWidget(baselist.ThreadedBaseWidget):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         filepath = parent_role[5] + u'/' + \
             common.get_sequence_startpath(file_info.fileName())
-            
-        settings.save_active('file', filepath)
+
+        settings.set_active('file', filepath)
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
