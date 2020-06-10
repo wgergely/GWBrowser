@@ -65,7 +65,12 @@ class FavouritesModel(FilesModel):
 
         for k in favourites:
             file_info = QtCore.QFileInfo(k)
-            for entry in _scandir.scandir(file_info.path()):
+            _path = file_info.path()
+            
+            if not QtCore.QFileInfo(_path).exists():
+                continue
+
+            for entry in _scandir.scandir(_path):
                 path = entry.path.replace(u'\\', u'/').lower()
                 if path == k:
                     d.append(entry)
@@ -73,6 +78,7 @@ class FavouritesModel(FilesModel):
                 _k = common.proxy_path(path)
                 if k.lower() == _k.lower():
                     d.append(entry)
+
         for entry in d:
             yield entry
 
