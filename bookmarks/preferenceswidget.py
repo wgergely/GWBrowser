@@ -193,6 +193,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.check_updates = None
         self.show_help = None
         self.rv_path = None
+        self.ffmpeg_path = None
         self.frameless_window = None
 
         if common.STANDALONE:
@@ -258,7 +259,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         row = common_ui.add_row(None, parent=self)
 
         label = common_ui.PaintedLabel(
-            u'Shotgun RV',
+            u'External Applications',
             size=common.LARGE_FONT_SIZE(),
             parent=row
         )
@@ -284,6 +285,20 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 (<span style="color:rgba({});">CTRL+P)</span>. Select the RV executable for this to work.'.format(
                 common.PRODUCT, common.rgb(common.ADD))
         common_ui.add_description(text, label=u'Hint', parent=grp)
+
+        #######################################################
+        row = common_ui.add_row(u'Path to FFMPEG', parent=grp)
+        self.ffmpeg_path = common_ui.add_line_edit(
+            u'eg. c:/ffmpeg/bin/ffmpeg.exe', parent=row)
+        row.layout().addWidget(self.ffmpeg_path, 1)
+
+        button = common_ui.PaintedButton(u'Pick')
+        button.clicked.connect(self.pick_ffmpeg)
+        row.layout().addWidget(button)
+        button = common_ui.PaintedButton(u'Reveal')
+        button.clicked.connect(lambda: common.reveal(self.ffmpeg_path.text()))
+        row.layout().addWidget(button)
+
 
         #######################################################
 
@@ -381,6 +396,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             self.ui_scale.activated.connect(save_ui_scale)
 
         self.rv_path.textChanged.connect(self.set_rv_path)
+        self.ffmpeg_path.textChanged.connect(self.set_ffmpeg_path)
 
     def _init_values(self):
         val = settings.local_settings.value(
@@ -403,6 +419,14 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         file_info = QtCore.QFileInfo(val)
         if file_info.exists():
             self.rv_path.setStyleSheet(
+                u'color: rgba({})'.format(common.rgb(common.ADD)))
+
+        ffmpeg_path = settings.local_settings.value(get_preference(u'ffmpeg_path'))
+        val = ffmpeg_path if ffmpeg_path else None
+        self.ffmpeg_path.setText(val)
+        file_info = QtCore.QFileInfo(val)
+        if file_info.exists():
+            self.ffmpeg_path.setStyleSheet(
                 u'color: rgba({})'.format(common.rgb(common.ADD)))
 
     @QtCore.Slot()
@@ -437,6 +461,38 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             self.rv_path.setStyleSheet(
                 u'color: rgba({})'.format(common.rgb(common.REMOVE)))
 
+    @QtCore.Slot()
+    def pick_ffmpeg(self):
+        if common.get_platform() == u'win':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select ffmpeg.exe',
+                filter=u'ffmpeg.exe',
+                dir=u'/'
+            )
+            path, _ = res
+            if path:
+                self.ffmpeg_path.setText(path)
+        if common.get_platform() == u'mac':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select ffmpeg',
+                filter=u'*.*',
+                dir=u'/'
+            )
+            path, _ = res
+            if path:
+                self.ffmpeg_path.setText(path)
+
+    @QtCore.Slot(unicode)
+    def set_ffmpeg_path(self, val):
+        settings.local_settings.setValue(get_preference(u'ffmpeg_path'), val)
+        file_info = QtCore.QFileInfo(val)
+        if file_info.exists():
+            self.ffmpeg_path.setStyleSheet(
+                u'color: rgba({})'.format(common.rgb(common.ADD)))
+        else:
+            self.ffmpeg_path.setStyleSheet(
+                u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+
 
 class SaverSettingsWidget(BaseSettingsWidget):
 
@@ -444,6 +500,7 @@ class SaverSettingsWidget(BaseSettingsWidget):
         self.check_updates = None
         self.show_help = None
         self.rv_path = None
+        self.ffmpeg_path = None
         self.frameless_window = None
 
         if common.STANDALONE:
