@@ -13,6 +13,7 @@ import bookmarks.common as common
 import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.defaultpaths as defaultpaths
+import bookmarks.ffmpeg as ffmpeg
 
 
 def contextmenu(func):
@@ -258,20 +259,35 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_rv_menu(self, menu_set):
+    def add_external_applications_menu(self, menu_set):
         """Creates a menu containing"""
         if not self.index.isValid():
             return menu_set
         if not self.index.data(QtCore.Qt.StatusTipRole):
             return
 
+        k = 'Services'
+        menu_set[k] = collections.OrderedDict()
+        path = common.get_sequence_startpath(
+        self.index.data(QtCore.Qt.StatusTipRole))
+
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
-        path = common.get_sequence_startpath(
-            self.index.data(QtCore.Qt.StatusTipRole))
-        menu_set['Push to RV'] = {
+        menu_set[k]['Push to RV'] = {
             u'icon': pixmap,
             u'action': lambda: common.push_to_rv(path)
+        }
+
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'file', common.SECONDARY_TEXT, common.MARGIN())
+
+        preset1 = functools.partial(
+            ffmpeg.launch_ffmpeg_command, path, ffmpeg.IMAGESEQ_TO_H264
+        )
+        menu_set[k]['Convert to H.264'] = {
+            u'icon': pixmap,
+            u'action': preset1
         }
         return menu_set
 
