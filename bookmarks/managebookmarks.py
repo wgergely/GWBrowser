@@ -887,7 +887,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
         return QtCore.QSize(common.WIDTH() * 0.125, common.WIDTH() * 0.0625)
 
     def showEvent(self, event):
-        bookmarks = settings.local_settings.value(u'bookmarks')
+        bookmarks = settings.local_settings.bookmarks()
         for n in xrange(self.count()):
             item = self.item(n)
             if item.checkState() == QtCore.Qt.Checked:
