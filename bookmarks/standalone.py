@@ -4,12 +4,10 @@
 """
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
 import bookmarks.common as common
-from bookmarks.mainwidget import MainWidget
+import bookmarks.mainwidget as mainwidget
 import bookmarks.settings as settings
 import bookmarks.images as images
-from bookmarks.mainwidget import TrayMenu
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
@@ -25,7 +23,7 @@ def instance():
     return _instance
 
 
-class StandaloneMainWidget(MainWidget):
+class StandaloneMainWidget(mainwidget.MainWidget):
     """Modified ``MainWidget``adapted to run it as a standalone
     application, with or without window borders.
 
@@ -83,7 +81,7 @@ class StandaloneMainWidget(MainWidget):
             u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
-        self.tray.setContextMenu(TrayMenu(parent=self))
+        self.tray.setContextMenu(mainwidget.TrayMenu(parent=self))
         self.tray.setToolTip(common.PRODUCT)
         self.tray.show()
 
@@ -116,6 +114,13 @@ class StandaloneMainWidget(MainWidget):
             self.shutdown, type=QtCore.Qt.QueuedConnection)
 
         self.adjustSize()
+
+    @QtCore.Slot()
+    def save_widget_settings(self):
+        """Saves the position and size of thew widget to the local settings."""
+        cls = self.__class__.__name__
+        settings.local_settings.setValue(
+            u'widget/{}/geometry'.format(cls), self.frameGeometry())
 
     def _get_offset_rect(self, offset):
         """Returns an expanded/contracted edge rectangle based on the widget's
@@ -198,6 +203,11 @@ class StandaloneMainWidget(MainWidget):
     @QtCore.Slot()
     def connect_extra_signals(self):
         """Modifies layout for display in standalone-mode."""
+        self.headerwidget.widgetMoved.connect(self.save_widget_settings)
+        self.headerwidget.findChild(
+            mainwidget.MinimizeButton).clicked.connect(self.showMinimized)
+        self.headerwidget.findChild(mainwidget.CloseButton).clicked.connect(self.close)
+
         self.fileswidget.activated.connect(common.execute)
         self.favouriteswidget.activated.connect(common.execute)
         self.terminated.connect(QtWidgets.QApplication.instance().quit)
@@ -232,25 +242,16 @@ class StandaloneMainWidget(MainWidget):
         super(StandaloneMainWidget, self).showEvent(event)
 
         cls = self.__class__.__name__
-        width = settings.local_settings.value(u'widget/{}/width'.format(cls))
-        height = settings.local_settings.value(
-            u'widget/{}/height'.format(cls))
-        x = settings.local_settings.value(u'widget/{}/x'.format(cls))
-        y = settings.local_settings.value(u'widget/{}/y'.format(cls))
+        geo = settings.local_settings.value(
+            u'widget/{}/geometry'.format(cls))
 
-        if not all((width, height, x, y)):  # skip if not saved yet
-            return
-
-        width = int(width)
-        height = int(height)
-        x = int(x)
-        y = int(y)
-
-        size = QtCore.QSize(width, height)
-        pos = QtCore.QPoint(x, y)
-        self.resize(size)
-        self.move(pos)
-        common.move_widget_to_available_geo(self)
+        if geo and not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
+            fw = self.frameGeometry().width() - self.geometry().width()
+            fh = self.frameGeometry().height() - self.geometry().height()
+            # geo.moveTop(geo.top() - fh)
+            geo.setHeight(geo.height() - (fh * 1))
+            self.window().setGeometry(geo)
+            common.move_widget_to_available_geo(self)
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""
