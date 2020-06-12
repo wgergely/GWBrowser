@@ -522,10 +522,10 @@ def move_widget_to_available_geo(widget):
 
     # Widget's rectangle in the global screen space
     rect = QtCore.QRect()
-    topLeft = widget.mapToGlobal(widget.rect().topLeft())
+    topLeft = widget.mapToGlobal(widget.frameGeometry().topLeft())
     rect.setTopLeft(topLeft)
-    rect.setWidth(widget.rect().width())
-    rect.setHeight(widget.rect().height())
+    rect.setWidth(widget.frameGeometry().width())
+    rect.setHeight(widget.frameGeometry().height())
 
     x = rect.x()
     y = rect.y()
