@@ -24,7 +24,7 @@ class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_location_toggles_menu()
+        self.add_task_folder_toggles_menu()
         self.add_separator()
         self.add_add_file_menu()
         self.add_separator()
@@ -235,7 +235,7 @@ class FilesModel(baselist.BaseModel):
             })
 
             # If the file in question is a sequence, we will also save a reference
-            # to it in `self._model_data[location][True]` dictionary.
+            # to it in the sequence data dict
             if seq:
                 # If the sequence has not yet been added to our dictionary
                 # of seqeunces we add it here
@@ -327,32 +327,11 @@ class FilesModel(baselist.BaseModel):
 
         """
         log.debug('set_task_folder({})'.format(val), self)
-        try:
-            settings.set_active(u'task_folder', val)
-            if settings.ACTIVE['task_folder']:
-                return
-            path = u'/'.join((
-                settings.ACTIVE['server'],
-                settings.ACTIVE['job'],
-                settings.ACTIVE['root'],
-                settings.ACTIVE['asset'],
-            ))
-            entries = [f.name.lower() for f in _scandir.scandir(path)]
-
-            # And finally, let's try to revert to a fall-back...
-            scene = defaultpaths.TASK_FOLDERS['scene']['default'].lower()
-            if scene in entries:
-                settings.set_active(u'task_folder', scene)
-                return
-            if entries:
-                settings.set_active('task_folder', entries[0].lower())
-        except:
-            log.error(u'Could not set task folder')
-        finally:
-            if not self.model_data():
-                self.__initdata__()
-            else:
-                self.sort_data()
+        settings.set_active(u'task_folder', val)
+        if not self.model_data():
+            self.__initdata__()
+        else:
+            self.sort_data()
 
     def data_type(self):
         """Current key to the data dictionary."""
@@ -364,6 +343,16 @@ class FilesModel(baselist.BaseModel):
             val = val if val else common.SequenceItem
             self._datatype[task_folder] = val
         return self._datatype[task_folder]
+
+    def settings_key(self):
+        """The key used to store and save item widget and item states in `local_settings`."""
+        ks = []
+        for k in (u'job', u'root', u'asset', u'task_folder'):
+            v = settings.ACTIVE[k]
+            if not v:
+                return None
+            ks.append(v)
+        return u'/'.join(ks)
 
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are
@@ -517,6 +506,8 @@ class FilesWidget(baselist.ThreadedBaseWidget):
         """
         if not task_folder:
             return
+        if not QtCore.QFileInfo(file_path).exists():
+            return
 
         # Setting the task folder
         self.model().sourceModel().taskFolderChanged.emit(task_folder)
@@ -537,28 +528,27 @@ class FilesWidget(baselist.ThreadedBaseWidget):
                 break
 
     def set_model(self, *args, **kwargs):
+        """Extends the subclass's signal connections.
+
+        """
         super(FilesWidget, self).set_model(*args, **kwargs)
+
         model = self.model().sourceModel()
+        proxy = self.model()
+
+        # Filter text
         model.modelReset.connect(
-            lambda: log.debug('modelReset -> load_saved_filter_text', model))
-        model.modelReset.connect(self.load_saved_filter_text)
+            lambda: log.debug('modelReset -> initialize_filter_values', model))
+        model.modelReset.connect(proxy.initialize_filter_values)
 
-    @QtCore.Slot(unicode)
-    def load_saved_filter_text(self):
-        log.debug('load_saved_filter_text()', self)
+        # Task folders
+        model.taskFolderChanged.connect(
+            lambda: log.debug('taskFolderChanged -> set_task_folder', model))
+        model.taskFolderChanged.connect(model.set_task_folder)
 
-        model = self.model().sourceModel()
-        task_folder = model.task_folder()
-        if not task_folder:
-            log.error('load_saved_filter_text(): Data key not yet set')
-            return
-
-        cls = model.__class__.__name__
-        k = u'widget/{}/{}/filtertext'.format(cls, task_folder)
-        v = settings.local_settings.value(k)
-        v = v if v else u''
-
-        self.model().set_filter_text(v)
+        model.taskFolderChanged.connect(
+            lambda: log.debug('taskFolderChanged -> proxy.invalidate', model))
+        model.taskFolderChanged.connect(proxy.invalidate)
 
     def inline_icons_count(self):
         if self.buttons_hidden():

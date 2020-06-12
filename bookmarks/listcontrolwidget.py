@@ -148,6 +148,7 @@ class FilterButton(BaseControlButton):
         control_modifier = modifiers & QtCore.Qt.ControlModifier
 
         if alt_modifier or shift_modifier or control_modifier:
+            self.current_widget().model().set_filter_text(u'')
             self.current_widget().model().filterTextChanged.emit(u'')
             return
 
@@ -227,9 +228,10 @@ class ToggleArchivedButton(BaseControlButton):
     def action(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filter_flag(common.MarkedAsArchived)
-        self.current_widget().model().filterFlagChanged.emit(
-            common.MarkedAsArchived, not val)
+        proxy = self.current_widget().model()
+        val = proxy.filter_flag(common.MarkedAsArchived)
+        proxy.set_filter_flag(common.MarkedAsArchived, not val)
+        proxy.filterFlagChanged.emit(common.MarkedAsArchived, not val)
 
     def update(self):
         super(ToggleArchivedButton, self).update()
@@ -303,9 +305,11 @@ class ToggleFavouriteButton(BaseControlButton):
     def action(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filter_flag(common.MarkedAsFavourite)
-        self.current_widget().model().filterFlagChanged.emit(
-            common.MarkedAsFavourite, not val)
+
+        proxy = self.current_widget().model()
+        val = proxy.filter_flag(common.MarkedAsFavourite)
+        proxy.set_filter_flag(common.MarkedAsFavourite, not val)
+        proxy.filterFlagChanged.emit(common.MarkedAsFavourite, not val)
 
     def update(self):
         super(ToggleFavouriteButton, self).update()
@@ -632,6 +636,7 @@ class FilesTabButton(PaintedTextButton):
         if v:
             v += u'  ▼'
         return v
+
 
     def paintEvent(self, event):
         """Indicating the visibility of the TaskFolderWidget."""

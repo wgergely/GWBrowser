@@ -38,7 +38,15 @@ import bookmarks.alembicpreview as alembicpreview
 import bookmarks.threads as threads
 
 
+ActiveFlagFilterKey = u'filter_active'
+ArchivedFlagFilterKey = u'filter_archived'
+FavouriteFlagFilterKey = u'filter_favourite'
+TextFilterKey = u'filter_text'
+FileSelectionKey = u'selection_file'
+SequenceSelectionKey = u'selection_seq'
+
 BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 50)
+
 
 
 def validate_index(func):
@@ -75,9 +83,6 @@ def initdata(func):
     """
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
-        if not self.task_folder():
-            return
-
         try:
             self.beginResetModel()
             self.reset_model_loaded()
@@ -222,42 +227,39 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self.parentwidget = parent
 
         self._filter_text = None
-        self._filterflags = {
+        self._filter_flags = {
             common.MarkedAsActive: None,
             common.MarkedAsArchived: None,
             common.MarkedAsFavourite: None,
         }
+
+        self.filterTextChanged.connect(
+            lambda: log.debug('filterTextChanged -> invalidateFilter', self))
+        self.filterTextChanged.connect(self.invalidateFilter)
+        self.filterFlagChanged.connect(
+            lambda: log.debug('filterFlagChanged -> invalidateFilter', self))
+        self.filterFlagChanged.connect(self.invalidateFilter)
+
+        self.modelAboutToBeReset.connect(self.initialize_filter_values)
 
     def sort(self, column, order=QtCore.Qt.AscendingOrder):
         raise NotImplementedError(
             'Sorting on the proxy model is not implemented.')
 
     def initialize_filter_values(self):
-        """Load the settings stored in the local_settings, or optional
-        default values if the settings has not yet been saved.
+        """Load the saved widget filters from `local_settings`.
+
+        This determines if eg. archived items are visible in the view.
 
         """
-        model = self.sourceModel()
-        task_folder = model.task_folder()
-        cls = model.__class__.__name__
-        self._filter_text = settings.local_settings.value(
-            u'widget/{}/{}/filtertext'.format(cls, task_folder))
+        self._filter_text = self.sourceModel().get_local_setting(TextFilterKey)
 
-        self._filterflags = {
-            common.MarkedAsActive: settings.local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsActive)),
-            common.MarkedAsArchived: settings.local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsArchived)),
-            common.MarkedAsFavourite: settings.local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsFavourite)),
-        }
-
-        if self._filterflags[common.MarkedAsActive] is None:
-            self._filterflags[common.MarkedAsActive] = False
-        if self._filterflags[common.MarkedAsArchived] is None:
-            self._filterflags[common.MarkedAsArchived] = False
-        if self._filterflags[common.MarkedAsFavourite] is None:
-            self._filterflags[common.MarkedAsFavourite] = False
+        v = self.sourceModel().get_local_setting(ActiveFlagFilterKey)
+        self._filter_flags[common.MarkedAsActive] = v if v is not None else False
+        v = self.sourceModel().get_local_setting(ArchivedFlagFilterKey)
+        self._filter_flags[common.MarkedAsArchived] = v if v is not None else False
+        v = self.sourceModel().get_local_setting(FavouriteFlagFilterKey)
+        self._filter_flags[common.MarkedAsFavourite] = v if v is not None else False
 
         log.debug('initialize_filter_values()', self)
 
@@ -266,35 +268,29 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return self._filter_text
 
     @QtCore.Slot(unicode)
-    def set_filter_text(self, val):
+    def set_filter_text(self, v):
         """Sets the path-segment to use as a filter."""
-        model = self.sourceModel()
-        task_folder = model.task_folder()
-        cls = model.__class__.__name__
-        k = u'widget/{}/{}/filtertext'.format(cls, task_folder)
-
-        # We're in sync and there's nothing to do
-        local_val = settings.local_settings.value(k)
-        if val == self._filter_text == local_val:
-            return
-
-        self._filter_text = val.strip()
-        settings.local_settings.setValue(k, val.strip())
+        v = v if v is not None else u''
+        v = unicode(v).strip()
+        self._filter_text = v
+        self.sourceModel().save_local_setting(TextFilterKey, v)
 
     def filter_flag(self, flag):
         """Returns the current flag-filter."""
-        return self._filterflags[flag]
+        return self._filter_flags[flag]
 
     @QtCore.Slot(int, bool)
-    def set_filter_flag(self, flag, val):
-        if self._filterflags[flag] == val:
+    def set_filter_flag(self, flag, v):
+        """Save a widget filter state to `local_settings`."""
+        if self._filter_flags[flag] == v:
             return
-
-        self._filterflags[flag] = val
-
-        cls = self.sourceModel().__class__.__name__
-        settings.local_settings.setValue(
-            u'widget/{}/filterflag{}'.format(cls, flag), val)
+        self._filter_flags[flag] = v
+        if flag == common.MarkedAsActive:
+            self.sourceModel().save_local_setting(ActiveFlagFilterKey, v)
+        if flag == common.MarkedAsArchived:
+            self.sourceModel().save_local_setting(ArchivedFlagFilterKey, v)
+        if flag == common.MarkedAsFavourite:
+            self.sourceModel().save_local_setting(FavouriteFlagFilterKey, v)
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
         return True
@@ -805,10 +801,6 @@ class BaseModel(QtCore.QAbstractListModel):
         self.dataChanged.emit(index, index)
         return True
 
-    def task_folder(self):
-        """Current key to the data dictionary."""
-        return u'.'
-
     def data_type(self):
         """Current key to the data dictionary."""
         return common.FileItem
@@ -851,10 +843,41 @@ class BaseModel(QtCore.QAbstractListModel):
 
             self.endResetModel()
 
+    def task_folder(self):
+        return u'default'
+
     @QtCore.Slot(unicode)
     def set_task_folder(self, val):
-        """Settings task folders for asset and bookmarks is not available."""
+        """Settings task folders must be"""
         pass
+
+    def settings_key(self):
+        """Make sure this is customized in the subclasses."""
+        return self.task_folder()
+
+    def get_local_setting(self, key_type, key=None):
+        """Returns a key to be used to save a filter value in `local_settings`.
+        """
+        if key is None:
+            key = self.settings_key()
+        if key is None:
+            return None
+
+        k = u'{}/{}'.format(key_type, common.get_hash(key))
+        v = settings.local_settings.value(k)
+        return v
+
+    def save_local_setting(self, key_type, v, key=None):
+        """Returns a key to be used to save a filter value in `local_settings`.
+        """
+        if key is None:
+            key = self.settings_key()
+        if key is None:
+            return
+
+        k = u'{}/{}'.format(key_type, common.get_hash(key))
+        v = settings.local_settings.setValue(k, v)
+
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -955,17 +978,22 @@ class BaseListWidget(QtWidgets.QListView):
         self._buttons_hidden = val
 
     def set_model(self, model):
-        """This is the main port of entry for the model.
+        """Add a model to the view.
 
         The BaseModel subclasses are wrapped in a QSortFilterProxyModel. All
         the necessary internal signal-slot connections needed for the proxy, model
-        and the view comminicate properly are made here.
+        and the view to communicate are made here.
 
         Note:
-            The bulk of the signal are connected together in ``MainWidget``'s
+            The inter-widget signal are connected in ``MainWidget``'s
             *_connect_signals* method.
+            Some specific connections are made in the view subclasses.
 
         """
+        if not isinstance(model, BaseModel):
+            raise TypeError(
+                u'Must provide a BaseModel instance, got {}'.format(type(model)))
+
         proxy = FilterProxyModel(parent=self)
 
         self.blockSignals(True)
@@ -993,15 +1021,6 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: log.debug('activeChanged -> save_activated', model))
         model.activeChanged.connect(self.save_activated)
 
-        # Data key, eg. 'scenes'
-        model.taskFolderChanged.connect(
-            lambda: log.debug('taskFolderChanged -> set_task_folder', model))
-        model.taskFolderChanged.connect(model.set_task_folder)
-
-        model.taskFolderChanged.connect(
-            lambda: log.debug('taskFolderChanged -> proxy.invalidate', model))
-        model.taskFolderChanged.connect(proxy.invalidate)
-
         # FileItem/SequenceItem
         model.dataTypeChanged.connect(
             lambda: log.debug('dataTypeChanged -> proxy.invalidate', model))
@@ -1011,28 +1030,13 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: log.debug('dataTypeChanged -> set_data_type', model))
         model.dataTypeChanged.connect(model.set_data_type)
 
-        proxy.filterTextChanged.connect(
-            lambda: log.debug('filterTextChanged -> set_filter_text', proxy))
-        proxy.filterTextChanged.connect(proxy.set_filter_text)
-
-        proxy.filterFlagChanged.connect(
-            lambda: log.debug('filterFlagChanged -> set_filter_flag', proxy))
-        proxy.filterFlagChanged.connect(proxy.set_filter_flag)
-
-        proxy.filterTextChanged.connect(
-            lambda: log.debug('filterTextChanged -> invalidateFilter', proxy))
-        proxy.filterTextChanged.connect(proxy.invalidateFilter)
-
-        proxy.filterFlagChanged.connect(
-            lambda: log.debug('filterFlagChanged -> invalidateFilter', proxy))
-        proxy.filterFlagChanged.connect(proxy.invalidateFilter)
-
         model.modelAboutToBeReset.connect(
             lambda: log.debug('modelAboutToBeReset -> reset_multitoggle', model))
         model.modelAboutToBeReset.connect(self.reset_multitoggle)
 
         self.filter_editor.finished.connect(
             lambda: log.debug('finished -> filterTextChanged', self.filter_editor))
+        self.filter_editor.finished.connect(proxy.set_filter_text)
         self.filter_editor.finished.connect(proxy.filterTextChanged)
 
         model.updateIndex.connect(
@@ -1054,8 +1058,8 @@ class BaseListWidget(QtWidgets.QListView):
         """This slot is used by all threads to repaint/update the given index
         after it's thumbnail or file information has been loaded.
 
-        The actualy repaint will only occure if the index is visible
-        in the view currently.
+        An actual repaint event will only trigger if the index is visible
+        in the view.
 
         """
         if not index.isValid():
@@ -1073,7 +1077,6 @@ class BaseListWidget(QtWidgets.QListView):
             return
         index = self.model().sourceModel().index(idx, 0)
         self.model().mapFromSource(index)
-        # super(BaseListWidget, self).update(index)
         self.update(index)
 
     @QtCore.Slot()
@@ -1131,25 +1134,23 @@ class BaseListWidget(QtWidgets.QListView):
         if index.flags() & common.MarkedAsArchived:
             return
 
-        self.activated.emit(index)
+        # We will only request a tab change
         if index.flags() & common.MarkedAsActive:
+            self.activated.emit(index)
             return
 
-        if isinstance(index.model(), FilterProxyModel):
-            source_index = index.model().mapToSource(index)
-        else:
-            source_index = index
+        proxy = self.model()
+        model = proxy.sourceModel()
+        data = model.model_data()
 
-        self.deactivate(self.model().sourceModel().active_index())
-
-        data = source_index.model().model_data()
+        # Set the data and signal the change
+        self.deactivate(model.active_index())
+        source_index = proxy.mapToSource(index)
         idx = source_index.row()
-
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsActive
-
         self.update(index)
 
-        source_index.model().activeChanged.emit(source_index)
+        model.activeChanged.emit(model.active_index())
 
     def deactivate(self, index):
         """Unsets the active flag."""
@@ -1186,43 +1187,29 @@ class BaseListWidget(QtWidgets.QListView):
 
         model = self.model().sourceModel()
         data_type = model.data_type()
-        cls = self.__class__.__name__
-        file_k = u'widget/{}/{}/selected_fileitem'.format(
-            cls, model.task_folder())
-        seq_k = u'widget/{}/{}/selected_sequenceitem'.format(
-            cls, model.task_folder())
+
         path = index.data(QtCore.Qt.StatusTipRole)
-
-        if data_type == common.FileItem:
-            settings.local_settings.setValue(file_k, path)
-            settings.local_settings.setValue(seq_k, common.proxy_path(path))
-
         if data_type == common.SequenceItem:
-            if not path:
-                return
             path = common.get_sequence_startpath(path)
-            settings.local_settings.setValue(
-                file_k, path)
-            settings.local_settings.setValue(seq_k, common.proxy_path(path))
+
+        model.save_local_setting(FileSelectionKey, path)
+        model.save_local_setting(SequenceSelectionKey, common.proxy_path(path))
 
     @QtCore.Slot()
     def reselect_previous(self):
-        """Slot called to reselect the previously selected item."""
+        """Slot called to reselect a previously saved selection."""
         proxy = self.model()
         if not proxy.rowCount():
             return
 
         model = proxy.sourceModel()
         data_type = model.data_type()
-        cls = self.__class__.__name__
-        if data_type == common.FileItem:
-            k = u'widget/{}/{}/selected_fileitem'.format(
-                cls, model.task_folder())
-        if data_type == common.SequenceItem:
-            k = u'widget/{}/{}/selected_sequenceitem'.format(
-            cls, model.task_folder())
 
-        previous = settings.local_settings.value(k)
+        if data_type == common.FileItem:
+            previous = model.get_local_setting(FileSelectionKey)
+        if data_type == common.SequenceItem:
+            previous = model.get_local_setting(SequenceSelectionKey)
+
         if previous:
             for n in xrange(proxy.rowCount()):
                 index = proxy.index(n, 0)
@@ -2513,6 +2500,7 @@ class BaseInlineIconWidget(BaseListWidget):
                     else:
                         filter_text = filter_text + u' ' + folder_filter
 
+                    self.model().set_filter_text(filter_text)
                     self.model().filterTextChanged.emit(filter_text)
                     self.repaint(self.rect())
                     return
@@ -2530,6 +2518,7 @@ class BaseInlineIconWidget(BaseListWidget):
                         if folder_filter not in filter_text:
                             folder_filter = filter_text + u' ' + folder_filter
 
+                    self.model().set_filter_text(filter_text)
                     self.model().filterTextChanged.emit(folder_filter)
                     self.repaint(self.rect())
                     return

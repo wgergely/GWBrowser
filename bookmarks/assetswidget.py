@@ -178,6 +178,16 @@ class AssetModel(baselist.BaseModel):
     def data_type(self):
         return common.FileItem
 
+    def settings_key(self):
+        """The key used to store and save item widget and item states in `local_settings`."""
+        ks = []
+        for k in (u'job', u'root'):
+            v = settings.ACTIVE[k]
+            if not v:
+                return None
+            ks.append(v)
+        return u'/'.join(ks)
+
 
 class AssetsWidget(baselist.ThreadedBaseWidget):
     """The view used to display the contents of a ``AssetModel`` instance."""

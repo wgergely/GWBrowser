@@ -428,7 +428,7 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
         if not reset:
             if not index.isValid() and not reset:
                 return
-            if not index.data(common.ParentPathRole) :
+            if not index.data(common.ParentPathRole):
                 return
             server, job, root = index.data(common.ParentPathRole)
         else:

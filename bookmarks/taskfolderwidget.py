@@ -157,6 +157,7 @@ class TaskFolderModel(BaseModel):
     ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
 
     queue_type = threads.TaskFolderInfoQueue
+    taskFolderChangeRequested = QtCore.Signal()
 
     def __init__(self, parent=None):
         self._parent = parent
@@ -213,8 +214,7 @@ class TaskFolderModel(BaseModel):
     @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
-        task_folder = self.task_folder()
-        self.INTERNAL_MODEL_DATA[task_folder] = common.DataDict({
+        self.INTERNAL_MODEL_DATA[0] = common.DataDict({
             common.FileItem: common.DataDict(),
             common.SequenceItem: common.DataDict()
         })
@@ -268,6 +268,28 @@ class TaskFolderModel(BaseModel):
             })
             thread = self.threads[common.InfoThread][0]
             thread.add_to_queue(weakref.ref(data[idx]))
+
+    @QtCore.Slot()
+    def check_task_folder(self):
+        """Verify the current task folder."""
+        if not settings.ACTIVE['task_folder']:
+            self.taskFolderChangeRequested.emit()
+            return
+
+        try:
+            task_folder_path = u'/'.join((
+                settings.ACTIVE['server'],
+                settings.ACTIVE['job'],
+                settings.ACTIVE['root'],
+                settings.ACTIVE['asset'],
+                settings.ACTIVE['task_folder'],
+            ))
+            if QtCore.QFileInfo(task_folder_path).exists():
+                return
+        except:
+            pass
+
+        self.taskFolderChangeRequested.emit()
 
 
 class TaskFolderWidget(QtWidgets.QListView):

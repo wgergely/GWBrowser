@@ -454,26 +454,30 @@ class BaseContextMenu(QtWidgets.QMenu):
         s = (favourite, archived, active)
         all_off = all([not f for f in s])
 
+        def toggle(flag, v):
+            proxy.set_filter_flag(flag, v)
+            proxy.filterFlagChanged.emit(flag, v)
+
         if active or all_off:
             menu_set[u'active'] = {
                 u'text': u'Show active',
                 u'icon': item_on if active else item_off,
                 u'disabled': favourite,
-                u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsActive, not active),
+                u'action': functools.partial(toggle, common.MarkedAsActive, not active),
             }
         if favourite or all_off:
             menu_set[u'favourite'] = {
                 u'text': u'Show favourites',
                 u'icon': item_on if favourite else item_off,
                 u'disabled': active,
-                u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
+                u'action': functools.partial(toggle, common.MarkedAsFavourite, not favourite),
             }
         if archived or all_off:
             menu_set[u'archived'] = {
                 u'text': u'Show archived',
                 u'icon': item_on if archived else item_off,
                 u'disabled': active if active else favourite,
-                u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsArchived, not archived),
+                u'action': functools.partial(toggle, common.MarkedAsArchived, not archived),
             }
         return menu_set
 
@@ -636,6 +640,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': pixmap,
             u'action': self.parent().manage_bookmarks.exec_
         }
+        menu_set[u'Prune bookmarks'] = {
+            u'text': u'Prune bookmarks',
+            u'icon': pixmap,
+            u'action': settings.local_settings.prune_bookmarks
+        }
         return menu_set
 
     @contextmenu
@@ -661,7 +670,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_location_toggles_menu(self, menu_set):
+    def add_task_folder_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
         taskfolder_pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.MARGIN())
