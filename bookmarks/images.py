@@ -231,6 +231,20 @@ def get_placeholder_path(file_path, fallback=None):
     return common.rsc_path(__file__, fallback)
 
 
+
+def invalidate(func):
+    """Decorator.
+    """
+    @functools.wraps(func)
+    def func_wrapper(source, **kwargs):
+        result = func(source, **kwargs)
+        oiio_cache.invalidate(source, force=True)
+        return result
+
+    return func_wrapper
+
+
+@invalidate
 def oiio_get_buf(source, hash=None, force=False):
     """Check and load a source image with OpenImageIO's format reader.
 
@@ -245,7 +259,7 @@ def oiio_get_buf(source, hash=None, force=False):
     """
     if not isinstance(source, unicode):
         raise TypeError(
-            'Expected <type \'unicode\'>, got {}'.format(type(source)))
+            u'Expected <type \'unicode\'>, got {}'.format(type(source)))
     if hash is None:
         hash = common.get_hash(source)
 
@@ -269,11 +283,9 @@ def oiio_get_buf(source, hash=None, force=False):
     buf = OpenImageIO.ImageBuf()
     buf.reset(source, 0, 0)
     if buf.has_error:
-        oiio_cache.invalidate(source, force=True)
         return None
 
     ImageCache.setValue(hash, buf, BufferType)
-    oiio_cache.invalidate(source, force=True)
     return buf
 
 
