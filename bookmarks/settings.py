@@ -12,6 +12,7 @@ Also contains the session lock used to `lock` a running Bookmark instance. See
 """
 import collections
 import os
+import json
 import re
 import psutil
 from functools import wraps
@@ -39,24 +40,6 @@ def set_active(k, v):
     local_settings.setValue(u'activepath/{}'.format(k), v)
     local_settings.load_and_verify_stored_paths()
 
-
-def _bool(v):
-    """Converts True/False/None to their valid values."""
-    if isinstance(v, basestring):
-        if v.lower() == u'true':
-            return True
-        elif v.lower() == u'false':
-            return False
-        elif v.lower() == u'none':
-            return None
-        try:
-            f = float(v)
-            if f.is_integer():
-                return int(f)
-            return f
-        except:
-            return v
-    return v
 
 
 def get_lockfile_path():
@@ -165,17 +148,32 @@ class LocalSettings(QtCore.QSettings):
 
         """
         activepath = k.lower().startswith(u'activepath')
-
         if self.current_mode() and activepath:
             if k not in self.INTERNAL_SETTINGS_DATA:
                 v = super(LocalSettings, self).value(k)
                 self.INTERNAL_SETTINGS_DATA[k] = v
             return self.INTERNAL_SETTINGS_DATA[k]
 
+        t = super(LocalSettings, self).value(k  + u'_type')
         v = super(LocalSettings, self).value(k)
-        if activepath:
-            return v
-        return _bool(v)
+        if t == u'NoneType':
+            v = None
+        elif t == u'bool':
+            if not isinstance(v, bool):
+                if v.lower() in [u'true', u'1']:
+                    v = True
+                elif v.lower() in [u'false', u'0', 'none']:
+                    v = False
+        elif t == u'str':
+            v = unicode(v)
+        elif t == u'unicode':
+            v = unicode(v)
+        elif t == u'int':
+            v = int(v)
+        elif t == u'float':
+            v = float(v)
+        return v
+
 
     def setValue(self, k, v):
         """Override to allow redirecting `activepath` keys to be saved in memory
@@ -186,6 +184,7 @@ class LocalSettings(QtCore.QSettings):
             self.INTERNAL_SETTINGS_DATA[k] = v
             return
         super(LocalSettings, self).setValue(k, v)
+        super(LocalSettings, self).setValue(k + u'_type', type(v).__name__)
 
     def current_mode(self):
         return self._current_mode
@@ -268,6 +267,62 @@ class LocalSettings(QtCore.QSettings):
     def set_mode(self, val):
         self._current_mode = val
 
+    def _load_persistent_bookmarks(self):
+        """Loads any preconfigured bookmarks from the json config file.
+
+        Returns:
+            dict: The parsed data.
+
+        """
+        s = os.path.sep
+
+        config = __file__ + s + os.pardir + s + u'rsc' + s + u'persistent_bookmarks.json'
+        config = os.path.abspath(os.path.normpath(config))
+        if not os.path.isfile(config):
+            log.error(u'persistent_bookmarks.json not found.')
+            return {}
+
+        data = {}
+        try:
+            with open(config, 'r') as f:
+                data = json.load(f)
+        except (ValueError, TypeError):
+            log.error(u'Could not decode `persistent_bookmarks.json`')
+        except RuntimeError:
+            log.error(u'Error opening `persistent_bookmarks.json`')
+        finally:
+            return data
+
+    def bookmarks(self):
+        _persistent = self._load_persistent_bookmarks()
+        _persistent = _persistent if _persistent else {}
+        _custom = self.value(u'bookmarks')
+        _custom = _custom if _custom else {}
+
+        bookmarks = _persistent.copy()   # start with x's keys and values
+        bookmarks.update(_custom)    # modifies z with y's keys and values & returns None
+        return bookmarks
+
+    def prune_bookmarks(self):
+        """Removes all invalid bookmarks from the current list."""
+        bookmarks = self.value(u'bookmarks')
+        bookmarks = bookmarks if bookmarks else {}
+        _valid = {}
+        _invalid = []
+        for k, v in bookmarks.iteritems():
+            if not QtCore.QFileInfo(k).exists():
+                _invalid.append(k)
+                continue
+            _valid[k] = v
+
+        self.setValue(u'bookmarks', _valid)
+        s = u'Bookmarks pruned:\n{}'.format(u'\n'.join(_invalid))
+
+        import bookmarks.common_ui as common_ui
+        common_ui.OkBox('Bookmarks pruned. Refresh the list to see the changes.', s).open()
+        log.success(s)
+
+
     def favourites(self):
         """Get all saved favourites as a list
 
@@ -283,4 +338,5 @@ class LocalSettings(QtCore.QSettings):
 
 
 local_settings = LocalSettings()
+# local_settings.prune_bookmarks()
 """Global local settings instance."""
