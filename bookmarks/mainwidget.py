@@ -49,12 +49,13 @@ def show_window():
     w = _instance.window()
     h = w.windowHandle()
 
-    if h:
-        geo = h.screen().availableGeometry()
-        if _instance.width() > geo.width() or _instance.height() > geo.height():
-            o = common.MARGIN()
-            _instance.setGeometry(
-                geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
+    # if h:
+        # common.move_widget_to_available_geo(_instance)
+        # geo = h.screen().availableGeometry()
+        # if _instance.width() > geo.width() or _instance.height() > geo.height():
+        #     o = common.MARGIN()
+        #     _instance.setGeometry(
+        #         geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
 
 
 class StatusBar(QtWidgets.QStatusBar):
@@ -735,11 +736,6 @@ class MainWidget(QtWidgets.QWidget):
         s = self.stackedwidget
 
         #####################################################
-        self.headerwidget.widgetMoved.connect(self.save_widget_settings)
-        self.headerwidget.findChild(
-            MinimizeButton).clicked.connect(self.showMinimized)
-        self.headerwidget.findChild(CloseButton).clicked.connect(self.close)
-        #####################################################
         self.shutdown.connect(self.terminate)
         #####################################################
         lc.bookmarks_button.clicked.connect(
@@ -766,6 +762,7 @@ class MainWidget(QtWidgets.QWidget):
             l.model().modelDataResetRequested)
         f.model().sourceModel().modelDataResetRequested.connect(
             l.model().modelDataResetRequested)
+        l.model().taskFolderChangeRequested.connect(lc.files_button.show_view)
 
         ff.favouritesChanged.connect(
             ff.model().sourceModel().modelDataResetRequested)
@@ -773,7 +770,13 @@ class MainWidget(QtWidgets.QWidget):
         # Stacked widget navigation
         lc.listChanged.connect(s.setCurrentIndex)
         b.activated.connect(lambda: lc.listChanged.emit(1))
+        b.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(1))
         a.activated.connect(lambda: lc.listChanged.emit(2))
+        a.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(2))
+
+        a.model().sourceModel().activeChanged.connect(l.model().check_task_folder)
+        a.activated.connect(l.model().check_task_folder)
+        lc.files_button.clicked.connect(l.model().check_task_folder)
 
         # Control bar connections
         lc.taskFolderChanged.connect(f.model().sourceModel().taskFolderChanged)
@@ -939,18 +942,6 @@ class MainWidget(QtWidgets.QWidget):
     def activate_widget(self, idx):
         """Method to change between views."""
         self.stackedwidget.setCurrentIndex(idx)
-
-    @QtCore.Slot()
-    def save_widget_settings(self):
-        """Saves the position and size of thew widget to the local settings."""
-        cls = self.__class__.__name__
-        geo = self.geometry()
-        settings.local_settings.setValue(
-            u'widget/{}/width'.format(cls), geo.width())
-        settings.local_settings.setValue(
-            u'widget/{}/height'.format(cls), geo.height())
-        settings.local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
-        settings.local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
 
     def sizeHint(self):
         """The widget's default size."""
