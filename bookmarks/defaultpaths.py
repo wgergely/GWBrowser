@@ -36,7 +36,7 @@ FORMAT_FILTERS = {
     SceneFilter: {
         u'name': u'SceneFilter',
         u'description': u'Scene file formats',
-        u'default': sort(u'c4d,hud,hip,ma,mb,nk,nk~,mocha,rv,autosave'),
+        u'default': sort(u'c4d,hud,hip,hiplc,hipnc,ma,mb,nk,nk~,mocha,rv,autosave'),
         u'value': None,
     },
     OpenImageIOFilter: {

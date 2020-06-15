@@ -241,22 +241,29 @@ class TaskTree(QtWidgets.QTreeView):
 
         _data = {}
         for d in self.data:
-            _data[d['step']['name']] = {
-                'name': d['step']['name'],
-                'id': d['step']['id'],
-                'type': d['step']['type'],
-                'tasks': [],
-            }
-
-            _data[d['step']['name']]['tasks'].append({
-                'name': d['content'],
-                'id': d['id'],
-                'type': d['type'],
-                'tasks': []
-            })
-
-        for d in _data.values():
-            node = TaskNode(d, parentNode=rootNode)
+            if d['step'] is not None:
+                _data[d['step']['name']] = {
+                    'name': d['step']['name'],
+                    'id': d['step']['id'],
+                    'type': d['step']['type'],
+                    'tasks': [],
+                }
+                _data[d['step']['name']]['tasks'].append({
+                    'name': d['content'],
+                    'id': d['id'],
+                    'type': d['type'],
+                    'tasks': []
+                })
+            else:
+                _data[d['content']] = {
+                    'name': d['content'],
+                    'id': d['id'],
+                    'type': d['type'],
+                    'tasks': []
+                }
+        ks = sorted(_data.keys())
+        for k in ks:
+            node = TaskNode(_data[k], parentNode=rootNode)
             _get_children(node)
 
         return rootNode
@@ -493,17 +500,31 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
             with shotgun.init_sg(domain, script_name, api_key) as sg:
                 data = shotgun.find_tasks(shot_id)
                 users = shotgun.find_users()
-
             if not data:
                 raise RuntimeError(u'Could not find any tasks for shot id {}'.format(shot_id))
             self.task_picker.set_data(data)
 
             if users:
                 self.user_picker.blockSignals(True)
-                users = sorted(users, key=lambda x: x['name'])
+
+                try:
+                    users = sorted(users, key=lambda x: x['name'])
+                except:
+                    pass
+
+                try:
+                    users = sorted(users, key=lambda x: x['id'])
+                except:
+                    pass
+
                 self.user_picker.addItem(u'Select name...', userData=None)
+
                 for user in users:
-                    self.user_picker.addItem(user['name'], userData=user['id'])
+                    if 'name' in user:
+                        self.user_picker.addItem(user['name'], userData=user['id'])
+                    if 'id' in user:
+                        self.user_picker.addItem(unicode(user['id']), userData=user['id'])
+
                 self.user_picker.blockSignals(False)
                 prev = settings.local_settings.value(u'shotgun/user')
                 if prev:
@@ -687,7 +708,7 @@ class PickShotCombobox(QtWidgets.QComboBox):
             index = self.model().index(n, 0)
             self.model().setData(
                 index,
-                QtCore.QSize(common.ROW_HEIGHT(), common.ROW_HEIGHT()),
+                QtCore.QSize(common.ROW_HEIGHT() * 0.66, common.ROW_HEIGHT() * 0.66),
                 QtCore.Qt.SizeHintRole,
             )
             self.model().setData(
