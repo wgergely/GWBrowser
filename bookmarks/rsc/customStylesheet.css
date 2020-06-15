@@ -546,18 +546,13 @@ NameModeWidget {{
     color: rgba({TEXT});
 }}
 LineEdit:!read-only:focus{{
-    border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
+    border-bottom: {ROW_SEPARATOR}px solid rgba({ADD});
 }}
 
-Bookmarks,
-TemplatesWidget {{
+Bookmarks {{
 	font-family: "{PRIMARY_FONT}";
 	font-size: {MEDIUM_FONT_SIZE}px;
 	border: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
-}}
-
-TemplateListWidget {{
-	padding: {RADIUS};
 }}
 
 SelectFolderView,

@@ -3,7 +3,7 @@
 
 """
 import re
-from PySide2 import QtCore, QtWidgets
+from PySide2 import QtCore, QtWidgets, QtGui
 
 import bookmarks.common as common
 import _scandir as _scandir
@@ -12,6 +12,7 @@ import bookmarks.delegate as delegate
 import bookmarks.baselist as baselist
 import bookmarks.basecontextmenu as basecontextmenu
 import bookmarks.bookmark_db as bookmark_db
+
 
 import bookmarks.settings as settings
 
@@ -206,7 +207,7 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
             return 0
         if self.buttons_hidden():
             return 0
-        return 4
+        return 6
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -228,3 +229,68 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
             self.selectionModel().setCurrentIndex(
                 index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
+
+    @QtCore.Slot()
+    def show_properties_widget(self):
+        import bookmarks.addassetwidget as addassetwidget
+
+        if not self.selectionModel().hasSelection():
+            return
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        if not all((
+            settings.ACTIVE[u'server'],
+            settings.ACTIVE[u'job'],
+            settings.ACTIVE[u'root'],
+        )):
+            return
+
+        db = bookmark_db.get_db(
+            settings.ACTIVE[u'server'],
+            settings.ACTIVE[u'job'],
+            settings.ACTIVE[u'root'],
+        )
+
+        @QtCore.Slot(unicode)
+        def update_description(s):
+            source_index = self.model().mapToSource(index)
+            idx = source_index.row()
+            data = self.model().sourceModel().model_data()
+            data[idx][common.DescriptionRole] = s
+            self.update(index)
+
+        widget = addassetwidget.AddAssetWidget(
+            *index.data(common.ParentPathRole),
+            update=True
+        )
+        widget.descriptionUpdated.connect(update_description)
+        widget.open()
+
+
+    def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+
+        cursor_position = self.mapFromGlobal(common.cursor.pos())
+        index = self.indexAt(cursor_position)
+
+        if not index.isValid():
+            return
+        if index.flags() & common.MarkedAsArchived:
+            return
+
+        rect = self.visualRect(index)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+
+        if rectangles[delegate.AddAssetRect].contains(cursor_position):
+            self.show_add_widget()
+        elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
+            self.show_properties_widget()
+        else:
+            super(AssetsWidget, self).mouseReleaseEvent(event)
+
+    @QtCore.Slot()
+    def show_add_widget(self):
+        pass

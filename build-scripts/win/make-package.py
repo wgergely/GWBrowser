@@ -399,6 +399,7 @@ def copy_libs(libs):
         root + os.path.sep + 'shared' + os.path.sep + os.path.basename(LIB_SCANDIR_D))
 
 
+
 def build_bin():
     """Build the Bookmarks executable."""
     bindir = os.path.normpath(
@@ -461,6 +462,9 @@ def install_python_modules():
 
     target = PREFIX + os.path.sep + u'bookmarks' + os.path.sep + 'shared'
     cmd = ur'pip install --target="{}" --compile --no-cache-dir SlackClient'.format(
+        target)
+    os.system(cmd)
+    cmd = ur'pip install --target="{}" --compile --no-cache-dir git+git://github.com/shotgunsoftware/python-api.git'.format(
         target)
     os.system(cmd)
 

@@ -164,7 +164,8 @@ class TemplateListWidget(QtWidgets.QListWidget):
         )
 
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
-
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.installEventFilter(self)
         self.viewport().installEventFilter(self)
 
@@ -273,12 +274,12 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
 
-            painter.setBrush(common.SEPARATOR)
-            painter.setPen(QtCore.Qt.NoPen)
+            # painter.setBrush(QtCore.Qt.NoBrush)
+            # painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.font_db.secondary_font(
                 common.SMALL_FONT_SIZE())[0])
-            painter.setOpacity(0.3)
-            painter.drawRect(self.rect())
+            # painter.setOpacity(0.3)
+            # painter.drawRect(self.rect())
             o = common.MEDIUM_FONT_SIZE()
             rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
@@ -297,7 +298,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
-                u'Select template\n(right-click or drag and drop to import)',
+                u'Select template\n(drag and drop a zip file to add)',
                 boundingRect=self.rect(),
             )
             painter.end()
@@ -454,7 +455,7 @@ class TemplatesWidget(QtWidgets.QWidget):
         self.layout().setSpacing(o)
 
         grp = common_ui.get_group(parent=self)
-        row = common_ui.add_row(None, height=common.ROW_HEIGHT() * 0.8,
+        row = common_ui.add_row(None, height=common.ROW_HEIGHT() * 1.5,
                                 padding=None, parent=grp)
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
@@ -468,15 +469,17 @@ class TemplatesWidget(QtWidgets.QWidget):
         validator = QtGui.QRegExpValidator(regex, parent=self)
         self.name_widget.setValidator(validator)
         self.add_button = common_ui.ClickableIconButton(
-            u'CopyAction',
+            u'add',
             (common.ADD, common.ADD),
-            common.MARGIN() * 1.2,
+            common.ROW_HEIGHT() * 0.66,
             description=u'Add new {}'.format(self.mode().title()),
             parent=row
         )
+        row.layout().addSpacing(common.MARGIN() * 0.5)
         row.layout().addWidget(self.name_widget, 1)
         row.layout().addSpacing(common.MARGIN())
         row.layout().addWidget(self.add_button, 0)
+        row.layout().addSpacing(common.MARGIN() * 0.5)
 
         # Template Header
         grp = common_ui.get_group(parent=self)
@@ -695,6 +698,9 @@ class ServerEditor(QtWidgets.QWidget):
         super(ServerEditor, self).__init__(parent=parent)
         self._rows = []
         self.add_server_button = None
+        self.add_server_lineeditor = None
+        self.add_server_picker = None
+        self.add_server_button = None
 
         self._create_UI()
         self.add_rows()
@@ -715,14 +721,18 @@ class ServerEditor(QtWidgets.QWidget):
             description=u'Add a new server',
             parent=row
         )
-        self.add_server_lineeditor = QtWidgets.QLineEdit(parent=self)
+        self.add_server_lineeditor = common_ui.LineEdit(parent=self)
         self.add_server_lineeditor.setPlaceholderText(
-            u'Enter the path to the server (eg. //server/jobs)')
-        self.add_server_lineeditor.returnPressed.connect(self.add_server)
-        self.add_server_button.clicked.connect(self.add_server)
+            u'Path to server, eg. //server/jobs')
+        self.add_server_picker = common_ui.PaintedButton(u'Pick', parent=self)
 
         row.layout().addWidget(self.add_server_button)
         row.layout().addWidget(self.add_server_lineeditor, 1)
+        row.layout().addWidget(self.add_server_picker, 0)
+
+        self.add_server_lineeditor.returnPressed.connect(self.add_server)
+        self.add_server_button.clicked.connect(self.add_server)
+        self.add_server_picker.clicked.connect(self.pick_server)
 
     @QtCore.Slot()
     def add_server(self, allow_invalid=False):
@@ -750,6 +760,20 @@ class ServerEditor(QtWidgets.QWidget):
         # Notify the main widget that the UI has been updated
         self.serverAdded.emit(server)
         return
+
+    @QtCore.Slot()
+    def pick_server(self):
+        path = QtWidgets.QFileDialog.getExistingDirectory(
+            self,
+            u'Pick a server',
+            u'/',
+            QtWidgets.QFileDialog.ShowDirsOnly | QtWidgets.QFileDialog.DontResolveSymlinks
+        )
+        if not path:
+            return
+
+        self.add_server_lineeditor.setText(path)
+        self.add_server_lineeditor.returnPressed.emit()
 
     def add_row(self, server, insert=False):
         """"""
@@ -1031,7 +1055,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
-            u' Manage Bookmarks', size=common.LARGE_FONT_SIZE(), parent=self)
+            u'Add Bookmark', size=common.LARGE_FONT_SIZE(), parent=self)
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
         self.layout().addSpacing(common.MARGIN() * 0.5)
@@ -1088,7 +1112,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row = common_ui.add_row(
             None, padding=0, height=common.ROW_HEIGHT() * 0.8, parent=_grp)
         label = common_ui.PaintedLabel(
-            u'Servers:', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
+            u'Server', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
         label.setFixedWidth(common.MARGIN() * 4.5)
         _row.layout().addWidget(self.edit_servers_button, 0)
         _row.layout().addSpacing(common.INDICATOR_WIDTH())
@@ -1126,7 +1150,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row = common_ui.add_row(
             None, padding=0, height=common.ROW_HEIGHT() * 0.8, parent=_grp)
         label = common_ui.PaintedLabel(
-            u'Jobs:', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
+            u'Job', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
         label.setFixedWidth(common.MARGIN() * 4.5)
         _row.layout().addWidget(self.add_template_button, 0)
         _row.layout().addSpacing(common.INDICATOR_WIDTH())
@@ -1159,7 +1183,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row = common_ui.add_row(
             None, padding=0, height=None, parent=self.bookmark_grp)
         label = common_ui.PaintedLabel(
-            u'Bookmarks:', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
+            u'Bookmarks', size=common.MEDIUM_FONT_SIZE(), color=common.SECONDARY_TEXT)
         label.setFixedWidth(common.MARGIN() * 4.5)
 
         self.bookmark_list = BookmarksWidget(parent=self)
@@ -1590,7 +1614,7 @@ class ManageBookmarks(QtWidgets.QDialog):
         if not self.parent():
             common.set_custom_stylesheet(self)
 
-        self.setWindowTitle(u'Manage Bookmarks')
+        self.setWindowTitle(u'Add Bookmark')
         self.setObjectName(u'ManageBookmarks')
 
         self.scrollarea = None

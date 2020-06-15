@@ -5,14 +5,13 @@
 import json
 import base64
 import weakref
-import time
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
-import bookmarks.images as images
+import bookmarks.bookmark_properties as bookmark_properties
 import bookmarks.threads as threads
 import _scandir as _scandir
 import bookmarks.baselist as baselist
@@ -232,6 +231,9 @@ class BookmarksModel(baselist.BaseModel):
         self.endResetModel()
 
     def update_description(self, db, data):
+        """Updates the bookmark's description.
+
+        """
         t = u'properties'
         v = {}
 
@@ -309,10 +311,10 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Bookmarks')
 
-        import bookmarks.managebookmarks as managebookmarks
+        import bookmarks.addbookmarks as addbookmarks
 
         self._background_icon = u'bookmark'
-        self.manage_bookmarks = managebookmarks.ManageBookmarks(parent=self)
+        self.manage_bookmarks = addbookmarks.ManageBookmarks(parent=self)
 
         @QtCore.Slot(unicode)
         def _update(bookmark):
@@ -341,9 +343,9 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
         rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
 
         if rectangles[delegate.AddAssetRect].contains(cursor_position):
-            self.show_add_asset_widget()
+            self.show_add_widget()
         elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
-            self.show_bookmark_properties_widget()
+            self.show_properties_widget()
         else:
             super(BookmarksWidget, self).mouseReleaseEvent(event)
 
@@ -353,7 +355,8 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
             return 0
         return 6
 
-    def show_bookmark_properties_widget(self):
+    @QtCore.Slot()
+    def show_properties_widget(self):
         def update_description(index, res):
             db = bookmark_db.get_db(
                 index.data(common.ParentPathRole)[0],
@@ -364,7 +367,8 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
             data = source_index.model().model_data()[source_index.row()]
             self.model().sourceModel().update_description(db, data)
 
-        import bookmarks.bookmark_properties as bookmark_properties
+        if not self.selectionModel().hasSelection():
+            return
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
@@ -375,14 +379,11 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
             index.data(common.ParentPathRole)[2],
             parent=self
         )
-
-        self.resized.connect(widget.setGeometry)
-        widget.setGeometry(self.viewport().geometry())
+        widget.finished.connect(functools.partial(update_description, index))
         widget.open()
 
-        widget.finished.connect(functools.partial(update_description, index))
-
-    def show_add_asset_widget(self):
+    @QtCore.Slot()
+    def show_add_widget(self):
         @QtCore.Slot(unicode)
         def show_and_select_added_asset(name):
             """If adding items to the active bookmark, we will go ahead and show
@@ -409,6 +410,8 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
 
         import bookmarks.addassetwidget as addassetwidget
 
+        if not self.selectionModel().hasSelection():
+            return
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return

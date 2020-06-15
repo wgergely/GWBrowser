@@ -99,7 +99,7 @@ class StandaloneMainWidget(mainwidget.MainWidget):
             if self.stackedwidget.widget(0).model().sourceModel().rowCount() == 0:
                 common_ui.MessageBox(
                     u'Bookmarks is not set up (yet!).',
-                    u'To add a server, create new jobs and bookmark folders, right-click on the main window and select "Manage Bookmarks".',
+                    u'To add a server, create new jobs and bookmark folders, right-click on the main window and select "Add Bookmark".',
                     parent=self.stackedwidget.widget(0)
                 ).open()
 
@@ -244,14 +244,14 @@ class StandaloneMainWidget(mainwidget.MainWidget):
         cls = self.__class__.__name__
         geo = settings.local_settings.value(
             u'widget/{}/geometry'.format(cls))
+        if not geo:
+            return
 
         if geo and not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
-            fw = self.frameGeometry().width() - self.geometry().width()
             fh = self.frameGeometry().height() - self.geometry().height()
-            # geo.moveTop(geo.top() - fh)
             geo.setHeight(geo.height() - (fh * 1))
-            self.window().setGeometry(geo)
-            common.move_widget_to_available_geo(self)
+        self.window().setGeometry(geo)
+        common.move_widget_to_available_geo(self)
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""

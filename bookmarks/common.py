@@ -522,10 +522,10 @@ def move_widget_to_available_geo(widget):
 
     # Widget's rectangle in the global screen space
     rect = QtCore.QRect()
-    topLeft = widget.mapToGlobal(widget.frameGeometry().topLeft())
+    topLeft = widget.mapToGlobal(widget.rect().topLeft())
     rect.setTopLeft(topLeft)
-    rect.setWidth(widget.frameGeometry().width())
-    rect.setHeight(widget.frameGeometry().height())
+    rect.setWidth(widget.rect().width())
+    rect.setHeight(widget.rect().height())
 
     x = rect.x()
     y = rect.y()
@@ -1073,7 +1073,7 @@ def push_to_rv(path):
     if get_platform() == u'win':
         rv_push_path = u'{}/rvpush.exe'.format(rv_info.path())
         if QtCore.QFileInfo(rv_push_path).exists():
-            cmd = u'"{RV}" -tag {PRODUCT} url \'rvlink:// -reuse 1 -inferSequence -l -play -fps 25 -fullscreen -nofloat -lookback 0 -nomb "{PATH}"\''.format(
+            cmd = u'"{RV}" -tag {PRODUCT} url \'rvlink:// -reuse 1 -inferSequence -l -play -fps 25 -fullscreen -nofloat -lookback 0 -nomb \"{PATH}\"\''.format(
                 RV=rv_push_path,
                 PRODUCT=PRODUCT,
                 PATH=path

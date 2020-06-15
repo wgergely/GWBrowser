@@ -6,6 +6,7 @@ import os
 import functools
 import collections
 
+import OpenImageIO
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.log as log
@@ -49,7 +50,6 @@ class BaseContextMenu(QtWidgets.QMenu):
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
-        self.setMaximumHeight(common.HEIGHT() * 1.5)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
     @contextmenu
@@ -97,81 +97,76 @@ class BaseContextMenu(QtWidgets.QMenu):
         if not parent:
             parent = self
 
-        for k in menu_set:
-            if u':' in k:  # Skipping `speudo` keys
+        for k, v in menu_set.iteritems():
+            if u':' in k:
                 continue
 
-            # Recursive menu creation
-            if isinstance(menu_set[k], collections.OrderedDict):
-                parent = QtWidgets.QMenu(k, parent=self)
-                parent.setMaximumHeight(common.HEIGHT() * 1.5)
-                parent.showEvent = functools.partial(_showEvent, parent)
+            if isinstance(v, collections.OrderedDict):
+                submenu = QtWidgets.QMenu(k, parent=parent)
+                submenu.create_menu = self.create_menu
+                submenu.showEvent = functools.partial(_showEvent, submenu)
 
-                if u'{}:icon'.format(k) in menu_set:
-                    icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
-                    parent.setIcon(icon)
-                if u'{}:text'.format(k) in menu_set:
-                    parent.setTitle(menu_set[u'{}:text'.format(k)])
-                if u'{}:action'.format(k) in menu_set:
-                    name = menu_set[u'{}:text'.format(k)] if u'{}:text'.format(
-                        k) in menu_set else k
-                    icon = menu_set[u'{}:icon'.format(k)] if u'{}:icon'.format(
-                        k) in menu_set else QtGui.QPixmap()
-                    action = parent.addAction(name)
+                if k + u':icon' in menu_set:
+                    submenu.setIcon(QtGui.QIcon(menu_set[k + u':icon']))
+                if k + u':text' in menu_set:
+                    submenu.setTitle(menu_set[k + u':text'])
+
+                if k + u':action' in menu_set:
+                    name = menu_set[k + ':text'] if k + ':text' in menu_set else k
+                    icon = menu_set[k + ':icon'] if k + ':icon' in menu_set else QtGui.QPixmap()
+                    action = submenu.addAction(name)
                     action.setIconVisibleInMenu(True)
                     action.setIcon(icon)
 
-                    if isinstance(menu_set[u'{}:action'.format(k)], collections.Iterable):
-                        for func in menu_set[u'{}:action'.format(k)]:
+                    if isinstance(v, collections.Iterable):
+                        for func in menu_set[k + u':action']:
                             action.triggered.connect(func)
                     else:
-                        action.triggered.connect(
-                            menu_set[u'{}:action'.format(k)])
-                    parent.addAction(action)
+                        action.triggered.connect(v)
+                    action.addAction(action)
+                    submenu.addSeparator()
+
+                parent.addMenu(submenu)
+                parent.create_menu(v, parent=submenu)
+            else:
+                if u'separator' in k:
                     parent.addSeparator()
+                    continue
 
-                self.addMenu(parent)
-                self.create_menu(menu_set[k], parent=parent)
-                continue
+                action = parent.addAction(k)
 
-            if u'separator' in k:
-                parent.addSeparator()
-                continue
-
-            action = parent.addAction(k)
-
-            if u'data' in menu_set[k]:  # Skipping disabled items
-                action.setData(menu_set[k][u'data'])
-            if u'disabled' in menu_set[k]:  # Skipping disabled items
-                action.setDisabled(menu_set[k][u'disabled'])
-            if u'action' in menu_set[k]:
-                if isinstance(menu_set[k][u'action'], collections.Iterable):
-                    for func in menu_set[k][u'action']:
-                        action.triggered.connect(func)
+                if u'data' in v:  # Skipping disabled items
+                    action.setData(v[u'data'])
+                if u'disabled' in v:  # Skipping disabled items
+                    action.setDisabled(v[u'disabled'])
+                if u'action' in v:
+                    if isinstance(v[u'action'], collections.Iterable):
+                        for func in v[u'action']:
+                            action.triggered.connect(func)
+                    else:
+                        action.triggered.connect(v[u'action'])
+                if u'text' in v:
+                    action.setText(v[u'text'])
                 else:
-                    action.triggered.connect(menu_set[k][u'action'])
-            if u'text' in menu_set[k]:
-                action.setText(menu_set[k][u'text'])
-            else:
-                action.setText(k)
-            if u'status_tip' in menu_set[k]:
-                action.setStatusTip(menu_set[k][u'status_tip'])
-            if u'tool_tip' in menu_set[k]:
-                action.setToolTip(menu_set[k][u'tool_tip'])
-            if u'checkable' in menu_set[k]:
-                action.setCheckable(menu_set[k][u'checkable'])
-            if u'checked' in menu_set[k]:
-                action.setChecked(menu_set[k][u'checked'])
-            if u'icon' in menu_set[k]:
-                action.setIconVisibleInMenu(True)
-                icon = QtGui.QIcon(menu_set[k][u'icon'])
-                action.setIcon(icon)
-            if u'shortcut' in menu_set[k]:
-                action.setShortcut(menu_set[k][u'shortcut'])
-            if u'visible' in menu_set[k]:
-                action.setVisible(menu_set[k][u'visible'])
-            else:
-                action.setVisible(True)
+                    action.setText(k)
+                if u'status_tip' in v:
+                    action.setStatusTip(v[u'status_tip'])
+                if u'tool_tip' in v:
+                    action.setToolTip(v[u'tool_tip'])
+                if u'checkable' in v:
+                    action.setCheckable(v[u'checkable'])
+                if u'checked' in v:
+                    action.setChecked(v[u'checked'])
+                if u'icon' in v:
+                    action.setIconVisibleInMenu(True)
+                    icon = QtGui.QIcon(v[u'icon'])
+                    action.setIcon(icon)
+                if u'shortcut' in v:
+                    action.setShortcut(v[u'shortcut'])
+                if u'visible' in v:
+                    action.setVisible(v[u'visible'])
+                else:
+                    action.setVisible(True)
 
     def showEvent(self, event):
         """Elides the action text to fit the size of the widget upon showing."""
@@ -278,6 +273,16 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': lambda: common.push_to_rv(path)
         }
 
+        @QtCore.Slot()
+        def show_add_shot_task_widget():
+            import bookmarks.shotgun_widgets as shotgun_widgets
+            w = shotgun_widgets.CreateShotTaskVersion(self.index.data(QtCore.Qt.StatusTipRole))
+            w.open()
+
+        menu_set[k][u'Add a task version for review...'] = {
+            u'icon': pixmap,
+            u'action': show_add_shot_task_widget
+        }
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'file', common.SECONDARY_TEXT, common.MARGIN())
@@ -634,15 +639,14 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_manage_bookmarks_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'bookmark2', common.ADD, common.MARGIN())
-        menu_set[u'Manage bookmarks'] = {
-            u'text': u'Manage bookmarks',
+            u'add', common.ADD, common.MARGIN())
+        menu_set[u'Add bookmark'] = {
+            u'text': u'Add bookmark',
             u'icon': pixmap,
             u'action': self.parent().manage_bookmarks.exec_
         }
         menu_set[u'Prune bookmarks'] = {
             u'text': u'Prune bookmarks',
-            u'icon': pixmap,
             u'action': settings.local_settings.prune_bookmarks
         }
         return menu_set
@@ -786,39 +790,47 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[u'separator1'] = {}
 
-        # k = u'formats'
-        # menu_set[k] = collections.OrderedDict()
-        # menu_set[u'formats:icon'] = add_pixmap
-        # menu_set[u'formats:text'] = u'Add template file'
+        k = u'addfiles'
+        menu_set[k] = collections.OrderedDict()
+        menu_set[u'addfiles:icon'] = add_pixmap
+        menu_set[u'addfiles:text'] = u'Add new file...'
 
-        menu_set[u'scene'] = collections.OrderedDict()
-        menu_set[u'scene:icon'] = add_pixmap
-        menu_set[u'scene:text'] = u'Add scene template...'
-        menu_set[u'scene'][u'scenes'] = {
+        menu_set[k][u'scene'] = collections.OrderedDict()
+        menu_set[k][u'scene:icon'] = add_pixmap
+        menu_set[k][u'scene:text'] = u'Scene formats'
+        menu_set[k][u'scene'][u'scenes'] = {
             u'disabled': True,
             u'text': u'Scenes'
         }
 
-        menu_set[u'export'] = collections.OrderedDict()
-        menu_set[u'export:icon'] = add_pixmap
-        menu_set[u'export:text'] = u'Add export template...'
-        menu_set[u'export'][u'exports'] = {
+        menu_set[k][u'export'] = collections.OrderedDict()
+        menu_set[k][u'export:icon'] = add_pixmap
+        menu_set[k][u'export:text'] = u'Export formats'
+        menu_set[k][u'export'][u'exports'] = {
             u'disabled': True,
             u'text': u'Exports'
         }
 
-        menu_set[u'Adobe'] = collections.OrderedDict()
-        menu_set[u'Adobe:icon'] = add_pixmap
-        menu_set[u'Adobe:text'] = u'Add Adobe template...'
-        menu_set[u'Adobe'][u'Adobe'] = {
+        menu_set[k][u'Adobe'] = collections.OrderedDict()
+        menu_set[k][u'Adobe:icon'] = add_pixmap
+        menu_set[k][u'Adobe:text'] = u'Adobe formats'
+        menu_set[k][u'Adobe'][u'Adobe'] = {
             u'disabled': True,
             u'text': u'Adobe Creative Cloud'
         }
 
-        menu_set[u'Misc'] = collections.OrderedDict()
-        menu_set[u'Misc:icon'] = add_pixmap
-        menu_set[u'Misc:text'] = u'Add other template...'
-        menu_set[u'Misc'][u'Misc'] = {
+        menu_set[k][u'OpenImageIO'] = collections.OrderedDict()
+        menu_set[k][u'OpenImageIO:icon'] = add_pixmap
+        menu_set[k][u'OpenImageIO:text'] = u'OpenImageIO formats'
+        menu_set[k][u'OpenImageIO'][u'OpenImageIO'] = {
+            u'disabled': True,
+            u'text': u'OpenImageIO formats'
+        }
+
+        menu_set[k][u'Misc'] = collections.OrderedDict()
+        menu_set[k][u'Misc:icon'] = add_pixmap
+        menu_set[k][u'Misc:text'] = u'Add other template...'
+        menu_set[k][u'Misc'][u'Misc'] = {
             u'disabled': True,
             u'text': u'Misc formats'
         }
@@ -826,7 +838,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         for f in defaultpaths.get_extensions(defaultpaths.SceneFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[u'scene'][f] = {
+            menu_set[k][u'scene'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
@@ -835,7 +847,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         for f in defaultpaths.get_extensions(defaultpaths.ExportFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[u'export'][f] = {
+            menu_set[k][u'export'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
@@ -844,7 +856,20 @@ class BaseContextMenu(QtWidgets.QMenu):
         for f in defaultpaths.get_extensions(defaultpaths.AdobeFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[u'Adobe'][f] = {
+            menu_set[k][u'Adobe'][f] = {
+                u'icon': pixmap,
+                u'text': f.upper(),
+                u'action': functools.partial(show_widget, f)
+            }
+
+        exts = OpenImageIO.get_string_attribute("extension_list").split(';')
+        exts = [f.split(':')[1].split(',') for f in exts]
+        exts = sorted(list(set([ext for sublist in exts for ext in sublist])))
+
+        for f in exts:
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                f, None, common.MARGIN())
+            menu_set[k][u'OpenImageIO'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
@@ -853,7 +878,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         for f in defaultpaths.get_extensions(defaultpaths.MiscFilter):
             pixmap = images.ImageCache.get_rsc_pixmap(
                 f, None, common.MARGIN())
-            menu_set[u'Misc'][f] = {
+            menu_set[k][u'Misc'][f] = {
                 u'icon': pixmap,
                 u'text': f.upper(),
                 u'action': functools.partial(show_widget, f)
@@ -865,6 +890,8 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_show_addasset_menu(self, menu_set):
         add_pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
+        settings_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'settings', common.SECONDARY_TEXT, common.MARGIN())
 
         @QtCore.Slot()
         def show_widget():
@@ -908,5 +935,13 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'text': u'Add Asset',
             u'action': show_widget
         }
+
+        if self.index.isValid():
+            menu_set[u'asset_properties'] = {
+                u'icon': settings_pixmap,
+                u'text': u'Asset Properties',
+                u'action': self.parent().show_properties_widget
+            }
+        menu_set[u'separator'] = {}
 
         return menu_set

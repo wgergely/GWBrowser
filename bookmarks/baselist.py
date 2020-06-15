@@ -1150,6 +1150,7 @@ class BaseListWidget(QtWidgets.QListView):
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsActive
         self.update(index)
 
+        self.activated.emit(index)
         model.activeChanged.emit(model.active_index())
 
     def deactivate(self, index):
@@ -2365,6 +2366,7 @@ class BaseInlineIconWidget(BaseListWidget):
         finally:
             self.update(index)
 
+    @QtCore.Slot(QtCore.QModelIndex)
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
         if not index.isValid():

@@ -134,8 +134,7 @@ def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
     label.setWordWrap(True)
     row.layout().addWidget(label, 1)
     parent.layout().addWidget(row)
-
-    return label
+    return row
 
 
 class LineEdit(QtWidgets.QLineEdit):

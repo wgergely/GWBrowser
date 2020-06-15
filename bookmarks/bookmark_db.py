@@ -32,14 +32,87 @@ import bookmarks.common as common
 
 
 KEYS = {
-    'data': (u'description', u'notes', u'flags', u'thumbnail_stamp', u'user'),
-    'info': (u'server', u'job', u'root', u'user', u'host', u'created'),
-    'properties': (u'width', u'height', u'framerate', u'prefix', u'startframe', u'duration', u'identifier', u'slacktoken'),
+    u'data': (
+        u'description',
+        u'notes',
+        u'flags',
+        u'thumbnail_stamp',
+        u'user',
+        u'shotgun_id',
+        u'shotgun_name',
+    ),
+    u'info': (
+        u'server',
+        u'job',
+        u'root',
+        u'user',
+        u'host',
+        u'created'
+    ),
+    u'properties': (
+        u'width',
+        u'height',
+        u'framerate',
+        u'prefix',
+        u'startframe',
+        u'duration',
+        u'identifier',
+        u'slacktoken',
+        u'shotgun_domain',
+        u'shotgun_scriptname',
+        u'shotgun_api_key',
+        u'shotgun_id',
+        u'shotgun_name',
+    ),
 }
 """Database table/column structure definition."""
 
 
 DB_CONNECTIONS = {}
+
+
+def get_property(key, server=None, job=None, root=None, asset=None, asset_property=False):
+    import bookmarks.settings as settings
+
+    if not all((server, root, job)):
+        server = settings.ACTIVE['server']
+        job = settings.ACTIVE['job']
+        root = settings.ACTIVE['root']
+
+    if not all((server, root, job)):
+        raise RuntimeError(u'No bookmarks specified.')
+
+    db = get_db(
+        server=server,
+        job=job,
+        root=root
+    )
+
+    if not asset_property:
+        return db.value(1, key, table=u'properties')
+
+    if not asset:
+        asset = settings.ACTIVE['asset']
+    if not asset:
+        raise RuntimeError(u'Asset not specified.')
+
+    source = u'{}/{}/{}/{}'.format(server, job, root, asset)
+    return db.value(source, key, table=u'data')
+
+
+def get_asset_property(key, server=None, job=None, root=None):
+    import bookmarks.settings as settings
+
+    if not all((server, root, job)):
+        server = settings.ACTIVE['server']
+        job = settings.ACTIVE['job']
+        root = settings.ACTIVE['root']
+
+    if not all((server, root, job)):
+        raise RuntimeError(u'No bookmarks specified.')
+
+    db = get_db(server, job, root)
+    return db.value(1, key, table=u'properties')
 
 
 def get_db(server, job, root):
@@ -62,13 +135,13 @@ def get_db(server, job, root):
     """
     if not isinstance(server, unicode):
         raise TypeError(
-            'Expected <type \'unicode\'>, got {}'.format(type(server)))
+            u'Expected <type \'unicode\'>, got {}'.format(type(server)))
     if not isinstance(job, unicode):
         raise TypeError(
-            'Expected <type \'unicode\'>, got {}'.format(type(job)))
+            u'Expected <type \'unicode\'>, got {}'.format(type(job)))
     if not isinstance(root, unicode):
         raise TypeError(
-            'Expected <type \'unicode\'>, got {}'.format(type(root)))
+            u'Expected <type \'unicode\'>, got {}'.format(type(root)))
 
     t = unicode(repr(QtCore.QThread.currentThread()))
     key = (u'/'.join((server, job, root)) + t).lower()
@@ -103,10 +176,7 @@ def get_db(server, job, root):
 
 
 def remove_db(index, server=None, job=None, root=None):
-    """Helper function to return the bookmark database connection associated
-    with an index. We will create the connection if it doesn't exists yet.
-    Connection instances cannot be shared between threads hence we will
-    create each instance per thread.
+    """Helper function to remove a bookmark database instance
 
     Args:
         index (QModelIndex): A valid QModelIndex()
@@ -129,7 +199,7 @@ def remove_db(index, server=None, job=None, root=None):
             DB_CONNECTIONS[k].deleteLater()
             del DB_CONNECTIONS[k]
     except:
-        log.error('Failed to remove BookmarkDB')
+        log.error(u'Failed to remove BookmarkDB')
 
 
 def reset():
@@ -226,9 +296,12 @@ CREATE TABLE IF NOT EXISTS data (
     notes TEXT,
     flags INTEGER DEFAULT 0,
     thumbnail_stamp REAL,
-    user TEXT
+    user TEXT,
+    shotgun_id INTEGER
 );
             """)
+            self._patch_database(_cursor, u'data')
+
             # Single-row ``info`` table
             _cursor.execute("""
 CREATE TABLE IF NOT EXISTS info (
@@ -241,6 +314,8 @@ CREATE TABLE IF NOT EXISTS info (
     created REAL NOT NULL
 );
             """)
+            self._patch_database(_cursor, u'info')
+
             # Adding info data to the ``info`` table
             _cursor.execute("""
             INSERT OR IGNORE INTO info
@@ -256,6 +331,7 @@ CREATE TABLE IF NOT EXISTS info (
                 host=platform.node(),
                 created=time.time(),
             ))
+
             _cursor.execute("""
                 CREATE TABLE IF NOT EXISTS properties (
                     id INTEGER PRIMARY KEY,
@@ -266,10 +342,33 @@ CREATE TABLE IF NOT EXISTS info (
                     startframe REAL,
                     duration REAL,
                     identifier TEXT,
-                    slacktoken TEXT
+                    slacktoken TEXT,
+                    shotgun_domain TEXT,
+                    shotgun_scriptname TEXT,
+                    shotgun_api_key TEXT
+                    shotgun_id INTEGER
                 );
             """)
+            self._patch_database(_cursor, u'properties')
         _cursor.close()
+
+    def _patch_database(self, _cursor, table):
+        """For backwards compatibility, we will ALTER the database any of the
+        required columns are missing. This might happen if we have added new
+        columns to the table definition but the database on the server is
+        running an older version.
+
+        """
+        info = _cursor.execute("""PRAGMA table_info('{}');""".format(table)).fetchall()
+        columns = [c[1] for c in info]
+        missing = list(set(KEYS[table]) - set(columns))
+        for column in missing:
+            try:
+                _cursor.execute('ALTER TABLE {} ADD COLUMN {};'.format(table, column))
+                log.success(u'Added missing column {}'.format(missing))
+            except:
+                log.error(u'Failed to add missing column {}'.format(column))
+                pass # handle the error
 
     def value(self, source, key, table=u'data'):
         """Returns a value from the `bookmark.db`.

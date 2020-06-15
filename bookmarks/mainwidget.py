@@ -41,21 +41,11 @@ def show_window():
     """Shows/reveal the main window if it is not visible."""
     if not _instance:
         return
-
     _instance.showNormal()
     _instance.activateWindow()
-    common.move_widget_to_available_geo(_instance)
 
     w = _instance.window()
     h = w.windowHandle()
-
-    # if h:
-        # common.move_widget_to_available_geo(_instance)
-        # geo = h.screen().availableGeometry()
-        # if _instance.width() > geo.width() or _instance.height() > geo.height():
-        #     o = common.MARGIN()
-        #     _instance.setGeometry(
-        #         geo.marginsRemoved(QtCore.QMargins(o, o, o, o)))
 
 
 class StatusBar(QtWidgets.QStatusBar):
@@ -770,9 +760,9 @@ class MainWidget(QtWidgets.QWidget):
         # Stacked widget navigation
         lc.listChanged.connect(s.setCurrentIndex)
         b.activated.connect(lambda: lc.listChanged.emit(1))
-        b.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(1))
+        # b.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(1))
         a.activated.connect(lambda: lc.listChanged.emit(2))
-        a.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(2))
+        # a.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(2))
 
         a.model().sourceModel().activeChanged.connect(l.model().check_task_folder)
         a.activated.connect(l.model().check_task_folder)

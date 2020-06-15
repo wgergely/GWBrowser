@@ -252,6 +252,21 @@ class TestSQLite(BaseCase):
             data = self.db.value(1, u'slacktoken', table=table)
             self.assertEqual(v, data)
 
+            v = u'http://path.tonowhere.com'
+            self.db.setValue(1, u'shotgun_domain', v, table=table)
+            data = self.db.value(1, u'shotgun_domain', table=table)
+            self.assertEqual(v, data)
+
+            v = u'scriptname'
+            self.db.setValue(1, u'shotgun_scriptname', v, table=table)
+            data = self.db.value(1, u'shotgun_scriptname', table=table)
+            self.assertEqual(v, data)
+
+            v = u'hkksvdvebsdNxjmwydwt3ra*u'
+            self.db.setValue(1, u'shotgun_api_key', v, table=table)
+            data = self.db.value(1, u'shotgun_api_key', table=table)
+            self.assertEqual(v, data)
+
         data = self.db.value(1, u'framerate', table=table)
         self.assertNotEqual(data, None)
 
@@ -268,15 +283,15 @@ class TestBookmarksWidget(BaseCase):
         settings.local_settings.setValue(u'servers', None)
         settings.local_settings.sync()
 
-    def test_open_managebookmarks(self):
-        import bookmarks.managebookmarks as managebookmarks
-        w = managebookmarks.ManageBookmarks()
+    def test_open_addbookmarks(self):
+        import bookmarks.addbookmarks as addbookmarks
+        w = addbookmarks.ManageBookmarks()
 
-    def test_managebookmarks_add_bookmark(self):
-        import bookmarks.managebookmarks as managebookmarks
+    def test_addbookmarks_add_bookmark(self):
+        import bookmarks.addbookmarks as addbookmarks
         import bookmarks.common as common
 
-        w = managebookmarks.ManageBookmarks()
+        w = addbookmarks.ManageBookmarks()
 
         val = u'INVALID_SERVER'
         w.scrollarea.widget().server_editor.add_server_lineeditor.setText(val)
@@ -297,10 +312,10 @@ class TestBookmarksWidget(BaseCase):
         self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
     def test_read_jobs(self):
-        import bookmarks.managebookmarks as managebookmarks
+        import bookmarks.addbookmarks as addbookmarks
         import bookmarks.common as common
 
-        w = managebookmarks.ManageBookmarks()
+        w = addbookmarks.ManageBookmarks()
 
         val = self.server
         w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
