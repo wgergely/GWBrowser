@@ -1230,8 +1230,8 @@ class NameCustomWidget(common_ui.LineEdit):
 
     def __init__(self, parent=None):
         super(NameCustomWidget, self).__init__(parent=parent)
-        self.setPlaceholderText(u'Custom filename...')
-        tip = u'Enter a custom file-name without the extension, eg. "myCharacter_rig".'
+        self.setPlaceholderText(u'Custom name...')
+        tip = u'Enter a custom name, eg. "take1", "house", "foreground"'
         self.setToolTip(tip)
         self.setStatusTip(tip)
 
@@ -1262,7 +1262,7 @@ class ToggleCustomNameWidget(QtWidgets.QCheckBox):
 
     def __init__(self, parent=None):
         super(ToggleCustomNameWidget, self).__init__(
-            u'Use custom name', parent=parent)
+            u'Custom name', parent=parent)
         tip = u'Toggles the custom name display.\nUse it to save files that are not part of the normal pipeline.'
         self.setStatusTip(tip)
         self.setToolTip(tip)
@@ -1393,6 +1393,7 @@ class AddFileWidget(QtWidgets.QDialog):
 
     """
     widgetMoved = QtCore.Signal(QtCore.QPoint)
+    fileSaveRequested = QtCore.Signal(unicode)
 
     def __init__(self, extension, file=None, parent=None):
         super(AddFileWidget, self).__init__(parent=parent)
@@ -1472,6 +1473,7 @@ class AddFileWidget(QtWidgets.QDialog):
         self.name_mode_widget = NameModeWidget(parent=self)
         self.name_prefix_widget = NamePrefixWidget(parent=self)
         self.name_prefix_widget.setFixedWidth(common.MARGIN() * 4.5)
+        self.name_prefix_widget.setDisabled(True)
         self.name_user_widget = NameUserWidget(parent=self)
         self.name_user_widget.setFixedWidth(common.MARGIN() * 4.5)
         self.name_version_widget = NameVersionWidget(parent=self)
@@ -1632,16 +1634,14 @@ class AddFileWidget(QtWidgets.QDialog):
         t.toggled.connect(self.name_mode_widget.setHidden)
         t.toggled.connect(self.name_version_widget.setHidden)
         t.toggled.connect(self.name_user_widget.setHidden)
-        t.toggled.connect(lambda x: self.name_custom_widget.setHidden(not x))
+        # t.toggled.connect(lambda x: self.name_custom_widget.setHidden(not x))
         t.toggled.connect(self.name_custom_widget.shown)
-
-        # self.bookmark_widget.view().model().sourceModel().modelReset.connect(
-        #     self.set_prefix)
 
         self.bookmark_widget.view().selectionModel().currentChanged.connect(
             self.set_prefix)
         self.bookmark_widget.view().model().sourceModel().activeChanged.connect(
             self.set_prefix)
+        self.accepted.connect(lambda: self.fileSaveRequested.emit(self.get_file_path()))
 
     @QtCore.Slot()
     def set_prefix(self, index):
@@ -1762,16 +1762,19 @@ class AddFileWidget(QtWidgets.QDialog):
         _user = _user.baseName()
         user = self.name_user_widget.text()
         user = user if user else _user
+        custom = self.name_custom_widget.text()
+        custom = custom if custom else u'main'
         version = u'{}'.format(self.name_version_widget.text()).zfill(4)
         version = u'v{}'.format(version)
 
         self._file_path = unicode(defaultpaths.FILE_NAME_PATTERN)
         self._file_path = self._file_path.format(
-            folder=folder,
+            folder=folder.lower(),
             prefix=self.name_prefix_widget.text().lower(),
             asset=asset.lower(),
             mode=_mode.lower(),
             user=user.lower(),
+            custom=custom.lower(),
             version=version.lower(),
             ext=self.extension.lower()
         )

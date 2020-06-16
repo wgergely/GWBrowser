@@ -146,6 +146,11 @@ SCENE_FOLDERS = {
         u'default': u'{scene}/block',
         u'description': u'Layout, animatic and blocking scenes'
     },
+    u'layout': {
+        u'value': None,
+        u'default': u'{scene}/layout',
+        u'description': u'Layout, animatic and blocking scenes'
+    },
     u'track': {
         u'value': None,
         u'default': u'{scene}/tracking',
@@ -205,7 +210,7 @@ EXPORT_FOLDERS = {
 """A list of common cache folders and the list of extensions we accept."""
 
 
-FILE_NAME_PATTERN = u'{folder}/{prefix}_{asset}_{mode}_{user}_{version}.{ext}'
+FILE_NAME_PATTERN = u'{folder}/{prefix}_{asset}_{mode}_{custom}_{user}_{version}.{ext}'
 """Used by the file saver to generate a new valid file name."""
 
 
