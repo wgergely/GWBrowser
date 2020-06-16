@@ -26,6 +26,8 @@ class AssetsWidgetContextMenu(basecontextmenu.BaseContextMenu):
         if index.isValid():
             self.add_mode_toggles_menu()
         self.add_separator()
+        self.add_visit_urls_menu()
+        self.add_separator()
         self.add_row_size_menu()
         self.add_separator()
         self.add_set_generate_thumbnails_menu()

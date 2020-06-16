@@ -497,7 +497,8 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
             api_key = bookmark_db.get_property(u'shotgun_api_key')
 
             # Get task data
-            with shotgun.init_sg(domain, script_name, api_key) as sg:
+
+            with shotgun.init_sg(domain, script_name, api_key) as _:
                 data = shotgun.find_tasks(shot_id)
                 users = shotgun.find_users()
             if not data:
@@ -522,8 +523,12 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
                 for user in users:
                     if 'name' in user:
                         self.user_picker.addItem(user['name'], userData=user['id'])
-                    if 'id' in user:
-                        self.user_picker.addItem(unicode(user['id']), userData=user['id'])
+                    elif 'id' in user:
+                        name = 'HumanUser{}'.format(user['id'])
+                        self.user_picker.addItem(name, userData=user['id'])
+                    else:
+                        continue
+
 
                 self.user_picker.blockSignals(False)
                 prev = settings.local_settings.value(u'shotgun/user')

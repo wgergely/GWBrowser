@@ -1701,7 +1701,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.file(rename=file_path)
             cmds.file(force=True, save=True, type=u'mayaAscii')
             fileswidget = self.mainwidget.stackedwidget.widget(2)
-            fileswidget.new_file_added(widget.task_folder(), file_path)
+            fileswidget.new_file_added(file_path)
             return file_path
 
         except Exception as e:
@@ -2111,7 +2111,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 start,
                 end
             )
-            fileswidget.new_file_added(widget.task_folder(), file_path)
+            fileswidget.new_file_added(file_path)
             return file_path
         except Exception as e:
             s = u'Could not export alembic.'

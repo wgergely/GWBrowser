@@ -637,7 +637,6 @@ class FilesTabButton(PaintedTextButton):
             v += u'  ▼'
         return v
 
-
     def paintEvent(self, event):
         """Indicating the visibility of the TaskFolderWidget."""
         if not self.view().isHidden():
@@ -672,12 +671,11 @@ class FilesTabButton(PaintedTextButton):
         """Shows the ``TaskFolderWidget`` widget for browsing."""
         if not self.view():
             return
-
         if self.view().model().rowCount() == 0:
             return
 
         if not self.view().isHidden():
-            self.view().hide()
+            self.view().setHidden(True)
             return
 
         stackedwidget = self.view().altparent.parent().stackedwidget
@@ -691,13 +689,14 @@ class FilesTabButton(PaintedTextButton):
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
         self.view().viewport().setFocus(QtCore.Qt.PopupFocusReason)
 
-        key = stackedwidget.currentWidget().model().sourceModel().task_folder()
+        key = settings.ACTIVE['task_folder']
         if not key:
             return
+        key = key.lower()
 
         for n in xrange(self.view().model().rowCount()):
             index = self.view().model().index(n, 0)
-            if key.lower() == index.data(QtCore.Qt.DisplayRole).lower():
+            if key == index.data(QtCore.Qt.DisplayRole).lower():
                 self.view().selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 self.view().scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)

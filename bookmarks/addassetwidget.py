@@ -73,6 +73,11 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.description_editor = None
         self.shotgun_id_editor = None
         self.shotgun_name_editor = None
+        self.url1_editor = None
+        self.url2_editor = None
+        self.url1_button = None
+        self.url2_button = None
+
         self.shotgun_button = None
         self.save_button = None
 
@@ -84,18 +89,31 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.templates_widget.templateCreated.connect(self.save)
         self.templates_widget.templateCreated.connect(self.popup)
         self.shotgun_button.clicked.connect(self.find_shotgun_id)
+        self.url1_button.clicked.connect(lambda: self.visit_url(1))
+        self.url2_button.clicked.connect(lambda: self.visit_url(2))
 
         self.save_button.clicked.connect(self.save)
         self.save_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
 
+    @QtCore.Slot(int)
+    def visit_url(self, idx):
+        url = getattr(self, 'url{}_editor'.format(idx)).text()
+        if not url:
+            return
+        QtGui.QDesktopServices.openUrl(url)
+
+
     def _create_UI(self):
         def _add_title(icon, label, parent, color=None):
             row = common_ui.add_row(u'', parent=parent)
-            _label = QtWidgets.QLabel(parent=self)
-            pixmap = images.ImageCache.get_rsc_pixmap(icon, color, h)
-            _label.setPixmap(pixmap)
-            row.layout().addWidget(_label, 0)
+            if icon:
+                _label = QtWidgets.QLabel(parent=self)
+                pixmap = images.ImageCache.get_rsc_pixmap(icon, color, h)
+                _label.setPixmap(pixmap)
+                row.layout().addWidget(_label, 0)
+            else:
+                row.layout().addSpacing(common.MARGIN())
             label = common_ui.PaintedLabel(
                 label,
                 size=common.MEDIUM_FONT_SIZE(),
@@ -103,7 +121,6 @@ class AddAssetWidget(QtWidgets.QDialog):
             )
             row.layout().addWidget(label, 0)
             row.layout().addStretch(1)
-            parent.layout().addSpacing(o * 0.5)
 
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
@@ -121,8 +138,18 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.shotgun_id_editor.setValidator(numvalidator)
         self.shotgun_name_editor = common_ui.LineEdit(parent=self)
         self.shotgun_name_editor.setPlaceholderText(u'asset name...')
+        self.url1_editor = common_ui.LineEdit(parent=self)
+        self.url1_editor.setPlaceholderText(u'https://mycustomlink1.com...')
+        self.url2_editor = common_ui.LineEdit(parent=self)
+        self.url2_editor.setPlaceholderText(u'https://mycustomlink2.com...')
+
         self.shotgun_button = common_ui.PaintedButton(u'Find Shotgun ID and Name')
         self.shotgun_button.setFixedHeight(h * 0.7)
+        self.url1_button = common_ui.PaintedButton(u'Visit')
+        self.url1_button.setFixedHeight(h * 0.7)
+        self.url2_button = common_ui.PaintedButton(u'Visit')
+        self.url2_button.setFixedHeight(h * 0.7)
+
         self.save_button = common_ui.ClickableIconButton(
             u'check',
             (common.ADD, common.ADD),
@@ -190,6 +217,15 @@ class AddAssetWidget(QtWidgets.QDialog):
         row = common_ui.add_row(u'Shotgun Name', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_name_editor, 0)
         row.layout().addWidget(self.shotgun_button, 0)
+
+        grp = common_ui.get_group(parent=self)
+        _add_title(None, u'Custom URLs', grp)
+        row = common_ui.add_row(u'URL1', parent=grp, height=h)
+        row.layout().addWidget(self.url1_editor, 0)
+        row.layout().addWidget(self.url1_button, 0)
+        row = common_ui.add_row(u'URL2', parent=grp, height=h)
+        row.layout().addWidget(self.url2_editor, 0)
+        row.layout().addWidget(self.url2_button, 0)
 
         self.layout().addStretch(1)
 
@@ -291,6 +327,14 @@ class AddAssetWidget(QtWidgets.QDialog):
         if shotgun_name:
             self.shotgun_name_editor.setText(shotgun_name)
 
+        url1 = db.value(source, u'url1')
+        if url1:
+            self.url1_editor.setText(url1)
+
+        url2 = db.value(source, u'url2')
+        if url2:
+            self.url2_editor.setText(url2)
+
     @QtCore.Slot()
     def save(self):
         """Save the thumbnail, description and shotgun properties."""
@@ -318,6 +362,12 @@ class AddAssetWidget(QtWidgets.QDialog):
 
         shotgun_name = self.shotgun_name_editor.text()
         db.setValue(source, u'shotgun_name', shotgun_name)
+
+        url1 = self.url1_editor.text()
+        db.setValue(source, u'url1', url1)
+
+        url2 = self.url2_editor.text()
+        db.setValue(source, u'url2', url2)
 
         if self._update:
             self.descriptionUpdated.emit(self.description_editor.text())

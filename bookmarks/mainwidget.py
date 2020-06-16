@@ -766,7 +766,7 @@ class MainWidget(QtWidgets.QWidget):
 
         a.model().sourceModel().activeChanged.connect(l.model().check_task_folder)
         a.activated.connect(l.model().check_task_folder)
-        lc.files_button.clicked.connect(l.model().check_task_folder)
+        lc.listChanged.connect(l.model().check_task_folder)
 
         # Control bar connections
         lc.taskFolderChanged.connect(f.model().sourceModel().taskFolderChanged)

@@ -30,7 +30,7 @@ class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
         self.add_separator()
         self.add_collapse_sequence_menu()
         self.add_separator()
-        self.add_external_applications_menu()
+        self.add_services_menu()
         #
         self.add_separator()
         if index.isValid():
@@ -126,7 +126,10 @@ class FilesModel(baselist.BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        task_folder = self.task_folder().lower()
+        task_folder = self.task_folder()
+        if not task_folder:
+            return
+        task_folder = task_folder.lower()
 
         SEQUENCE_DATA = common.DataDict()
         MODEL_DATA = common.DataDict({
@@ -483,10 +486,13 @@ class DragPixmap(QtWidgets.QWidget):
 
 class FilesWidget(baselist.ThreadedBaseWidget):
     """The view used to display the contents of a ``FilesModel`` instance.
+
     """
     SourceModel = FilesModel
     Delegate = delegate.FilesWidgetDelegate
     ContextMenu = FilesWidgetContextMenu
+
+    newFileAdded = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
         super(FilesWidget, self).__init__(parent=parent)
@@ -497,35 +503,62 @@ class FilesWidget(baselist.ThreadedBaseWidget):
         self.setDragEnabled(True)
         self.viewport().setAcceptDrops(True)
 
+        self.newFileAdded.connect(self.new_file_added)
+
     @QtCore.Slot(unicode)
-    @QtCore.Slot(unicode)
-    def new_file_added(self, task_folder, file_path):
+    def new_file_added(self, file_path):
         """Slot to be called when a new file has been added and
         we want to show.
 
         """
-        if not task_folder:
-            return
         if not QtCore.QFileInfo(file_path).exists():
             return
 
-        # Setting the task folder
-        self.model().sourceModel().taskFolderChanged.emit(task_folder)
-        # And reloading the model...
+        server = settings.ACTIVE['server'].lower()
+        job = settings.ACTIVE['job'].lower()
+        root = settings.ACTIVE['root'].lower()
+        asset = settings.ACTIVE['asset'].lower()
+
+        path = file_path.replace(u'\\', u'/').lower()
+        if path.startswith(server):
+            path = path[len(server):].lstrip(u'/')
+        else:
+            return
+        if path.startswith(job):
+            path = path[len(job):].lstrip(u'/')
+        else:
+            return
+        if path.startswith(root):
+            path = path[len(root):].lstrip(u'/')
+        else:
+            return
+        if path.startswith(asset):
+            path = path[len(asset):].lstrip(u'/')
+        else:
+            return
+
+        task_folder = path.split(u'/')[0]
+
+        if task_folder != settings.ACTIVE[u'task_folder'].lower():
+            self.model().sourceModel().taskFolderChanged.emit(task_folder)
         self.model().sourceModel().modelDataResetRequested.emit()
 
+        if self.model().sourceModel().data_type() == common.SequenceItem:
+            file_path = common.proxy_path(file_path).lower()
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
-            path = index.data(QtCore.Qt.StatusTipRole)
-            path = common.get_sequence_endpath(path)
-            if path.lower() == file_path:
+            _file_path = index.data(QtCore.Qt.StatusTipRole)
+            if self.model().sourceModel().data_type() == common.SequenceItem:
+                _file_path = common.proxy_path(_file_path).lower()
+
+            if _file_path == file_path:
                 self.scrollTo(
                     index,
                     QtWidgets.QAbstractItemView.PositionAtCenter)
                 self.selectionModel().setCurrentIndex(
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect)
-                break
+                return
 
     def set_model(self, *args, **kwargs):
         """Extends the subclass's signal connections.

@@ -121,7 +121,6 @@ def add_shot_version(
     path_to_movie,
     path_to_frames,
     user,
-    publish_id=None
 ):
     """Used to add a new reviable version associated with a shot and task.
 
@@ -148,6 +147,87 @@ def add_shot_version(
         'user': {'type': 'HumanUser', 'id': int(user)}
     }
     # 'user': {'type': 'HumanUser', 'id': 165} }
+    try:
+        entity = sg.create('Version', data)
+        log.success(u'Version successfully created.')
+    except Exception as e:
+        s = u'Failed to create new version.'
+        common_ui.ErrorBox(s, unicode(e)).open()
+        log.error(s)
+        raise
+
+    def _upload_movie(version_id):
+        return sg.upload(
+            'Version',
+            version_id,
+            path_to_movie.replace(u'\\', u'/'),
+            field_name='sg_uploaded_movie',
+            display_name=QtCore.QFileInfo(path_to_movie).fileName(),
+        )
+
+    attachment_id = None
+    if QtCore.QFileInfo(path_to_movie).exists():
+        try:
+            attachment_id = _upload_movie(entity['id'])
+            common_ui.SuccessBox(u'Movie successfully uploaded.').open()
+            log.success(u'Movie successfully uploaded.')
+        except:
+            try:
+                attachment_id = _upload_movie(entity['id'])
+            except Exception as e:
+                s = u'Failed to upload attachment.'
+                common_ui.ErrorBox(s, unicode(e)).open()
+                log.error(s)
+                raise
+
+    feedback = u'The version id is {}'.format(entity['id'])
+    if attachment_id:
+        feedback += '\nSuccesfully uploaded attachment id {}'.format(
+            attachment_id)
+    common_ui.OkBox(
+        u'Version succesfully added.',
+        u'The version id is {}'.format(entity['id'])
+    ).open()
+
+    return entity
+
+@sg_connection
+def publish_shot_file(
+    sg,
+    project_id,
+    shot_id,
+    task_id,
+    code,
+    description,
+    path_to_movie,
+    path_to_frames,
+    user,
+):
+    """Used to add a new reviable version associated with a shot and task.
+
+    The reviewable should in an ideal world be linked with a PublishFile
+    entity.
+    """
+
+    if project_id is None:
+        raise RuntimeError('Shotgun Project ID is not set.')
+    if shot_id is None:
+        raise RuntimeError('Shotgun Shot ID is not set.')
+    if task_id is None:
+        raise RuntimeError('Shotgun Task ID is not set.')
+
+    data = {
+        'project': {'type': 'Project', 'id': int(project_id)},
+        'code': code,
+        'description': description,
+        'sg_path_to_movie': path_to_movie,
+        'sg_path_to_frames': path_to_frames,
+        'sg_status_list': 'ip',
+        'entity': {'type': 'Shot', 'id': int(shot_id)},
+        'sg_task': {'type': 'Task', 'id': int(task_id)},
+        'user': {'type': 'HumanUser', 'id': int(user)}
+    }
+
     try:
         entity = sg.create('Version', data)
         log.success(u'Version successfully created.')
