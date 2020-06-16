@@ -341,8 +341,8 @@ class MessageBox(QtWidgets.QDialog):
     """Informative message box used for notifying the user of an event.
 
     """
-    primary_color = QtGui.QColor(50, 50, 190, 255)
-    secondary_color = common.FAVOURITE
+    primary_color = QtGui.QColor(50, 50, 190, 180)
+    secondary_color = common.FAVOURITE.lighter(120)
     icon = u'icon_bw'
 
     def __init__(self, short_text, long_text, parent=None):
@@ -375,11 +375,11 @@ class MessageBox(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Preferred
         )
         self._create_UI()
-
+#
         self.setStyleSheet("""
 QWidget {{
     color: rgba({TEXT});
-    background-color: rgba({BG});
+    background-color: rgba(0,0,0,0);
     font-family: "{FAMILY}";
     font-size: {SIZE}px;
 }}
@@ -387,8 +387,8 @@ QWidget {{
             SIZE=common.LARGE_FONT_SIZE(),
             FAMILY=common.font_db.primary_font(
                 common.MEDIUM_FONT_SIZE())[0].family(),
-            TEXT=common.rgb(self.secondary_color.darker(150)),
-            BG=common.rgb(self.secondary_color)))
+            TEXT=common.rgb(self.secondary_color.darker(255)))
+        )
 
         self.ok_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
@@ -410,7 +410,7 @@ QWidget {{
             return row
 
         QtWidgets.QHBoxLayout(self)
-        o = 0
+        o = common.MARGIN() * 0.5
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
@@ -436,9 +436,8 @@ QWidget {{
             QtWidgets.QSizePolicy.Expanding,
         )
         label.setStyleSheet(
-            u'padding: {}px; background-color: rgba({});'.format(
-                common.MEDIUM_FONT_SIZE(),
-                common.rgb(self.primary_color)
+            u'padding: {}px;'.format(
+                common.MARGIN(),
             )
         )
 
@@ -446,45 +445,40 @@ QWidget {{
 
         short_text_row.layout().addWidget(self.short_text_label)
         self.short_text_label.setStyleSheet(
-            u'padding:{m}px {s}px {m}px {s}px; background-color: rgba({c}); font-size: {s}px;'.format(
+            u'padding:{m}px {s}px {m}px {s}px; font-size: {s}px;'.format(
                 m=common.MARGIN(),
-                c=common.rgb(self.secondary_color.lighter(125)),
-                s=common.MEDIUM_FONT_SIZE()
+                s=common.LARGE_FONT_SIZE()
             ))
         self.short_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
         long_text_row.layout().addWidget(self.long_text_label)
         self.long_text_label.setStyleSheet(
-            u'padding:{m}px;background-color: rgba({c}); font-size:{s}px;'.format(
+            u'padding:{m}px; font-size:{s}px;'.format(
                 m=common.MARGIN(),
-                c=common.rgb(self.secondary_color),
                 s=common.SMALL_FONT_SIZE()
             ))
         self.long_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
         buttons_row = get_row(parent=columns)
-        buttons_row.setStyleSheet(
-            u'background-color: rgba({});'.format(common.rgb(self.secondary_color)))
         self.ok_button = QtWidgets.QPushButton(u'Ok', parent=self)
-        buttons_row.layout().addWidget(self.ok_button)
+        buttons_row.layout().addWidget(self.ok_button, 1)
 
         self.ok_button.setStyleSheet(
             """
         QPushButton {{
             font-size: {px}px;
-            color: rgba(255,255,255,150);
+            color: rgba(255,255,255,200);
             border-radius: {i}px;
-            border: {s}px solid {c};
             margin: {i}px;
             padding: {i}px;
             background-color: rgba({p});
         }}
         QPushButton:hover {{
-            color: white;
+            color: rgba(255,255,255,230);
             background-color: rgba({pl});
         }}
         QPushButton:pressed {{
-            color: rgba(255,255,255,150);
+            color: rgba(255,255,255,180);
             background-color: rgba({pd});
         }}
         """.format(
@@ -508,10 +502,14 @@ QWidget {{
             painter = QtGui.QPainter()
             painter.begin(self)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setPen(QtCore.Qt.NoPen)
+            c = QtGui.QColor(self.secondary_color).darker(250)
+            # c.setAlpha(255)
+            pen = QtGui.QPen(c)
+            o = common.INDICATOR_WIDTH()
+            pen.setWidth(o * .66)
+            painter.setPen(pen)
             painter.setBrush(self.secondary_color)
-            o = common.MARGIN() * 0.5
-            painter.drawRect(self.rect())
+            painter.drawRoundedRect(self.rect().adjusted(o, o, -o, -o), o, o)
             painter.end()
             return True
         return False
@@ -521,7 +519,7 @@ class ErrorBox(MessageBox):
     """Informative message box used for notifying the user of an error.
 
     """
-    primary_color = QtGui.QColor(190, 50, 50, 255)
+    primary_color = QtGui.QColor(190, 50, 50, 180)
     secondary_color = common.REMOVE
     icon = u'close'
 
@@ -533,8 +531,8 @@ class OkBox(MessageBox):
     """Informative message box used for notifying the user of success.
 
     """
-    primary_color = QtGui.QColor(70, 160, 100, 255)
-    secondary_color = QtGui.QColor(70, 180, 130, 255)  # 90, 200, 155)
+    primary_color = QtGui.QColor(80, 150, 100, 180)
+    secondary_color = QtGui.QColor(110, 190, 160, 255)  # 90, 200, 155)
     icon = u'check'
 
     def __init__(self, *args, **kwargs):
