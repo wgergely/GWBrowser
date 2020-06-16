@@ -11,6 +11,8 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.log as log
 import bookmarks.common as common
+import bookmarks.common_ui as common_ui
+import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.defaultpaths as defaultpaths
@@ -254,7 +256,74 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_external_applications_menu(self, menu_set):
+    def add_visit_urls_menu(self, menu_set):
+        if not self.index.isValid():
+            return menu_set
+        if not self.index.data(QtCore.Qt.StatusTipRole):
+            return menu_set
+
+        @QtCore.Slot()
+        def show_on_shotgun():
+            sg_id = bookmark_db.get_property(
+                'shotgun_id',
+                asset_property=True,
+                asset=self.index.data(common.ParentPathRole)[3]
+            )
+            domain = bookmark_db.get_property(u'shotgun_domain')
+            if domain is None:
+                common_ui.MessageBox(
+                    u'The bookmark is not linked to Shotgun.',
+                    u'Open the bookmark properties to link the project with Shotgun.'
+                ).open()
+                return
+
+            if sg_id is None:
+                common_ui.MessageBox(
+                    u'The asset is not linked to Shotgun.',
+                    u'Open the asset properties to link to a Shotgun Shot.'
+                ).open()
+                return
+            url = u'{}/detail/Shot/{}'.format(domain, sg_id)
+            url = QtCore.QUrl(url)
+            QtGui.QDesktopServices.openUrl(url)
+
+        @QtCore.Slot()
+        def show_url(idx):
+            url = bookmark_db.get_property(
+                'url{}'.format(idx),
+                asset_property=True,
+                asset=self.index.data(common.ParentPathRole)[3]
+            )
+
+            if not url:
+                common_ui.MessageBox(
+                    u'The url is not set.',
+                    u'Open the asset properties to add a custom url.'
+                ).open()
+                return
+
+            QtGui.QDesktopServices.openUrl(url)
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
+
+        k = 'Visit website...'
+        menu_set[k] = collections.OrderedDict()
+        menu_set[k][u'Visit Shot on Shotgun...'] = {
+            u'icon': pixmap,
+            u'action': show_on_shotgun
+        }
+        menu_set[k][u'Visit URL1'] = {
+            u'action': lambda: show_url(1)
+        }
+        menu_set[k][u'Visit URL2'] = {
+            u'action': lambda: show_url(2)
+        }
+
+        return menu_set
+
+    @contextmenu
+    def add_services_menu(self, menu_set):
         """Creates a menu containing"""
         if not self.index.isValid():
             return menu_set
@@ -263,8 +332,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         k = 'Services'
         menu_set[k] = collections.OrderedDict()
-        path = common.get_sequence_startpath(
-        self.index.data(QtCore.Qt.StatusTipRole))
+        path = common.get_sequence_startpath(self.index.data(QtCore.Qt.StatusTipRole))
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
@@ -272,6 +340,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': pixmap,
             u'action': lambda: common.push_to_rv(path)
         }
+
 
         @QtCore.Slot()
         def show_add_shot_task_widget():
@@ -640,6 +709,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_manage_bookmarks_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
+        settings_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'settings', common.SECONDARY_TEXT, common.MARGIN())
+
         menu_set[u'Add bookmark'] = {
             u'text': u'Add bookmark',
             u'icon': pixmap,
@@ -649,6 +721,13 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'text': u'Prune bookmarks',
             u'action': settings.local_settings.prune_bookmarks
         }
+        if self.index.isValid():
+            menu_set[u'bookmark_properties'] = {
+                u'icon': settings_pixmap,
+                u'text': u'Bookmark Properties',
+                u'action': self.parent().show_properties_widget
+            }
+        menu_set[u'separator'] = {}
         return menu_set
 
     @contextmenu
