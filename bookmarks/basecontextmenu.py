@@ -259,7 +259,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         if not self.index.isValid():
             return menu_set
         if not self.index.data(QtCore.Qt.StatusTipRole):
-            return
+            return menu_set
 
         k = 'Services'
         menu_set[k] = collections.OrderedDict()
@@ -779,14 +779,17 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         @QtCore.Slot(unicode)
         def accepted(source):
-            open(os.path.normpath(source), 'a')
+            """Create an empty, placeholder file."""
+            with open(os.path.normpath(source), 'a') as f:
+                f.write('Bookmarks template file.')
 
         @QtCore.Slot(unicode)
         def show_widget(ext):
             import bookmarks.addfilewidget as addfilewidget
-            widget = addfilewidget.AddFileWidget(ext, parent=self.parent())
-            widget.accepted.connect(lambda: accepted(widget.get_file_path()))
-            res = widget.open()
+            widget = addfilewidget.AddFileWidget(ext)
+            widget.fileSaveRequested.connect(accepted)
+            widget.fileSaveRequested.connect(self.parent().new_file_added)
+            widget.open()
 
         menu_set[u'separator1'] = {}
 
