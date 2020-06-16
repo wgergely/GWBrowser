@@ -40,6 +40,8 @@ KEYS = {
         u'user',
         u'shotgun_id',
         u'shotgun_name',
+        u'url1',
+        u'url2',
     ),
     u'info': (
         u'server',
@@ -297,7 +299,10 @@ CREATE TABLE IF NOT EXISTS data (
     flags INTEGER DEFAULT 0,
     thumbnail_stamp REAL,
     user TEXT,
-    shotgun_id INTEGER
+    shotgun_id INTEGER,
+    shotgun_name TEXT,
+    url1 TEXT,
+    url2 TEXT
 );
             """)
             self._patch_database(_cursor, u'data')
