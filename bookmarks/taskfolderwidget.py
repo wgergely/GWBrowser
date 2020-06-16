@@ -27,12 +27,23 @@ import bookmarks.threads as threads
 import bookmarks.defaultpaths as defaultpaths
 
 
+
+MONITOR = QtCore.QFileSystemWatcher()
+
+
+def reset_monitor():
+    MONITOR.removePaths(MONITOR.files())
+    MONITOR.removePaths(MONITOR.directories())
+
+
+
 class TaskFolderContextMenu(BaseContextMenu):
     """The context menu associated with the TaskFolderWidget."""
 
     def __init__(self, index, parent=None):
         super(TaskFolderContextMenu, self).__init__(index, parent=parent)
         self.add_reveal_item_menu()
+        self.add_copy_menu()
 
 
 class TaskFolderWidgetDelegate(BaseDelegate):
@@ -164,6 +175,9 @@ class TaskFolderModel(BaseModel):
         super(TaskFolderModel, self).__init__(parent=parent)
         self.modelDataResetRequested.connect(self.__resetdata__)
 
+        MONITOR.fileChanged.connect(self.__resetdata__)
+        MONITOR.directoryChanged.connect(self.__resetdata__)
+
     def initialise_threads(self):
         """Starts and connects the threads."""
         @QtCore.Slot(QtCore.QThread)
@@ -214,6 +228,8 @@ class TaskFolderModel(BaseModel):
     @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
+        reset_monitor()
+
         self.INTERNAL_MODEL_DATA[0] = common.DataDict({
             common.FileItem: common.DataDict(),
             common.SequenceItem: common.DataDict()
@@ -240,6 +256,7 @@ class TaskFolderModel(BaseModel):
         default_thumbnail = default_thumbnail.toImage()
 
         parent_path = u'/'.join(self.parent_path)
+        MONITOR.addPath(parent_path)
         entries = sorted(
             ([f for f in _scandir.scandir(parent_path)]), key=lambda x: x.name)
 
