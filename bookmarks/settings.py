@@ -156,6 +156,9 @@ class LocalSettings(QtCore.QSettings):
 
         t = super(LocalSettings, self).value(k  + u'_type')
         v = super(LocalSettings, self).value(k)
+        if v is None:
+            return
+
         if t == u'NoneType':
             v = None
         elif t == u'bool':
