@@ -935,15 +935,29 @@ class ScreenCapture(QtWidgets.QDialog):
 
         """
         app = QtWidgets.QApplication.instance()
+        geo = app.primaryScreen().geometry()
+        x = []
+        y = []
+        w = 0
+        h = 0
+
         try:
-            workspace_rect = QtCore.QRect()
             for screen in app.screens():
-                workspace_rect = workspace_rect.united(
-                    screen.availableGeometry())
-            self.setGeometry(workspace_rect)
+                g = screen.geometry()
+                x.append(g.topLeft().x())
+                y.append(g.topLeft().y())
+                w += g.width()
+                h += g.height()
+            topleft = QtCore.QPoint(
+                min(x),
+                min(y)
+            )
+            size = QtCore.QSize(w - min(x), h - min(y))
+            geo = QtCore.QRect(topleft, size)
         except:
-            rect = app.primaryScreen().availableGeometry()
-            self.setGeometry(rect)
+            pass
+
+        self.setGeometry(geo)
 
     @QtCore.Slot()
     def capture(self):
@@ -955,18 +969,16 @@ class ScreenCapture(QtWidgets.QDialog):
 
         """
         app = QtWidgets.QApplication.instance()
-        if not app:
-            return
-
-        screen = app.screenAt(self._capture_rect.center())
+        screen = app.screenAt(self._capture_rect.topLeft())
         if not screen:
             log.error(u'Unable to find screen.')
             return
 
+        geo = screen.geometry()
         pixmap = screen.grabWindow(
-            app.screens().index(screen),
-            self._capture_rect.x(),
-            self._capture_rect.y(),
+            0,
+            self._capture_rect.x() - geo.x(),
+            self._capture_rect.y() - geo.y(),
             self._capture_rect.width(),
             self._capture_rect.height()
         )
@@ -1030,7 +1042,7 @@ class ScreenCapture(QtWidgets.QDialog):
         # tool region accept mouse events.
         painter.setBrush(QtGui.QColor(0, 0, 0, 255))
         painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(event.rect())
+        painter.drawRect(self.rect())
 
         # Clear the capture area
         if click_pos is not None:
