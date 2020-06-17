@@ -347,6 +347,12 @@ class ScrollArea(QtWidgets.QScrollArea):
 
         self.suggest_prefix_button.clicked.connect(self.suggest_prefix)
 
+    def get_current_from_local_settings(self):
+        for k in bookmark_db.KEYS[u'properties']:
+            _k = self.preference_key(k)
+            v = settings.local_settings.value(_k)
+            getattr(self, k + '_editor').textEdited.emit(v)
+
     def save_current_to_local_settings(self):
         for k in bookmark_db.KEYS[u'properties']:
             _k = self.preference_key(k)
@@ -367,11 +373,11 @@ class ScrollArea(QtWidgets.QScrollArea):
     def preference_key(self, name):
         return u'bookmark_properties_editor/{}'.format(name)
 
-    def init_database_values(self, compare=False):
-        """Load the current settings from the database and apply them to the UI
-        controls.
+    def init_database_values(self, root=None, compare=False):
+        """Load the properties from the database and apply them to the UI.
 
         When compare is True, we only load values from the database.
+        Loading from an adjasent bookmark can done by providing a custom 'root'.
 
         """
         def set_saved(k):
@@ -383,13 +389,15 @@ class ScrollArea(QtWidgets.QScrollArea):
             return getattr(self, k + u'_editor').setText(unicode(v) if v else u'')
 
         def emit_text(k):
-            getattr(self, k + u'_editor').textEdited.emit(getattr(self,
-                                                                  k + u'_editor').text())
+            getattr(self, k + u'_editor').textEdited.emit(
+                getattr(self, k + u'_editor').text())
 
+        if root is None:
+            root = self.root
         db = bookmark_db.get_db(
             self.server,
             self.job,
-            self.root
+            root
         )
 
         d = {}
@@ -402,11 +410,11 @@ class ScrollArea(QtWidgets.QScrollArea):
                     emit_text(k)
             except Exception as e:
                 common_ui.ErrorBox(
-                    u'Could not save the properties.',
+                    u'Could not load the properties.',
                     u'There seems to be an error with the database:\n{}'.format(
                         e),
                 ).open()
-                log.error(u'Error saving properties to the database')
+                log.error(u'Error loading properties from the database')
                 raise
 
         return d
@@ -592,7 +600,7 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         title_label = common_ui.PaintedLabel(
             title_text, size=common.LARGE_FONT_SIZE())
         load_label = common_ui.PaintedLabel(
-            u'Load settings:', size=common.MEDIUM_FONT_SIZE())
+            u'Load settings:  ', size=common.MEDIUM_FONT_SIZE())
 
         grp = common_ui.get_group(parent=self)
         grp.layout().setContentsMargins(o,o,o,o)
@@ -614,17 +622,28 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         self.save_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
 
+        self.load_combobox.activated.connect(self.load_from_previous)
+
+    def load_from_previous(self, idx):
+        data = self.load_combobox.itemData(idx)
+        if data == u'Select...':
+            return
+        if data == u'Last used':
+            self.scrollarea.get_current_from_local_settings()
+            return
+        self.scrollarea.init_database_values(root=data)
+
     def init_load_combobox(self):
         bookmarks = settings.local_settings.bookmarks()
         b = (self.server + u'/' + self.job).lower()
         ks = [f for f in bookmarks if b in f.lower()]
 
-        self.load_combobox.addItem(u'Select...', userData=None)
-        self.load_combobox.addItem(u'Last used', userData=None)
+        self.load_combobox.addItem(u'Select...', userData=u'Select...')
+        self.load_combobox.addItem(u'Last used', userData=u'Last used')
         for k in ks:
             if k == (b + u'/' + self.root).lower():
                 continue
-            self.load_combobox.addItem(k, userData=None)
+            self.load_combobox.addItem(k, userData=bookmarks[k]['root'])
 
     @QtCore.Slot()
     def needs_saving(self):
@@ -685,7 +704,6 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         rect = self.frameGeometry()
         rect.moveCenter(r.center())
         self.move(rect.topLeft())
-
 
     def hideEvent(self, event):
         self.check_status_timer.stop()
