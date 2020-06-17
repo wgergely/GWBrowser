@@ -54,6 +54,7 @@ cmds.sets(meshes, name=u'testMesh_geo_set')
 cmds.sets([], name=u'emptyTestMesh_geo_set')
 
 
+common.STANDALONE = False
 w = MayaBrowserButton()
 w.show()
 
