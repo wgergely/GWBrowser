@@ -1453,3 +1453,14 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def sizeHint(self, option, index):
         return self.parent().model().sourceModel().ROW_SIZE
+
+
+class FavouritesWidgetDelegate(FilesWidgetDelegate):
+
+    def get_paint_arguments(self, *args, **kwargs):
+        args = super(FavouritesWidgetDelegate, self).get_paint_arguments(*args, **kwargs)
+        rects = args[0].copy()
+        rects[FavouriteRect] = QtCore.QRect()
+        args = list(args)
+        args[0] = rects
+        return tuple(args)

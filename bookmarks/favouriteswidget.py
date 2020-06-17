@@ -10,7 +10,7 @@ import bookmarks.threads as threads
 import bookmarks.settings as settings
 
 from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.delegate import FilesWidgetDelegate
+from bookmarks.delegate import FavouritesWidgetDelegate
 from bookmarks.fileswidget import FilesModel
 from bookmarks.fileswidget import FilesWidget
 import _scandir as _scandir
@@ -66,7 +66,7 @@ class FavouritesModel(FilesModel):
         for k in favourites:
             file_info = QtCore.QFileInfo(k)
             _path = file_info.path()
-            
+
             if not QtCore.QFileInfo(_path).exists():
                 continue
 
@@ -125,7 +125,7 @@ class DropIndicatorWidget(QtWidgets.QWidget):
 class FavouritesWidget(FilesWidget):
     """The widget responsible for showing all the items marked as favourites."""
     SourceModel = FavouritesModel
-    Delegate = FilesWidgetDelegate
+    Delegate = FavouritesWidgetDelegate
     ContextMenu = FavouritesWidgetContextMenu
 
     def __init__(self, parent=None):
@@ -136,6 +136,12 @@ class FavouritesWidget(FilesWidget):
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.viewport().setAcceptDrops(True)
         self.setDropIndicatorShown(True)
+
+        self.reset_timer = QtCore.QTimer(parent=self)
+        self.reset_timer.setInterval(10)
+        self.reset_timer.setSingleShot(True)
+        self.reset_timer.timeout.connect(
+            self.model().sourceModel().modelDataResetRequested)
 
     def set_model(self, *args):
         super(FavouritesWidget, self).set_model(*args)
@@ -155,6 +161,7 @@ class FavouritesWidget(FilesWidget):
     def toggle_item_flag(self, index, flag, state=None):
         super(FavouritesWidget, self).toggle_item_flag(
             index, common.MarkedAsFavourite, state=False)
+        self.reset_timer.start()
         # super(FavouritesWidget, self).toggle_item_flag(
         #     index, common.MarkedAsArchived, state=True)
 
@@ -193,9 +200,23 @@ class FavouritesWidget(FilesWidget):
             path = file_info.filePath().lower()
 
             if file_info.suffix().lower() == u'favourites':
+                # This is a saved favourite template file
                 common.import_favourites(source=path)
             else:
-                k = common.proxy_path(path).lower()
+                # Here we should check if the dropped item is sequence.
+                seq = common.get_sequence(path)
+                if not seq:
+                    k = path.lower()
+                else:
+                    frames = []
+                    for entry in _scandir.scandir(file_info.dir().path()):
+                        p = entry.path.replace('\\', '/').lower()
+                        if seq.group(1) in p and seq.group(3) in p:
+                            frames.append(p)
+                    if len(frames) > 1:
+                        k = common.proxy_path(path).lower()
+                    else:
+                        k = path.lower()
             favourites.append(k)
         settings.local_settings.setValue(
             u'favourites', sorted(list(set(favourites))))

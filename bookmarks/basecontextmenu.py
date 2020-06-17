@@ -894,17 +894,15 @@ class BaseContextMenu(QtWidgets.QMenu):
         save_icon = images.ImageCache.get_rsc_pixmap(
             u'favourite', common.ADD, common.MARGIN())
         remove_icon = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, common.MARGIN())
+            u'remove', common.SECONDARY_TEXT, common.MARGIN())
 
         menu_set[u'export_favourites'] = {
             u'text': u'Save favourites...',
-            u'icon': save_icon,
             u'checkable': False,
             u'action': common.export_favourites
         }
         menu_set[u'import_favourites'] = {
             u'text': u'Import favourites...',
-            u'icon': add_icon,
             u'checkable': False,
             u'action': (common.import_favourites, self.parent().favouritesChanged.emit)
         }
