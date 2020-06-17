@@ -2815,7 +2815,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
             idx = 1
 
         if idx <= 3:
-            k = u'widget/mode'
+            k = u'widget/current_tab'
             settings.local_settings.setValue(k, idx)
 
         super(StackedWidget, self).setCurrentIndex(idx)

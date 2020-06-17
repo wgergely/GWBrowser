@@ -391,7 +391,7 @@ class MainWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.favouriteswidget)
 
         # Setting the tab now before we do any more initialisation
-        idx = settings.local_settings.value(u'widget/mode')
+        idx = settings.local_settings.value(u'widget/current_tab')
         idx = 0 if idx is None or False else idx
         idx = 0 if idx < 0 else idx
         idx = 3 if idx > 3 else idx
