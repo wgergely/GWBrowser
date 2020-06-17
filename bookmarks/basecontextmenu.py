@@ -188,7 +188,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_window_menu(self, menu_set):
         """Actions associated with the visibility of the widget."""
         if not common.STANDALONE:
-            return
+            return menu_set
 
         w = self.parent().window()
         ontop_active = w.windowFlags() & QtCore.Qt.WindowStaysOnTopHint
