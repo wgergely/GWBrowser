@@ -59,5 +59,4 @@ del /q /f *.obj
 del /q /f *.ipdb
 del /q /f *.pdb
 del /q /f *.res
-
 EXIT 0

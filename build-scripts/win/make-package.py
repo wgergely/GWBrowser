@@ -421,6 +421,8 @@ def build_bin():
         os.path.sep + 'bin' + os.path.sep + 'python27.dll',
         PREFIX + os.path.sep + u'bookmarks' + os.path.sep + 'python27.dll',
     )
+    os.remove(bindir + os.path.sep + 'bookmarks.exe')
+    os.remove(bindir + os.path.sep + 'bookmarks_d.exe')
 
 
 def install_python_modules():
@@ -491,6 +493,11 @@ def inno_create_installer():
     os.chdir(p)
     cmd = u'"{}" .\\installer.iss'.format(INNO_COMPILER)
     os.system(cmd)
+
+    import bookmarks
+    import subprocess
+    path = PREFIX + os.path.sep + 'Bookmarks_setup_{}.exe'.format(bookmarks.__version__)
+    subprocess.Popen('"' + path + '"')
 
 
 def verify_configuration():
