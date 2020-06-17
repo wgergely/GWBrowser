@@ -49,6 +49,8 @@ class BookmarksWidgetContextMenu(basecontextmenu.BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_window_menu()
+        self.add_separator()
         self.add_manage_bookmarks_menu()
         self.add_separator()
         if index.isValid():

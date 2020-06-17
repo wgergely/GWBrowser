@@ -53,10 +53,16 @@ class StandaloneMainWidget(mainwidget.MainWidget):
         self._frameless = settings.local_settings.value(k)
         if self._frameless is True:
             self.setWindowFlags(
-                QtCore.Qt.Window |
-                QtCore.Qt.FramelessWindowHint)
-            self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-            self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+                self.windowFlags() | QtCore.Qt.FramelessWindowHint)
+
+            self.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=True)
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=True)
+
+        k = u'preferences/top_window'
+        self._ontop = settings.local_settings.value(k)
+        if self._ontop is True:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
         common.set_custom_stylesheet(self)
 

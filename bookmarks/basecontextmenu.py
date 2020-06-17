@@ -185,6 +185,73 @@ class BaseContextMenu(QtWidgets.QMenu):
             self.setFixedWidth(max(w))
 
     @contextmenu
+    def add_window_menu(self, menu_set):
+        """Actions associated with the visibility of the widget."""
+        if not common.STANDALONE:
+            return
+
+        w = self.parent().window()
+        ontop_active = w.windowFlags() & QtCore.Qt.WindowStaysOnTopHint
+        frameless_active = w.windowFlags() & QtCore.Qt.FramelessWindowHint
+
+        def toggle_on_top():
+            """Sets the WindowStaysOnTopHint for the window."""
+            k = u'preferences/top_window'
+            settings.local_settings.setValue(k, not ontop_active)
+            flags = w.windowFlags()
+            w.hide()
+
+            if flags & QtCore.Qt.WindowStaysOnTopHint:
+                flags = flags & ~QtCore.Qt.WindowStaysOnTopHint
+            else:
+                flags = flags | QtCore.Qt.WindowStaysOnTopHint
+            w.setWindowFlags(flags)
+            w.showNormal()
+            w.activateWindow()
+
+        def toggle_frameless():
+            """Sets the WindowStaysOnTopHint for the window."""
+            k = u'preferences/frameless_window'
+            settings.local_settings.setValue(k, not frameless_active)
+
+            flags = w.windowFlags()
+            w.hide()
+
+            if flags & QtCore.Qt.FramelessWindowHint:
+                flags = flags & ~QtCore.Qt.FramelessWindowHint
+                o = 0
+            else:
+                flags = flags | QtCore.Qt.FramelessWindowHint
+                o = common.INDICATOR_WIDTH()
+
+            w._frameless = not frameless_active
+            w.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=not frameless_active)
+            w.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=not frameless_active)
+            w.layout().setContentsMargins(o, o, o, o)
+            w.headerwidget.setHidden(frameless_active)
+            w.headerwidget.setDisabled(frameless_active)
+
+            w.setWindowFlags(flags)
+            w.showNormal()
+            w.activateWindow()
+
+        on_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.MARGIN())
+
+        k = 'Window'
+        menu_set[k] = collections.OrderedDict()
+
+        menu_set[k][u'Always keep window on top'] = {
+            u'icon': on_pixmap if ontop_active else None,
+            u'action': toggle_on_top
+        }
+        menu_set[k][u'Frameless window'] = {
+            u'icon': on_pixmap if frameless_active else None,
+            u'action': toggle_frameless
+        }
+        return menu_set
+
+    @contextmenu
     def add_sort_menu(self, menu_set):
         """Creates the menu needed to set the sort-order of the list."""
         sort_menu_icon = images.ImageCache.get_rsc_pixmap(

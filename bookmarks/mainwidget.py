@@ -87,50 +87,24 @@ class TrayMenu(basecontextmenu.BaseContextMenu):
         self.stays_on_top = False
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
 
-        self.add_show_menu()
-        self.add_visibility_menu()
+        self.add_window_menu()
+        self.add_separator()
+        self.add_tray_menu()
 
     @basecontextmenu.contextmenu
-    def add_visibility_menu(self, menu_set):
+    def add_tray_menu(self, menu_set):
         """Actions associated with the visibility of the widget."""
-
-        def toggle_window_flag():
-            """Sets the WindowStaysOnTopHint for the window."""
-            flags = self.parent().windowFlags()
-            self.hide()
-            if flags & QtCore.Qt.WindowStaysOnTopHint:
-                flags = flags & ~QtCore.Qt.WindowStaysOnTopHint
-            else:
-                flags = flags | QtCore.Qt.WindowStaysOnTopHint
-            self.parent().setWindowFlags(flags)
-            self.parent().showNormal()
-            self.parent().activateWindow()
-
         active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
         on_pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.MARGIN())
 
-        menu_set[u'Keep on top of other windows'] = {
-            u'pixmap': on_pixmap if active else None,
-            u'action': toggle_window_flag
-        }
+
         menu_set[u'Restore window...'] = {
             u'action': show_window
         }
         menu_set[u'separator1'] = {}
         menu_set[u'Quit'] = {
             u'action': self.parent().shutdown.emit
-        }
-        return menu_set
-
-    @basecontextmenu.contextmenu
-    def add_show_menu(self, menu_set):
-        if not hasattr(self.parent(), 'clicked'):
-            return menu_set
-        menu_set[u'show'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN()),
-            u'text': u'Open...',
-            u'action': self.parent().clicked.emit
         }
         return menu_set
 
@@ -425,8 +399,10 @@ class MainWidget(QtWidgets.QWidget):
 
         self.listcontrolwidget = ListControlWidget(parent=self)
 
-        if self._frameless:
-            self.layout().addWidget(self.headerwidget)
+        self.layout().addWidget(self.headerwidget)
+        self.headerwidget.setHidden(not self._frameless)
+        self.headerwidget.setDisabled(not self._frameless)
+
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
 

@@ -24,6 +24,8 @@ class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_window_menu()
+        self.add_separator()
         self.add_task_folder_toggles_menu()
         self.add_separator()
         self.add_add_file_menu()

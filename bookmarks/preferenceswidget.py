@@ -194,7 +194,6 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.show_help = None
         self.rv_path = None
         self.ffmpeg_path = None
-        self.frameless_window = None
 
         if common.STANDALONE:
             self.ui_scale = None
@@ -212,18 +211,6 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         )
         self.layout().addWidget(label)
         grp = common_ui.get_group(parent=self)
-
-        row = common_ui.add_row(u'Frameless window', parent=grp)
-        self.frameless_window = QtWidgets.QCheckBox(
-            u'Use frameless window', parent=self)
-        row.layout().addStretch(1)
-        row.layout().addWidget(self.frameless_window)
-        label = common_ui.PaintedLabel(
-            u'(Restart required)',
-            size=common.SMALL_FONT_SIZE(),
-            color=common.TEXT_DISABLED
-        )
-        row.layout().addWidget(label, 0)
 
         if common.STANDALONE:
             row = common_ui.add_row(u'Scale interface', parent=grp)
@@ -382,9 +369,6 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.show_help.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
 
-        self.frameless_window.toggled.connect(
-            lambda x: settings.local_settings.setValue(get_preference(u'frameless_window'), x))
-
         if common.STANDALONE:
 
             @QtCore.Slot(int)
@@ -399,12 +383,6 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.ffmpeg_path.textChanged.connect(self.set_ffmpeg_path)
 
     def _init_values(self):
-        val = settings.local_settings.value(
-            get_preference(u'frameless_window'))
-        val = val if not None else False
-        if val is not None:
-            self.frameless_window.setChecked(val)
-
         if common.STANDALONE:
             val = settings.local_settings.value(get_preference(u'ui_scale'))
             val = val if not None else 1.0
@@ -501,7 +479,6 @@ class SaverSettingsWidget(BaseSettingsWidget):
         self.show_help = None
         self.rv_path = None
         self.ffmpeg_path = None
-        self.frameless_window = None
 
         if common.STANDALONE:
             self.ui_scale = None

@@ -22,6 +22,8 @@ class AssetsWidgetContextMenu(basecontextmenu.BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(AssetsWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_window_menu()
+        self.add_separator()
         self.add_show_addasset_menu()
         if index.isValid():
             self.add_mode_toggles_menu()
