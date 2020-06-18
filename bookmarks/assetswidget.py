@@ -110,12 +110,7 @@ class AssetModel(baselist.BaseModel):
 
         nth = 1
         c = 0
-        for entry in _scandir.scandir(bookmark_path):
-            if entry.name.startswith(u'.'):
-                continue
-            if not entry.is_dir():
-                continue
-
+        for entry in self._entry_iterator(bookmark_path):
             filepath = entry.path.replace(u'\\', u'/')
 
             if ASSET_IDENTIFIER:
@@ -179,6 +174,17 @@ class AssetModel(baselist.BaseModel):
 
         # Explicitly emit signal to notify the other dependent model
         self.activeChanged.emit(self.active_index())
+
+    def _entry_iterator(self, path):
+        """Yields DirEntry instances to be processed in __initdata__.
+
+        """
+        for entry in _scandir.scandir(path):
+            if entry.name.startswith(u'.'):
+                continue
+            if not entry.is_dir():
+                continue
+            yield entry
 
     def data_type(self):
         return common.FileItem

@@ -113,7 +113,7 @@ class BookmarksModel(baselist.BaseModel):
         task_folder = self.task_folder()
 
         favourites = settings.local_settings.favourites()
-        bookmarks = settings.local_settings.value(u'bookmarks')
+        bookmarks = settings.local_settings.bookmarks()
 
         bookmarks = bookmarks if bookmarks else {}
 
