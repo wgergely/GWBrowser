@@ -6,6 +6,8 @@ import re
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import bookmarks.common as common
+import bookmarks.common_ui as common_ui
+import bookmarks.log as log
 import _scandir as _scandir
 import bookmarks.threads as threads
 import bookmarks.delegate as delegate
@@ -278,7 +280,6 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
         widget.descriptionUpdated.connect(update_description)
         widget.open()
 
-
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
@@ -304,3 +305,13 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
     @QtCore.Slot()
     def show_add_widget(self):
         pass
+
+    @QtCore.Slot()
+    def link_assets(self):
+        import bookmarks.shotgun_widgets as shotgun_widgets
+        model = self.model().sourceModel()
+        data = model.model_data()
+
+        assets = [f[common.ParentPathRole][-1] for f in data.itervalues()]
+        w = shotgun_widgets.LinkAssets(assets, parent=self)
+        w.open()

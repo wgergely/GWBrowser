@@ -82,25 +82,26 @@ def find_project(sg, project):
 
 
 @sg_connection
-def find_shots(sg, id):
+def find_entities(sg, sg_entity, project_id):
+    """List all elements associated with the given project.
+
+    """
     if _instance is None:
         raise RuntimeError('init_sg() was never called.')
     v = sg.find(
-        ShotEntity,
+        sg_entity,
         [
-            ["project.Project.id", "is", int(id)],
+            ["project.Project.id", "is", int(project_id)],
         ],
         [u'id', u'code', u'type'],
     )
-    for _v in v:
-        print _v
     return v
 
 
 @sg_connection
-def find_tasks(sg, id):
+def find_tasks(sg, sg_type, id):
     filters = [
-        ['entity', 'is', {'type': 'Shot', 'id': int(id)}],
+        ['entity', 'is', {'type': sg_type, 'id': int(id)}],
     ]
     data = sg.find(
         u'Task',

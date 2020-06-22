@@ -6,6 +6,7 @@ Use it to configure the `width`, `height`, `frame rate`, `Slack Tokens` and
 
 """
 import re
+import functools
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -48,6 +49,11 @@ shotgun_api_hint = u'Make sure your Shotgun project has a valid API Script set u
 This can be done from the Shotgun Admin menu -> Scripts option. See the \
 <a href="https://support.shotgunsoftware.com/">Shotgun</a> documentation for \
 more information.'
+
+
+SHOTGUN_TYPES = (
+    u'Project',
+)
 
 
 class RectanglesWidget(QtWidgets.QLabel):
@@ -165,6 +171,9 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.shotgun_api_key_editor = None
         self.shotgun_id_editor = None
         self.shotgun_name_editor = None
+        self.shotgun_type_editor = None
+        self.url1_editor = None
+        self.url2_editor = None
         self.shotgun_button = None
 
         self.setWidgetResizable(True)
@@ -249,12 +258,23 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.shotgun_id_editor.setPlaceholderText(u'1234...')
         self.shotgun_id_editor.setValidator(numvalidator)
         self.shotgun_name_editor = common_ui.LineEdit(parent=self)
-        self.shotgun_name_editor.setPlaceholderText(u'assetname...')
+        self.shotgun_name_editor.setPlaceholderText(u'Shotgun name...')
+
+        self.shotgun_type_editor = QtWidgets.QComboBox(parent=self)
+        for t in SHOTGUN_TYPES:
+            self.shotgun_type_editor.addItem(t, userData=t)
+
         self.shotgun_button = common_ui.PaintedButton(u'Find Shotgun ID and Name')
         self.shotgun_button.setFixedHeight(height * 0.7)
 
+        self.url1_editor = common_ui.LineEdit(parent=self)
+        self.url1_editor.setPlaceholderText(u'http://my.customurl1.com')
+        self.url2_editor = common_ui.LineEdit(parent=self)
+        self.url2_editor.setPlaceholderText(u'http://my.customurl2.com')
+
         maingroup = common_ui.get_group(parent=parent)
         maingroup.layout().setContentsMargins(o, o, o, o)
+        _add_title(u'bookmark', u'Default Settings', maingroup)
         grp = common_ui.get_group(parent=maingroup)
         grp.layout().addWidget(self.rectangles_widget, 1)
         row = common_ui.add_row(u'Resolution', parent=grp, height=height)
@@ -301,12 +321,26 @@ class ScrollArea(QtWidgets.QScrollArea):
         row = common_ui.add_row(u'Application Key', parent=grp, height=height)
         row.layout().addWidget(self.shotgun_api_key_editor, 0)
         row.layout().addWidget(self.shotgun_api_key_button, 0)
+        common_ui.add_description(shotgun_api_hint, label=u'Hint', parent=grp)
+
+        row = common_ui.add_row(u'', parent=grp, height=height)
+        row = common_ui.add_row(u'Shotgun Type', parent=grp, height=height)
+        row.layout().addWidget(self.shotgun_type_editor, 1)
+        row.layout().addWidget(self.shotgun_button, 0)
         row = common_ui.add_row(u'Shotgun ID', parent=grp, height=height)
         row.layout().addWidget(self.shotgun_id_editor, 0)
         row = common_ui.add_row(u'Shotgun Name', parent=grp, height=height)
         row.layout().addWidget(self.shotgun_name_editor, 0)
-        row.layout().addWidget(self.shotgun_button, 0)
-        common_ui.add_description(shotgun_api_hint, label=u'Hint', parent=grp)
+
+
+        maingroup = common_ui.get_group(parent=parent)
+        maingroup.layout().setContentsMargins(o, o, o, o)
+        _add_title(u'bookmark', u'Custom Urls', maingroup)
+        grp = common_ui.get_group(parent=maingroup)
+        row = common_ui.add_row(u'Custom URL1', parent=grp, height=height)
+        row.layout().addWidget(self.url1_editor, 0)
+        row = common_ui.add_row(u'Custom URL2', parent=grp, height=height)
+        row.layout().addWidget(self.url2_editor, 0)
 
         self.widget().layout().addStretch(1)
 
@@ -315,22 +349,14 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.shotgun_button.clicked.connect(self.find_shotgun_id)
         self.shotgun_api_key_button.clicked.connect(self.verify_shotgun_token)
 
-        self.framerate_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.framerate_editor))
-        self.width_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.width_editor))
-        self.height_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.height_editor))
-        self.prefix_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.prefix_editor, type=unicode))
-        self.startframe_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.startframe_editor))
-        self.duration_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.duration_editor))
-        self.identifier_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.identifier_editor, type=unicode))
-        self.slacktoken_editor.textEdited.connect(
-            lambda v: self.feedback(v, self.slacktoken_editor, type=unicode))
+        # UI Feedback
+        for k in bookmark_db.KEYS[u'properties']:
+            w = getattr(self, k + '_editor')
+            func = functools.partial(self.feedback, w)
+            if u'shotgun_type' in k:
+                w.currentTextChanged.connect(func)
+                continue
+            w.textEdited.connect(func)
 
         self.width_editor.textEdited.connect(
             lambda v: self.rectangles_widget.set_attr(u'_width', v))
@@ -351,12 +377,18 @@ class ScrollArea(QtWidgets.QScrollArea):
         for k in bookmark_db.KEYS[u'properties']:
             _k = self.preference_key(k)
             v = settings.local_settings.value(_k)
+            if u'shotgun_type' in k:
+                getattr(self, k + '_editor').setCurrentText(v)
+                continue
             getattr(self, k + '_editor').textEdited.emit(v)
 
     def save_current_to_local_settings(self):
         for k in bookmark_db.KEYS[u'properties']:
             _k = self.preference_key(k)
-            v = getattr(self, k + '_editor').text()
+            if u'shotgun_type' in k:
+                v = getattr(self, k + '_editor').currentText()
+            else:
+                v = getattr(self, k + '_editor').text()
             settings.local_settings.setValue(_k, v)
 
 
@@ -386,11 +418,18 @@ class ScrollArea(QtWidgets.QScrollArea):
                 return None
             if compare:
                 return v
-            return getattr(self, k + u'_editor').setText(unicode(v) if v else u'')
+
+            w = getattr(self, k + u'_editor')
+            if u'shotgun_type' in k:
+                return w.setCurrentText(unicode(v) if v else u'')
+            return w.setText(unicode(v) if v else u'')
 
         def emit_text(k):
-            getattr(self, k + u'_editor').textEdited.emit(
-                getattr(self, k + u'_editor').text())
+            w = getattr(self, k + u'_editor')
+            if u'shotgun_type' in k:
+                w.currentTextChanged.emit(w.currentText())
+                return
+            w.textEdited.emit(w.text())
 
         if root is None:
             root = self.root
@@ -425,7 +464,12 @@ class ScrollArea(QtWidgets.QScrollArea):
         """
         def save(k, db):
             """Performs the save to the database."""
-            v = getattr(self, k + u'_editor').text()
+            w = getattr(self, k + u'_editor')
+            if u'shotgun_type' in k:
+                v = w.currentText()
+            else:
+                v = w.text()
+
             if compare:
                 return v
             db.setValue(1, k, v, table=u'properties')
@@ -478,6 +522,7 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.verify_shotgun_token(silent=True)
         w = shotgun_widgets.LinkToShotgunWidget(
             self.parent().job,
+            self.shotgun_type_editor.currentText(),
             self.shotgun_domain_editor.text(),
             self.shotgun_scriptname_editor.text(),
             self.shotgun_api_key_editor.text(),
@@ -530,7 +575,7 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.shotgun_name_editor.setText(name)
 
     @QtCore.Slot(unicode)
-    def feedback(self, v, w, type=float):
+    def feedback(self, w, v, type=float):
         pass
 
 

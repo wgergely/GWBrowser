@@ -331,26 +331,42 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         @QtCore.Slot()
         def show_on_shotgun():
-            sg_id = bookmark_db.get_property(
-                'shotgun_id',
-                asset_property=True,
-                asset=self.index.data(common.ParentPathRole)[3]
-            )
             domain = bookmark_db.get_property(u'shotgun_domain')
             if domain is None:
                 common_ui.MessageBox(
-                    u'The bookmark is not linked to Shotgun.',
+                    u'The bookmark is not yet linked with Shotgun.',
                     u'Open the bookmark properties to link the project with Shotgun.'
                 ).open()
                 return
 
-            if sg_id is None:
+            shotgun_id = bookmark_db.get_property(
+                u'shotgun_id',
+                asset_property=True,
+                asset=self.index.data(common.ParentPathRole)[3]
+            )
+            if shotgun_id is None:
                 common_ui.MessageBox(
-                    u'The asset is not linked to Shotgun.',
-                    u'Open the asset properties to link to a Shotgun Shot.'
+                    u'This asset is not yet linked with Shotgun.',
+                    u'Open the asset properties to link it.'
                 ).open()
                 return
-            url = u'{}/detail/Shot/{}'.format(domain, sg_id)
+
+            shotgun_type = bookmark_db.get_property(
+                u'shotgun_type',
+                asset_property=True,
+                asset=self.index.data(common.ParentPathRole)[3]
+            )
+            if shotgun_type is None:
+                common_ui.MessageBox(
+                    u'This asset is not yet linked with Shotgun.',
+                    u'Open the asset properties to link with a Shotgun Shot.'
+                ).open()
+                return
+            url = u'{}/detail/{}/{}'.format(
+                domain,
+                shotgun_type,
+                shotgun_id
+            )
             url = QtCore.QUrl(url)
             QtGui.QDesktopServices.openUrl(url)
 
@@ -376,7 +392,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         k = 'Visit website...'
         menu_set[k] = collections.OrderedDict()
-        menu_set[k][u'Visit Shot on Shotgun...'] = {
+        menu_set[k][u'View on Shotgun...'] = {
             u'icon': pixmap,
             u'action': show_on_shotgun
         }
@@ -1039,6 +1055,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'add', common.ADD, common.MARGIN())
         settings_pixmap = images.ImageCache.get_rsc_pixmap(
             u'settings', common.SECONDARY_TEXT, common.MARGIN())
+        sg_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
 
         @QtCore.Slot()
         def show_widget():
@@ -1089,6 +1107,11 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'text': u'Asset Properties',
                 u'action': self.parent().show_properties_widget
             }
-        menu_set[u'separator'] = {}
+        menu_set[u'bulk_linking'] = {
+            u'icon': sg_pixmap,
+            u'text': u'Link with Shotgun',
+            u'action': self.parent().link_assets
+        }
+        menu_set[u'separator2'] = {}
 
         return menu_set

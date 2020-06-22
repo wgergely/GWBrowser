@@ -14,7 +14,6 @@ import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.addbookmarks as addbookmarks
-import bookmarks.addfilewidget as addfilewidget
 import bookmarks.shotgun as shotgun
 import bookmarks.shotgun_widgets as shotgun_widgets
 
@@ -29,6 +28,7 @@ style="color:rgba({ADD});">mode</span> and <span \
 style="color:rgba({ADD});">task</span> are defined in <span \
 style="color:rgba({H});">Preferences -> Default Paths</span>. Ideally, both \
 the template and the preferences should define the same folders.'
+
 
 
 class AddAssetWidget(QtWidgets.QDialog):
@@ -73,6 +73,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.description_editor = None
         self.shotgun_id_editor = None
         self.shotgun_name_editor = None
+        self.shotgun_type_editor = None
         self.url1_editor = None
         self.url2_editor = None
         self.url1_button = None
@@ -85,6 +86,8 @@ class AddAssetWidget(QtWidgets.QDialog):
 
         bookmark = u'{}/{}/{}'.format(server, job, root)
         self.templates_widget.set_path(bookmark)
+        if all((update, asset)):
+            self.templates_widget.name_widget.setText(asset)
 
         self.templates_widget.templateCreated.connect(self.save)
         self.templates_widget.templateCreated.connect(self.popup)
@@ -98,7 +101,8 @@ class AddAssetWidget(QtWidgets.QDialog):
 
     @QtCore.Slot(int)
     def visit_url(self, idx):
-        url = getattr(self, 'url{}_editor'.format(idx)).text()
+        w = getattr(self, 'url{}_editor'.format(idx))
+        url = w.text()
         if not url:
             return
         QtGui.QDesktopServices.openUrl(url)
@@ -138,10 +142,30 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.shotgun_id_editor.setValidator(numvalidator)
         self.shotgun_name_editor = common_ui.LineEdit(parent=self)
         self.shotgun_name_editor.setPlaceholderText(u'asset name...')
+
+        self.shotgun_type_editor = QtWidgets.QComboBox(parent=self)
+        for t in shotgun_widgets.SHOTGUN_TYPES:
+            self.shotgun_type_editor.addItem(t, userData=t)
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'shotgun', None, common.MARGIN() * 2)
+        for n in xrange(self.shotgun_type_editor.model().rowCount()):
+            index = self.shotgun_type_editor.model().index(n, 0)
+            self.shotgun_type_editor.model().setData(
+                index,
+                QtCore.QSize(common.ROW_HEIGHT() * 0.66, common.ROW_HEIGHT() * 0.66),
+                QtCore.Qt.SizeHintRole,
+            )
+            self.shotgun_type_editor.model().setData(
+                index,
+                QtGui.QIcon(pixmap),
+                QtCore.Qt.DecorationRole,
+            )
+
         self.url1_editor = common_ui.LineEdit(parent=self)
-        self.url1_editor.setPlaceholderText(u'https://mycustomlink1.com...')
+        self.url1_editor.setPlaceholderText(u'https://my.customurl1.com...')
         self.url2_editor = common_ui.LineEdit(parent=self)
-        self.url2_editor.setPlaceholderText(u'https://mycustomlink2.com...')
+        self.url2_editor.setPlaceholderText(u'https://my.customurl2.com...')
 
         self.shotgun_button = common_ui.PaintedButton(u'Find Shotgun ID and Name')
         self.shotgun_button.setFixedHeight(h * 0.7)
@@ -212,11 +236,13 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.templates_widget.setDisabled(self._update)
 
         _add_title(u'shotgun', u'Shotgun Settings', grp)
+        row = common_ui.add_row(u'Shotgun Type', parent=grp, height=h)
+        row.layout().addWidget(self.shotgun_type_editor, 1)
+        row.layout().addWidget(self.shotgun_button, 0)
         row = common_ui.add_row(u'Shotgun ID', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_id_editor, 0)
         row = common_ui.add_row(u'Shotgun Name', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_name_editor, 0)
-        row.layout().addWidget(self.shotgun_button, 0)
 
         grp = common_ui.get_group(parent=self)
         _add_title(None, u'Custom URLs', grp)
@@ -277,17 +303,22 @@ class AddAssetWidget(QtWidgets.QDialog):
     def find_shotgun_id(self):
         self.verify_shotgun_token(silent=True)
 
+        # These prolperties are stored in the bookmark 'properties' table
         domain = bookmark_db.get_property(u'shotgun_domain')
         script_name = bookmark_db.get_property(u'shotgun_scriptname')
         api_key = bookmark_db.get_property(u'shotgun_api_key')
-        shotgun_id = bookmark_db.get_property(u'shotgun_id')
+        project_id = bookmark_db.get_property(u'shotgun_id')
+
+        # Pick our
+        shotgun_type = self.shotgun_type_editor.currentText()
 
         w = shotgun_widgets.LinkToShotgunWidget(
             self.templates_widget.name_widget.text(),
+            shotgun_type,
             domain,
             script_name,
             api_key,
-            project_id=shotgun_id,
+            project_id=project_id,
         )
         w.linkRequested.connect(self.set_shotgun_id)
         w.exec_()
@@ -319,21 +350,21 @@ class AddAssetWidget(QtWidgets.QDialog):
             description = base64.b64decode(description)
             self.description_editor.setText(description)
 
-        shotgun_id = db.value(source, u'shotgun_id')
-        if shotgun_id:
-            self.shotgun_id_editor.setText(shotgun_id)
-
-        shotgun_name = db.value(source, u'shotgun_name')
-        if shotgun_name:
-            self.shotgun_name_editor.setText(shotgun_name)
-
-        url1 = db.value(source, u'url1')
-        if url1:
-            self.url1_editor.setText(url1)
-
-        url2 = db.value(source, u'url2')
-        if url2:
-            self.url2_editor.setText(url2)
+        for k in (
+            'shotgun_type',
+            'shotgun_id',
+            'shotgun_name',
+            'url1',
+            'url2',
+        ):
+            v = db.value(source, k)
+            if v is None:
+                continue
+            w = getattr(self, k + '_editor')
+            if 'shotgun_type' in k.lower():
+                w.setCurrentText(v)
+                continue
+            w.setText(v)
 
     @QtCore.Slot()
     def save(self):
@@ -349,28 +380,43 @@ class AddAssetWidget(QtWidgets.QDialog):
             return
 
         if self._update:
-            source = u'{}/{}/{}/{}'.format(self.server, self.job, self.root, self.asset)
+            source = u'{}/{}/{}/{}'.format(
+                self.server,
+                self.job,
+                self.root,
+                self.asset
+            )
         else:
-            source = u'{}/{}/{}/{}'.format(self.server, self.job, self.root, self.templates_widget.name_widget.text())
+            source = u'{}/{}/{}/{}'.format(
+                self.server,
+                self.job,
+                self.root,
+                self.templates_widget.name_widget.text()
+            )
 
+        # Description
         description = self.description_editor.text()
         description = base64.b64encode(description)
         db.setValue(source, u'description', description)
 
-        shotgun_id = self.shotgun_id_editor.text()
-        db.setValue(source, u'shotgun_id', shotgun_id)
-
-        shotgun_name = self.shotgun_name_editor.text()
-        db.setValue(source, u'shotgun_name', shotgun_name)
-
-        url1 = self.url1_editor.text()
-        db.setValue(source, u'url1', url1)
-
-        url2 = self.url2_editor.text()
-        db.setValue(source, u'url2', url2)
-
         if self._update:
             self.descriptionUpdated.emit(self.description_editor.text())
+
+        for k in (
+            u'shotgun_type',
+            u'shotgun_id',
+            u'shotgun_name',
+            u'url1',
+            u'url2',
+
+        ):
+            w = getattr(self, k + '_editor')
+            if 'shotgun_type' in k.lower():
+                v = w.currentText()
+            else:
+                v = w.text()
+            db.setValue(source, k, v)
+
 
     @QtCore.Slot(unicode)
     def popup(self, v):

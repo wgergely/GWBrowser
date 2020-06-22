@@ -40,6 +40,7 @@ KEYS = {
         u'user',
         u'shotgun_id',
         u'shotgun_name',
+        u'shotgun_type',
         u'url1',
         u'url2',
     ),
@@ -65,6 +66,9 @@ KEYS = {
         u'shotgun_api_key',
         u'shotgun_id',
         u'shotgun_name',
+        u'shotgun_type',
+        u'url1',
+        u'url2',
     ),
 }
 """Database table/column structure definition."""
@@ -301,6 +305,7 @@ CREATE TABLE IF NOT EXISTS data (
     user TEXT,
     shotgun_id INTEGER,
     shotgun_name TEXT,
+    shotgun_type TEXT,
     url1 TEXT,
     url2 TEXT
 );
@@ -350,8 +355,12 @@ CREATE TABLE IF NOT EXISTS info (
                     slacktoken TEXT,
                     shotgun_domain TEXT,
                     shotgun_scriptname TEXT,
-                    shotgun_api_key TEXT
-                    shotgun_id INTEGER
+                    shotgun_api_key TEXT,
+                    shotgun_id INTEGER,
+                    shotgun_name TEXT,
+                    shotgun_type TEXT,
+                    url1 TEXT,
+                    url2 TEXT
                 );
             """)
             self._patch_database(_cursor, u'properties')

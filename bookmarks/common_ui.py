@@ -221,12 +221,14 @@ class PaintedLabel(QtWidgets.QLabel):
     def update_size(self):
         font, metrics = common.font_db.primary_font(font_size=self._size)
         self.setFixedHeight(metrics.height())
-        self.setFixedWidth(metrics.width(self._text) * 1.01)
+        self.setFixedWidth(metrics.width(self._text) + common.INDICATOR_WIDTH() * 2)
 
     def paintEvent(self, event):
         """Custom paint event to use the aliased paint method."""
         painter = QtGui.QPainter()
         painter.begin(self)
+        rect = self.rect()
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH())
         common.draw_aliased_text(
             painter,
             common.font_db.primary_font(font_size=self._size)[0],

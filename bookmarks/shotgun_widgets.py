@@ -18,6 +18,14 @@ import bookmarks.settings as settings
 
 
 _create_shot_task_instance = None
+_link_assets_instance = None
+
+
+SHOTGUN_TYPES = (
+    u'Asset',
+    u'Sequence',
+    u'Shot',
+)
 
 
 class TaskNode(QtCore.QObject):
@@ -488,9 +496,12 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
             if project_id is None:
                 raise RuntimeError('Project ID is not set.')
 
-            shot_id = bookmark_db.get_property(u'shotgun_id', asset_property=True)
-            if shot_id is None:
-                raise RuntimeError('Shot ID is not set.')
+            sg_id = bookmark_db.get_property(u'shotgun_id', asset_property=True)
+            if sg_id is None:
+                raise RuntimeError('ID is not set.')
+            sg_type = bookmark_db.get_property(u'shotgun_type')
+            if sg_type is None:
+                raise RuntimeError('Shotgun entity type is not set.')
 
             domain = bookmark_db.get_property(u'shotgun_domain')
             script_name = bookmark_db.get_property(u'shotgun_scriptname')
@@ -499,10 +510,13 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
             # Get task data
 
             with shotgun.init_sg(domain, script_name, api_key) as _:
-                data = shotgun.find_tasks(shot_id)
+                data = shotgun.find_tasks(
+                    sg_type,
+                    sg_id
+                )
                 users = shotgun.find_users()
             if not data:
-                raise RuntimeError(u'Could not find any tasks for shot id {}'.format(shot_id))
+                raise RuntimeError(u'Could not find any tasks for ID {}'.format(sg_id))
             self.task_picker.set_data(data)
 
             if users:
@@ -593,9 +607,9 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
             if project_id is None:
                 raise RuntimeError('Project ID is not set.')
 
-            shot_id = bookmark_db.get_property(u'shotgun_id', asset_property=True)
-            if shot_id is None:
-                raise RuntimeError('Shot ID is not set.')
+            sg_id = bookmark_db.get_property(u'shotgun_id', asset_property=True)
+            if sg_id is None:
+                raise RuntimeError('ID is not set.')
 
             if not self.task_picker.selectionModel().hasSelection():
                 common_ui.MessageBox(u'Select a task before continuing.', u'').open()
@@ -636,7 +650,7 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
                 try:
                     entity = shotgun.add_shot_version(
                         project_id,
-                        shot_id,
+                        sg_id,
                         task_id,
                         code,
                         description,
@@ -691,14 +705,23 @@ class PickShotCombobox(QtWidgets.QComboBox):
         self._decorate()
 
     @QtCore.Slot()
-    def load_shots(self):
-        """Loads the list of available shots from the shotgun server."""
+    def load_entities(self):
+        """Loads the list of available items from the shotgun server."""
         with shotgun.init_sg(
             self.parent().domain,
             self.parent().script_name,
             self.parent().api_key,
         ):
-            items = shotgun.find_shots(self.parent().project_id)
+            try:
+                items = shotgun.find_entities(
+                    self.parent().sg_type,
+                    self.parent().project_id
+                )
+            except Exception as e:
+                common_ui.ErrorBox('Could not load shotgun data.', unicode(e)).open()
+                log.error('find_entities() failed.')
+                raise
+
             for item in sorted(items, key=lambda x: x[u'code']):
                 self.addItem(
                     item[u'code'].upper(),
@@ -733,14 +756,17 @@ class PickShotCombobox(QtWidgets.QComboBox):
                 return
 
 
+
+
 class LinkToShotgunWidget(QtWidgets.QDialog):
-    """Allows the user to select a shot or project from a dropdown menu.
+    """Allows the user to select a shotgun item from a dropdown menu.
 
     """
     linkRequested = QtCore.Signal(unicode, int)
 
-    def __init__(self, local_asset, domain, script_name, api_key, project_id=None, parent=None):
+    def __init__(self, local_asset, sg_type, domain, script_name, api_key, project_id=None, parent=None):
         super(LinkToShotgunWidget, self).__init__(parent=parent)
+        self.sg_type = sg_type
         self.local_asset = local_asset
 
         self.domain = domain
@@ -759,10 +785,11 @@ class LinkToShotgunWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self.link_button.clicked.connect(self.action)
-        if not project_id:
+
+        if self.sg_type == 'Project':
             self.init_timer.timeout.connect(self.picker.load_projects)
-        else:
-            self.init_timer.timeout.connect(self.picker.load_shots)
+        elif self.sg_type.lower() in ('sequence', 'shot', 'asset'):
+            self.init_timer.timeout.connect(self.picker.load_entities)
         self.init_timer.timeout.connect(self.picker.select_candidate)
 
     def _create_UI(self):
@@ -786,7 +813,7 @@ class LinkToShotgunWidget(QtWidgets.QDialog):
         row.layout().addWidget(label, 0)
 
         self.picker = PickShotCombobox(parent=self)
-        self.link_button = common_ui.PaintedButton(u'Link to Shotgun')
+        self.link_button = common_ui.PaintedButton(u'Link with Shotgun')
 
         self.layout().addWidget(self.picker, 1)
         self.layout().addStretch(1)
@@ -801,6 +828,241 @@ class LinkToShotgunWidget(QtWidgets.QDialog):
         name = self.picker.currentText()
         self.linkRequested.emit(name, id)
         self.done(0)
+
+
+class LinkAssets(QtWidgets.QDialog):
+
+    def __init__(self, assets, parent=None):
+        global _link_assets_instance
+        _link_assets_instance = self
+
+        super(LinkAssets, self).__init__(parent=parent)
+
+        self.group = None
+        self.scrollarea = None
+        self.assets = {}
+
+        self.load_timer = QtCore.QTimer(parent=self)
+        self.load_timer.setSingleShot(True)
+        self.load_timer.setInterval(250)
+
+        for asset in assets:
+            self.assets[asset.lower()] = None
+
+        self._create_UI()
+        self._connect_signals()
+
+    def _create_UI(self):
+        self.link_button = common_ui.PaintedButton(u'Link with Shotgun')
+        self.scrollarea = QtWidgets.QScrollArea(parent=self)
+        self.scrollarea.setWidgetResizable(True)
+
+        QtWidgets.QVBoxLayout()
+
+        o = common.MARGIN()
+        height = common.ROW_HEIGHT()
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(o * 0.5)
+
+        def _add_title(icon, label, parent, color=None):
+            row = common_ui.add_row(u'', parent=parent)
+            _label = QtWidgets.QLabel(parent=self)
+            pixmap = images.ImageCache.get_rsc_pixmap(icon, color, height)
+            _label.setPixmap(pixmap)
+            row.layout().addWidget(_label, 0)
+            label = common_ui.PaintedLabel(
+                label,
+                size=common.MEDIUM_FONT_SIZE(),
+                parent=self
+            )
+            row.layout().addWidget(label, 0)
+            row.layout().addStretch(1)
+            parent.layout().addSpacing(o * 0.5)
+
+        def add_asset(k, parent):
+            k = k.lower()
+            row = common_ui.add_row(k.upper(), parent=parent)
+            self.assets[k] = QtWidgets.QComboBox(parent=self)
+            self.assets[k].addItem(u'Select...', userData=None)
+            row.layout().addWidget(self.assets[k], 1)
+
+
+        _add_title(u'shotgun', u'Link with Shotgun', self)
+        o *= 0.5
+        self.group = common_ui.get_group(parent=self)
+        self.group.layout().setSpacing(0)
+        self.group.layout().setContentsMargins(o, o, o, o)
+
+        for k in sorted(self.assets.keys()):
+            add_asset(k, self.group)
+
+        self.layout().addWidget(self.scrollarea)
+        self.scrollarea.setWidget(self.group)
+        self.layout().addWidget(self.link_button)
+
+    def _connect_signals(self):
+        self.link_button.clicked.connect(self.action)
+        self.load_timer.timeout.connect(self.init_data)
+
+    @QtCore.Slot()
+    def action(self):
+        """Set selected values to the database.
+
+        """
+        server = settings.ACTIVE[u'server']
+        job = settings.ACTIVE[u'job']
+        root = settings.ACTIVE[u'root']
+
+        if not all(
+            (server, job, root)
+        ):
+            s = u'Active bookmark not set'
+            common_ui.ErrorBox(
+                s, u''
+            ).open()
+            log.error(s)
+            raise RuntimeError(s)
+
+
+        db = bookmark_db.get_db(server, job, root)
+        with db.transactions():
+            for k in self.assets:
+                k = k.lower()
+                if self.assets[k].currentData() is None:
+                    continue
+
+                shotgun_id = self.assets[k].currentData(role=QtCore.Qt.UserRole)
+                shotgun_type = self.assets[k].currentData(role=QtCore.Qt.UserRole + 1)
+                shotgun_name = self.assets[k].currentData(role=QtCore.Qt.UserRole + 2)
+
+                if not all((
+                    shotgun_id is not None,
+                    shotgun_type is not None,
+                    shotgun_name is not None,
+                )):
+                    continue
+
+                _k = u'/'.join((server, job, root, k))
+                db.setValue(_k, u'shotgun_id', shotgun_id)
+                db.setValue(_k, u'shotgun_type', shotgun_type)
+                db.setValue(_k, u'shotgun_name', shotgun_name)
+
+
+        self.done(QtWidgets.QDialog.Accepted)
+
+    def init_data(self):
+        """Loads data from shotgun an maps it to the UI."""
+        try:
+            domain = bookmark_db.get_property(u'shotgun_domain')
+            if domain is None:
+                raise RuntimeError('Shotgun Domain not set')
+
+            script_name = bookmark_db.get_property(u'shotgun_scriptname')
+            if script_name is None:
+                raise RuntimeError('Shotgun Script Name not set')
+
+            api_key = bookmark_db.get_property(u'shotgun_api_key')
+            if api_key is None:
+                raise RuntimeError('Shotgun API Key not set')
+
+            project_id = bookmark_db.get_property(u'shotgun_id')
+            if project_id is None:
+                raise RuntimeError('Project ID is not set.')
+
+        except Exception as e:
+            common_ui.ErrorBox(
+                u'A required Shotgun information was not found.',
+                u'You can enter the missing information on the Bookmark\'s property page.' + '\n' + unicode(e)
+            ).open()
+            log.error('An error occured.')
+            raise
+
+
+        def key(x):
+            if 'name' in x:
+                return x['name']
+            if 'code' in x:
+                return x['code']
+            return x['id']
+
+        # Let's build our data
+        # We will wrap all the reuired entities into a single QT5 model
+        model = QtGui.QStandardItemModel()
+        item = QtGui.QStandardItem(u'Select...')
+        item.setFlags(QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
+        model.appendRow(item)
+
+        for sg_type in (u'Shot', u'Sequence', u'Asset'):
+            with shotgun.init_sg(domain, script_name, api_key):
+                item = QtGui.QStandardItem(u'------------' + sg_type + u's' + u'------------')
+                item.setFlags(QtCore.Qt.NoItemFlags)
+                model.appendRow(item)
+
+                items = []
+                try:
+                    items = shotgun.find_entities(sg_type, project_id)
+                except Exception as e:
+                    common_ui.ErrorBox('Could not load shotgun data.', unicode(e)).open()
+                    log.error('find_entities() failed.')
+
+                    item = QtGui.QStandardItem('    Error loading ' + sg_type + 's')
+                    item.setFlags(QtCore.Qt.NoItemFlags)
+                    model.appendRow(item)
+
+                    continue
+
+                if not items:
+                    continue
+
+                items = sorted(items, key=key)
+                for sg_item in items:
+                    if 'name' in sg_item:
+                        k = sg_item['name']
+                    elif 'code' in sg_item:
+                        k = sg_item['code']
+                    else:
+                        k = '{}{}'.format(
+                            sg_item['type'],
+                            sg_item['id']
+                        )
+                    item = QtGui.QStandardItem()
+                    item.setData(k.upper(), role=QtCore.Qt.DisplayRole)
+                    item.setData(sg_item['id'], role=QtCore.Qt.UserRole)
+                    item.setData(sg_item['type'], role=QtCore.Qt.UserRole + 1)
+                    item.setData(k, role=QtCore.Qt.UserRole + 2)
+                    item.setData(
+                        QtCore.QSize(common.ROW_HEIGHT() * 0.66, common.ROW_HEIGHT() * 0.66),
+                        role=QtCore.Qt.SizeHintRole
+                    )
+                    item.setFlags(
+                        QtCore.Qt.ItemIsEnabled |
+                        QtCore.Qt.ItemIsSelectable |
+                        QtCore.Qt.ItemNeverHasChildren
+                    )
+                    model.appendRow(item)
+
+        # Let's apply the model to the QCombobox choices
+        for k in self.assets:
+            self.assets[k.lower()].setModel(model)
+
+        # Auto select appropiate items
+        for k in self.assets:
+            k = k.lower()
+            model = self.assets[k].model()
+            for n in xrange(model.rowCount()):
+                item = model.item(n, 0)
+                name = item.data(QtCore.Qt.DisplayRole)
+                if k in name.lower():
+                    self.assets[k].setCurrentText(name)
+                    break
+
+
+    def showEvent(self, event):
+        self.load_timer.start()
+
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH(), common.HEIGHT())
 
 
 if __name__ == '__main__':
