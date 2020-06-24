@@ -233,7 +233,7 @@ class TaskTree(QtWidgets.QTreeView):
     def set_data(self, data):
         self.data = data
         node = self.data_to_nodes()
-        model = TaskModel('Tasks', node)
+        model = TaskModel(u'Tasks', node)
         self.setModel(model)
         self.set_root_node(model.rootNode)
         self.expandAll()
@@ -499,7 +499,7 @@ class CreateShotTaskVersion(QtWidgets.QDialog):
             sg_id = bookmark_db.get_property(u'shotgun_id', asset_property=True)
             if sg_id is None:
                 raise RuntimeError('ID is not set.')
-            sg_type = bookmark_db.get_property(u'shotgun_type')
+            sg_type = bookmark_db.get_property(u'shotgun_type', asset_property=True)
             if sg_type is None:
                 raise RuntimeError('Shotgun entity type is not set.')
 
