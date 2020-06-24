@@ -13,6 +13,7 @@ import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.bookmark_db as bookmark_db
+import bookmarks.shotgun as shotgun
 import bookmarks.images as images
 import bookmarks.settings as settings
 import bookmarks.defaultpaths as defaultpaths
@@ -359,7 +360,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             if shotgun_type is None:
                 common_ui.MessageBox(
                     u'This asset is not yet linked with Shotgun.',
-                    u'Open the asset properties to link with a Shotgun Shot.'
+                    u'Open the asset properties to link with a Shotgun element.'
                 ).open()
                 return
             url = u'{}/detail/{}/{}'.format(
@@ -729,6 +730,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'remove', common.REMOVE, common.MARGIN())
         show_thumbnail = images.ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.MARGIN())
+        shotgun_thumbnail = images.ImageCache.get_rsc_pixmap(
+            u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
 
         menu_set[u'header'] = {
             u'text': 'Thumbnails',
@@ -770,6 +773,104 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
 
         menu_set[u'separator.'] = {}
+
+
+        @QtCore.Slot()
+        def upload_thumbnail():
+            shotgun_domain = bookmark_db.get_property(u'shotgun_domain')
+            shotgun_scriptname = bookmark_db.get_property(u'shotgun_scriptname')
+            shotgun_api_key = bookmark_db.get_property(u'shotgun_api_key')
+
+            if any((
+                shotgun_domain is None,
+                shotgun_scriptname is None,
+                shotgun_api_key is None
+            )):
+                _s = u'Bookmark not configured to use Shotgun.'
+                s = u'Tou can add Shotgun connection settings on the bookmark property page.'
+                common_ui.ErrorBox(_s, s).open()
+                log.error(s)
+                raise RuntimeError(s)
+
+            shotgun_type = bookmark_db.get_property(
+                u'shotgun_type',
+                asset_property=True,
+                asset=self.index.data(common.ParentPathRole)[3]
+            )
+
+            _s = u'The asset is not linked with shotgun.'
+            if shotgun_type is None:
+                s = u'Shotgun type is not set.'
+                common_ui.ErrorBox(_s, s).open()
+                log.error(s)
+                raise RuntimeError(s)
+
+            shotgun_id = bookmark_db.get_property(
+                u'shotgun_id',
+                asset_property=True,
+                asset=self.index.data(common.ParentPathRole)[3]
+            )
+
+            if shotgun_id is None:
+                s = u'Shotgun id not set.'
+                common_ui.ErrorBox(_s, s).open()
+                log.error(s)
+                raise RuntimeError(s)
+
+            try:
+                shotgun_id = int(shotgun_id)
+            except:
+                shotgun_id = -1
+
+            if shotgun_id < 0:
+                s = u'Shotgun id not set.'
+                common_ui.ErrorBox(_s, s).open()
+                log.error(s)
+                raise RuntimeError(s)
+
+            thumbnail_path = images.get_thumbnail_path(
+                self.index.data(common.ParentPathRole)[0],
+                self.index.data(common.ParentPathRole)[1],
+                self.index.data(common.ParentPathRole)[2],
+                self.index.data(QtCore.Qt.StatusTipRole),
+            )
+            if not QtCore.QFileInfo(thumbnail_path):
+                s = u'Shotgun id not set.'
+                common_ui.ErrorBox(
+                    u'No thumbnail is assigned to this asset.',
+                    u'Add a thumbnail first to to the asset to upload it to Shotgun.').open()
+                log.error(s)
+                raise RuntimeError(s)
+
+            with shotgun.init_sg(
+                shotgun_domain,
+                shotgun_scriptname,
+                shotgun_api_key,
+            ) as sg:
+                try:
+                    sg.upload_thumbnail(
+                        shotgun_type,
+                        shotgun_id,
+                        thumbnail_path
+                    )
+                    common_ui.OkBox(u'Shotgun thumbnail updated.', u'').open()
+                    log.success(u'Thumbnail updated.')
+                except Exception as e:
+                    common_ui.ErrorBox(
+                        u'Upload failed', u'{}'.format(e)
+                    ).open()
+                    log.error(s)
+                    raise RuntimeError(s)
+
+        # Shotgun menu is relevant to assets
+        if len(self.index.data(common.ParentPathRole)) == 4:
+            menu_set[u'sg_upload'] = {
+                u'text': u'Upload current to Shotgun',
+                u'icon': shotgun_thumbnail,
+                u'action': upload_thumbnail
+            }
+
+        menu_set[u'separator..'] = {}
 
         if exists:
             menu_set[u'remove'] = {
