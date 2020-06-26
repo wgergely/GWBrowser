@@ -355,6 +355,7 @@ def export_favourites():
     try:
         import uuid
         import bookmarks.settings as settings
+        import bookmarks.images as images
         import bookmarks.bookmark_db as bookmark_db
 
         res = QtWidgets.QFileDialog.getSaveFileName(
@@ -378,7 +379,13 @@ def export_favourites():
         with zipfile.ZipFile(zip_path, 'a') as z:
             # Adding thumbnail to zip
             for favourite in favourites:
-                file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
+                thumbnail_path = images.get_thumbnail_path(
+                    server,
+                    job,
+                    root,
+                    favourite
+                )
+                file_info = QtCore.QFileInfo(thumbnail_path)
                 if not file_info.exists():
                     continue
                 z.write(file_info.filePath(), file_info.fileName())
@@ -415,7 +422,7 @@ def import_favourites(source=None):
     """
     try:
         import bookmarks.settings as settings
-        import bookmarks.bookmark_db as bookmark_db
+        import bookmarks.images as images
 
         if not isinstance(source, unicode):
             res = QtWidgets.QFileDialog.getOpenFileName(
@@ -450,9 +457,15 @@ def import_favourites(source=None):
                 favourites = [unicode(f).strip().lower() for f in favourites]
 
             server, job, root = get_favourite_parent_paths()
-            db = bookmark_db.get_db(server, job, root)
+
             for favourite in favourites:
-                file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
+                thumbnail_path = images.get_thumbnail_path(
+                    server,
+                    job,
+                    root,
+                    favourite
+                )
+                file_info = QtCore.QFileInfo(thumbnail_path)
                 if file_info.fileName().lower() in namelist:
                     dest = u'{}/{}/{}/.bookmark'.format(server, job, root)
                     zip.extract(file_info.fileName(), dest)
