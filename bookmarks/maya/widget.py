@@ -19,6 +19,7 @@ import sys
 import functools
 import collections
 
+import shiboken2
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
@@ -37,10 +38,6 @@ from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 from bookmarks.mainwidget import MainWidget
 import bookmarks.addfilewidget as addfilewidget
 import bookmarks.defaultpaths as defaultpaths
-
-
-ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
-CAPTURE_PATH = u'captures'
 
 
 maya_button = None
@@ -90,13 +87,46 @@ MAYA_FPS = {
     u'3000fps': 3000.0,
     u'6000fps': 6000.0,
     u'23.976fps': 23.976,
-    u'29.97fps': 29.97,
-    u'29.97df': 29.97,
+    u'29.97fps': 29.976,
+    u'29.97df': 29.976,
     u'47.952fps': 47.952,
     u'59.94fps': 59.94,
     u'44100fps': 44100.0,
     u'48000fps': 48000.0,
 }
+
+
+def find_project_folder(key):
+    """Return the relative path of a project folder.
+
+    Args:
+        key (unicode): The name of a Maya project folder name, eg. 'sourceImages'.
+
+    Return:
+        unicode: The name of the folder that corresponds with `key`.
+
+    """
+    if not key:
+        raise ValueError('Key must be specified.')
+
+    _file_rules = cmds.workspace(
+        fr=True,
+        query=True,
+    )
+
+    file_rules = {}
+    for n, _ in enumerate(_file_rules):
+        m = n % 2
+        k = _file_rules[n - m].lower()
+        if m == 0:
+            file_rules[k] = None
+        if m == 1:
+            file_rules[k] = _file_rules[n]
+
+    key = key.lower()
+    if key in file_rules:
+        return file_rules[key]
+    return key
 
 
 def set_framerate(fps):
@@ -341,14 +371,15 @@ def outliner_sets():
 
 
 def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.0):
-    """Main Alembic export function.
+    """Main alembic export definition.
 
-    Exporting is based on outliner sets and their contents. For each member of
-    the this set, Bookmarks will try to find the valid shape nodes to duplicate
-    their geometry in the  world-space.
+    Only shapes, normals and uvs are exported by this implementation. The list
+    of shapes contained in the `outliner_set` will be rebuilt in the root of
+    the scene to avoid parenting issues.
 
-    Only the normals, geometry and uvs will be exported. No addittional user or
-    scene data will is picked up by default.
+    Args:
+        destination_path (unicode): Path to the output file.
+        outliner_set (tuple): A list of transforms contained in a geometry set.
 
     """
     # ======================================================
@@ -356,7 +387,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     # Check destination before proceeding
     if not isinstance(outliner_set, (tuple, list)):
         raise TypeError(
-            'Expected <type \'list\'>, got {}'.format(type(outliner_set)))
+            u'Expected <type \'list\'>, got {}'.format(type(outliner_set)))
 
     destination_info = QtCore.QFileInfo(destination_path)
     destination_dir = destination_info.dir()
@@ -421,11 +452,14 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             basename = shape.split(u'|').pop()
             try:
                 # AbcExport will fail if a transform or a shape node's name is not unique
-                # We will try and see if this passes...
+                # This was suggested on a forum - listing the relatives for a
+                # an object without a unique name should raise a ValueError
                 cmds.listRelatives(basename)
             except ValueError as err:
-                print u'"{shape}" does not have a unique name. This is not usually allowed for alembic exports and might cause the export to fail.\nError: {err}'.format(
+                s = u'"{shape}" does not have a unique name. This is not usually allowed for alembic exports and might cause the export to fail.\nError: {err}'.format(
                     shape=shape, err=err)
+                print s
+                log.error(s)
 
             # Camera's don't have mesh nodes but we still want to export them!
             if cmds.nodeType(shape) != u'camera':
@@ -440,7 +474,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     cmds.select(clear=True)
 
     # Creating a temporary namespace to avoid name-clashes later when we duplicate
-    # the meshes. We will delete this namespace after the export...
+    # the meshes. We will delete this namespace, and it's contents after the export
     if cmds.namespace(exists=u'mayaExport'):
         cmds.namespace(removeNamespace=u'mayaExport',
                        deleteNamespaceContent=True)
@@ -449,7 +483,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     world_transforms = []
 
     try:
-        # For meshes, we will create an empty mesh and connect the outMesh and
+        # For meshes, we will create an empty mesh node and connect the outMesh and
         # UV attributes from our source.
         # We will also apply the source mesh's transform matrix to the newly created mesh
         for shape in valid_shapes:
@@ -488,9 +522,11 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                     world_shape, fullPath=True, type='transform', parent=True)[0])
             world_shapes.append(world_shape)
 
+        # Our custom progress callback
         perframecallback = u'"import bookmarks.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
             startframe, endframe, time.time())
 
+        # Let's build the export command
         jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {sn} {rt} {df} {pfc} {ro}'.format(
             f=u'-file "{}"'.format(destination_path),
             fr=u'-framerange {} {}'.format(startframe, endframe),
@@ -506,8 +542,11 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             pfc=u'-pythonperframecallback {}'.format(perframecallback),
             ro='-renderableOnly'
         )
-        print '# jobArg: `{}`'.format(jobArg)
+        s = u'# jobArg: `{}`'.format(jobArg)
+        print s
+
         cmds.AbcExport(jobArg=jobArg)
+        log.success(s)
 
     except Exception as err:
         common_ui.ErrorBox(
@@ -529,17 +568,17 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
 
 def _capture_viewport_destination():
-    capture_folder = get_preference(u'capture_path')
-    capture_folder = capture_folder if capture_folder else CAPTURE_PATH
+    imagedir = find_project_folder(u'images')
+    capturedir = imagedir + u'/captures' if imagedir else u'render/captures'
 
     workspace = cmds.workspace(q=True, rootDirectory=True).rstrip(u'/')
     scene_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
-    dest = u'{workspace}/{capture_folder}/{scene}/{scene}'.format(
+    dest = u'{workspace}/{capturedir}/{scene}/{scene}'.format(
         workspace=workspace,
-        capture_folder=capture_folder,
+        capturedir=capturedir,
         scene=scene_info.baseName()
     )
-    return capture_folder, workspace, dest
+    return capturedir, workspace, dest
 
 
 @QtCore.Slot()
@@ -586,7 +625,12 @@ def capture_viewport(size=1.0):
     if not _dir.exists():
         _dir.mkpath(u'.')
 
-    panel = cmds.getPanel(withFocus=True)
+    picker = PanelPicker()
+    picker.exec_()
+    panel = picker.panel
+    if not panel:
+        return
+
     # Not all panels are modelEditors
     if panel is None or cmds.objectTypeUI(panel) != u'modelEditor':
         s = u'Activate a viewport before starting a capture.'
@@ -797,6 +841,159 @@ def contextmenu_mainwidget(func):
     return func_wrapper
 
 
+
+class PanelPicker(QtWidgets.QDialog):
+    """Modal dialog used to select a visible modelPanel in Maya.
+
+    """
+    def __init__(self, parent=None):
+        super(PanelPicker, self).__init__(parent=parent)
+
+
+        effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(effect)
+
+        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(0.5)
+        self.fade_in.setDuration(500)
+        self.fade_in.setEasingCurve(QtCore.QEasingCurve.InOutQuad)
+
+        self._mouse_pos = None
+        self._click_pos = None
+        self._offset_pos = None
+
+        self._capture_rect = QtCore.QRect()
+
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint
+        )
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+
+        self.setMouseTracking(True)
+        self.installEventFilter(self)
+
+        self.panels = {}
+        self.panel = None
+
+        panels = cmds.lsUI(panels=True)
+        if not panels:
+            return
+
+        for panel in panels:
+            if not cmds.modelPanel(panel, exists=True):
+                continue
+            ptr = OpenMayaUI.MQtUtil.findControl(panel)
+            if not ptr:
+                continue
+            widget = shiboken2.wrapInstance(long(ptr), QtWidgets.QWidget)
+            if not widget:
+                continue
+            if not widget.isVisible():
+                continue
+            self.panels[panel] = widget
+
+    def _fit_screen_geometry(self):
+        """Compute the union of all screen geometries, and resize to fit.
+
+        """
+        app = QtWidgets.QApplication.instance()
+        geo = app.primaryScreen().geometry()
+        x = []
+        y = []
+        w = 0
+        h = 0
+
+        try:
+            for screen in app.screens():
+                g = screen.geometry()
+                x.append(g.topLeft().x())
+                y.append(g.topLeft().y())
+                w += g.width()
+                h += g.height()
+            topleft = QtCore.QPoint(
+                min(x),
+                min(y)
+            )
+            size = QtCore.QSize(w - min(x), h - min(y))
+            geo = QtCore.QRect(topleft, size)
+        except:
+            pass
+
+        self.setGeometry(geo)
+
+    def paintEvent(self, event):
+        """Paint the capture window."""
+        # Convert click and current mouse positions to local space.
+        mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        # Draw background. Aside from aesthetics, this makes the full
+        # tool region accept mouse events.
+        painter.setBrush(QtGui.QColor(0, 0, 0, 255))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(self.rect())
+
+        for panel in self.panels.values():
+            _mouse_pos = panel.mapFromGlobal(QtGui.QCursor.pos())
+
+            if not panel.rect().contains(_mouse_pos):
+                self.setCursor(QtCore.Qt.ArrowCursor)
+                continue
+
+            self.setCursor(QtCore.Qt.PointingHandCursor)
+            topleft = panel.mapToGlobal(panel.rect().topLeft())
+            topleft = self.mapFromGlobal(topleft)
+            bottomright = panel.mapToGlobal(panel.rect().bottomRight())
+            bottomright = self.mapFromGlobal(bottomright)
+
+            capture_rect = QtCore.QRect(topleft, bottomright)
+            pen = QtGui.QPen(common.ADD)
+            pen.setWidth(common.ROW_SEPARATOR() * 2)
+            painter.setPen(pen)
+            painter.setBrush(QtCore.Qt.NoBrush)
+            painter.drawRect(capture_rect)
+
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(common.ADD)
+            painter.setOpacity(0.3)
+            painter.drawRect(capture_rect)
+
+        painter.end()
+
+    def keyPressEvent(self, event):
+        """Cancel the capture on keypress."""
+        if event.key() == QtCore.Qt.Key_Escape:
+            self.reject()
+
+    def mouseReleaseEvent(self, event):
+        """Finalise the caputre"""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+
+        for panel, widget in self.panels.iteritems():
+            mouse_pos = widget.mapFromGlobal(QtGui.QCursor.pos())
+            if widget.rect().contains(mouse_pos):
+                self.panel = panel
+                self.done(QtWidgets.QDialog.Accepted)
+                self.panel = panel
+                return
+
+        self.done(QtWidgets.QDialog.Rejected)
+
+    def mouseMoveEvent(self, event):
+        """Constrain and resize the capture window."""
+        self.update()
+
+    def showEvent(self, event):
+        self._fit_screen_geometry()
+        self.fade_in.start()
+
+
 class BrowserButtonContextMenu(BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
 
@@ -804,23 +1001,9 @@ class BrowserButtonContextMenu(BaseContextMenu):
         super(BrowserButtonContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
 
-        self.add_separator()
-        #
         self.add_maya_actions_menu()
-        #
         self.add_separator()
-        #
-        self.add_export_alembic_menu()
-        #
-        self.add_separator()
-        #
-        self.add_capture_menu()
-        #
-        self.add_separator()
-        #
         self.add_show_menu()
-        #
-        self.add_separator()
 
     @contextmenu
     def add_maya_actions_menu(self, menu_set):
@@ -1142,7 +1325,7 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
         key = u'alembic_animation'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export timeline to alembic'
+        menu_set[u'{}:text'.format(key)] = u'Export timeline to Alembic'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
@@ -1155,7 +1338,7 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
         key = u'alembic_frame'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export current frame to alembic'
+        menu_set[u'{}:text'.format(key)] = u'Export current frame to Alembic'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
@@ -1163,6 +1346,32 @@ class MayaMainWidgetContextMenu(BaseContextMenu):
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
                 u'action': functools.partial(mainwidget.export_set_to_alembic, k, v, frame=True)
+            }
+
+        key = u'obj'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = u'Export set to *.obj'
+        for k in sorted(list(outliner_set_members)):
+            v = outliner_set_members[k]
+            _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
+            menu_set[key][_k] = {
+                u'text': u'{} ({})'.format(_k.upper(), len(v)),
+                u'icon': objectset_pixmap,
+                u'action': functools.partial(mainwidget.export_set_to_obj, k, v)
+            }
+
+        key = u'ass'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = u'Export set to Arnold *.ass'
+        for k in sorted(list(outliner_set_members)):
+            v = outliner_set_members[k]
+            _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
+            menu_set[key][_k] = {
+                u'text': u'{} ({})'.format(_k.upper(), len(v)),
+                u'icon': objectset_pixmap,
+                u'action': functools.partial(mainwidget.export_set_to_ass, k, v)
             }
 
         return menu_set
@@ -2042,8 +2251,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     @QtCore.Slot(unicode)
     @QtCore.Slot(dict)
     @QtCore.Slot(bool)
-    def export_set_to_alembic(self, set_name, set_members, frame=False):
-        """Main method to initiate an alembic export using Browser's
+    def export_set_to_ass(self, set_name, set_members, frame=False):
+        """Main method to initiate an Arnold ASS export using Bookmarks's
         saver to generate the filename.
 
         Args:
@@ -2051,23 +2260,115 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             value (tuple): A list of object names inside the set.
 
         """
-        if not cmds.pluginInfo('AbcExport.mll', loaded=True, q=True):
-            cmds.loadPlugin("AbcExport.mll", quiet=True)
-            cmds.loadPlugin("AbcImport.mll", quiet=True)
-
-        ext = u'abc'
+        # Ensure the plugin is loaded
+        try:
+            if not cmds.pluginInfo(u'mtoa.mll', loaded=True, q=True):
+                cmds.loadPlugin(u'mtoa.mll', quiet=True)
+        except Exception as e:
+            s = u'Could not load the `mtoa` plugin'
+            log.error(s)
+            common_ui.ErrorBox(u'Could not export the set', s).open()
+            raise
 
         # We want to handle the exact name of the file
         # We'll remove the namespace, strip underscores
         set_name = set_name.replace(u':', u'_').strip(u'_')
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
+        ext = u'ass'
 
-        template = get_preference(u'alembic_export_path')
-        template = template if template else ALEMBIC_EXPORT_PATH
-        file_path = unicode(template).format(
+        exportdir = find_project_folder(u'ass export')
+        exportdir = exportdir if exportdir else u'export/ass'
+        layer = cmds.editRenderLayerGlobals(query=True, currentRenderLayer=True)
+        file_path = u'{workspace}/{exportdir}/{set}/{set}_{layer}_v001.{ext}'.format(
             workspace=cmds.workspace(q=True, fn=True),
-            exports=defaultpaths.TASK_FOLDERS[u'export'][u'value'],
-            set=set_name
+            exportdir=exportdir,
+            set=set_name,
+            layer=layer,
+            ext=ext
+        )
+
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
+
+        # Let's make sure destination folder exists
+        file_info = QtCore.QFileInfo(file_path)
+        _dir = file_info.dir()
+        if not _dir.exists():
+            if not _dir.mkpath(u'.'):
+                s = u'Could not create {}'.format(_dir.path())
+                log.error(s)
+                common_ui.ErrorBox(u'Could not export the set', s).open()
+                raise OSError(s)
+
+        sel = cmds.ls(selection=True)
+        try:
+            import arnold
+
+            # Let's get the first renderable camera
+            cams = cmds.ls(cameras=True)
+            cam = None
+            for cam in cams:
+                if cmds.getAttr('{}.renderable'.format(cam)):
+                    break
+
+            cmds.select(clear=True)
+            cmds.select(set_members, replace=True)
+            cmds.arnoldExportAss(
+                f=file_path,
+                cam=cam,
+                s=True, # selected
+                mask=arnold.AI_NODE_CAMERA |
+                arnold.AI_NODE_SHAPE |
+                arnold.AI_NODE_SHADER |
+                arnold.AI_NODE_OVERRIDE |
+                arnold.AI_NODE_LIGHT
+            )
+            fileswidget.new_file_added(file_path)
+            return file_path
+        except Exception as e:
+            s = u'Could not export the set'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            log.error(s)
+            raise
+        finally:
+            cmds.select(clear=True)
+            cmds.select(sel, replace=True)
+
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(dict)
+    @QtCore.Slot(bool)
+    def export_set_to_alembic(self, set_name, set_members, frame=False):
+        """Main method to initiate an alembic export using Bookmarks's
+        saver to generate the filename.
+
+        Args:
+            key (str):   The name of the object set to export.
+            value (tuple): A list of object names inside the set.
+
+        """
+        # Ensure the plugin is loaded
+        try:
+            if not cmds.pluginInfo('AbcExport.mll', loaded=True, q=True):
+                cmds.loadPlugin("AbcExport.mll", quiet=True)
+                cmds.loadPlugin("AbcImport.mll", quiet=True)
+        except Exception as e:
+            s = u'Could not load the `AbcExport` plugin'
+            log.error(s)
+            common_ui.ErrorBox(u'Could not export the set', s).open()
+            raise
+
+        # We want to handle the exact name of the file
+        # We'll remove the namespace, strip underscores
+        set_name = set_name.replace(u':', u'_').strip(u'_')
+        set_name = re.sub(ur'[0-9]*$', u'', set_name)
+        ext = u'abc'
+
+        exportdir = find_project_folder(u'alembic export')
+        exportdir = exportdir if exportdir else u'export/abc'
+        file_path = u'{workspace}/{exportdir}/{set}/{set}_v001.{ext}'.format(
+            workspace=cmds.workspace(q=True, fn=True),
+            exportdir=exportdir,
+            set=set_name,
+            ext=ext
         )
 
         # Let's make sure destination folder exists
@@ -2075,21 +2376,23 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         _dir = file_info.dir()
         if not _dir.exists():
             if not _dir.mkpath(u'.'):
-                raise OSError('Could not create {}'.format(_dir.path()))
+                s = u'Could not create {}'.format(_dir.path())
+                log.error(s)
+                common_ui.ErrorBox(u'Could not export the set', s).open()
+                raise OSError(s)
 
         widget = addfilewidget.AddFileWidget(ext, file=file_path)
-        fileswidget = self.mainwidget.stackedwidget.widget(2)
-
         if widget.exec_() == QtWidgets.QDialog.Rejected:
-            return
+            return None
 
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
         file_path = widget.filePath()
         file_info = QtCore.QFileInfo(file_path)
 
         # Last-ditch check to make sure we're not overwriting anything...
         if file_info.exists():
             s = u'Unable to save alembic: {} already exists.'.format(file_path)
-            common_ui.ErrorBox('Error.', s).open()
+            common_ui.ErrorBox(u'Could not export the set', s).open()
             log.error(s)
             raise RuntimeError(s)
 
@@ -2114,13 +2417,98 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             fileswidget.new_file_added(file_path)
             return file_path
         except Exception as e:
-            s = u'Could not export alembic.'
+            s = u'Could not export the set'
             common_ui.ErrorBox(s, u'{}'.format(e)).open()
             log.error(s)
             raise
         finally:
             if not state:
                 cmds.ogs(pause=True)
+
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(dict)
+    @QtCore.Slot(bool)
+    def export_set_to_obj(self, set_name, set_members):
+        """Main method to initiate an alembic export using Bookmarks's
+        saver to generate the filename.
+
+        Args:
+            key (str):   The name of the object set to export.
+            value (tuple): A list of object names inside the set.
+
+        """
+        # Ensure the plugin is loaded
+        try:
+            if not cmds.pluginInfo(u'objExport.mll', loaded=True, q=True):
+                cmds.loadPlugin(u'objExport.mll', quiet=True)
+        except Exception as e:
+            s = u'Could not load the `objExport` plugin'
+            log.error(s)
+            common_ui.ErrorBox(u'Could not export the set', s).open()
+            raise
+
+        # We want to handle the exact name of the file
+        # We'll remove the namespace, strip underscores
+        set_name = set_name.replace(u':', u'_').strip(u'_')
+        set_name = re.sub(ur'[0-9]*$', u'', set_name)
+        ext = u'obj'
+
+        exportdir = find_project_folder(u'objexport')
+        exportdir = exportdir if exportdir else u'export/obj'
+        file_path = u'{workspace}/{exportdir}/{set}/{set}_v001.{ext}'.format(
+            workspace=cmds.workspace(q=True, fn=True),
+            exportdir=exportdir,
+            set=set_name,
+            ext=ext
+        )
+
+        # Let's make sure destination folder exists
+        file_info = QtCore.QFileInfo(file_path)
+        _dir = file_info.dir()
+        if not _dir.exists():
+            if not _dir.mkpath(u'.'):
+                s = u'Could not create {}'.format(_dir.path())
+                log.error(s)
+                common_ui.ErrorBox(u'Could not export the set', s).open()
+                raise OSError(s)
+
+        widget = addfilewidget.AddFileWidget(ext, file=file_path)
+        if widget.exec_() == QtWidgets.QDialog.Rejected:
+            return None
+
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
+        file_path = widget.filePath()
+        file_info = QtCore.QFileInfo(file_path)
+
+        # Last-ditch check to make sure we're not overwriting anything...
+        if file_info.exists():
+            s = u'Unable to save set: {} already exists.'.format(file_path)
+            common_ui.ErrorBox(u'Could not export the set', s).open()
+            log.error(s)
+            raise RuntimeError(s)
+
+        sel = cmds.ls(selection=True)
+        try:
+            cmds.select(clear=True)
+            cmds.select(set_members, replace=True)
+
+            cmds.file(
+                file_info.filePath(),
+                preserveReferences=True,
+                type='OBJexport',
+                exportSelected=True,
+                options='groups=1;ptgroups=1;materials=1;smoothing=1; normals=1'
+            )
+            fileswidget.new_file_added(file_path)
+            return file_path
+        except Exception as e:
+            s = u'Could not export the set'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            log.error(s)
+            raise
+        finally:
+            cmds.select(clear=True)
+            cmds.select(sel, replace=True)
 
     def is_scene_modified(self):
         """If the current scene was modified since the last save, the user will be

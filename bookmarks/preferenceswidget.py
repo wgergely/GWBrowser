@@ -84,29 +84,7 @@ You can turn this behaviour off above.'.format(
             common.PRODUCT)
         common_ui.add_description(label, label=u'Help', parent=grp)
         ######################################################
-        grp = common_ui.get_group(parent=self)
-        row = common_ui.add_row(u'Alembic Export Path', parent=grp)
-        label = u'Edit the Alembic cache export path below. \
-Make sure to include the following tokens:\n\n\
-{workspace}: The path to the current workspace.\n\
-{exports}: The name of the exports folder ("exports" by default).\n\
-{set}: The name of the geometry group (eg. "character_rig_geo")\n\n\
-There must be a version number present as well (this will be automatically \
-incremented when exporting). Eg. v01, v001 or v0001, etc.'
-        common_ui.add_description(label, parent=grp)
 
-        self.alembic_export_path = common_ui.add_line_edit(
-            u'eg. {workspace}/{exports}/abc/{set}/{set}_v001.abc', parent=row)
-        row.layout().addWidget(self.alembic_export_path, 1)
-
-        row = common_ui.add_row(u'Playblast Path', parent=grp)
-        self.capture_path = common_ui.add_line_edit(
-            u'eg. viewport_captures', parent=row)
-        label = u'Edit the relative path of the playblasts (relative to the current project root)'
-        common_ui.add_description(label, parent=grp)
-        row.layout().addWidget(self.capture_path, 1)
-
-        ######################################################
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(u'Workspace warning', parent=grp)
         self.workspace_warning_button = QtWidgets.QCheckBox(
@@ -150,11 +128,6 @@ warning dialog. Tick to disable (default is "off"):'
         self.workspace_warning_button.toggled.connect(
             lambda x: settings.local_settings.setValue(get_preference(u'disable_workspace_warnings'), x))
 
-        self.alembic_export_path.textChanged.connect(
-            lambda x: settings.local_settings.setValue(get_preference(u'alembic_export_path'), x))
-        self.capture_path.textChanged.connect(
-            lambda x: settings.local_settings.setValue(get_preference(u'capture_path'), x))
-
     def _init_values(self):
         val = settings.local_settings.value(
             get_preference(u'disable_active_sync'))
@@ -175,16 +148,6 @@ warning dialog. Tick to disable (default is "off"):'
             get_preference(u'disable_workspace_warnings'))
         if val is not None:
             self.workspace_warning_button.setChecked(val)
-
-        val = settings.local_settings.value(
-            get_preference(u'alembic_export_path'))
-        if val is not None:
-            self.alembic_export_path.setText(val)
-
-        val = settings.local_settings.value(
-            get_preference(u'capture_path'))
-        if val is not None:
-            self.capture_path.setText(val)
 
 
 class ApplicationSettingsWidget(BaseSettingsWidget):
