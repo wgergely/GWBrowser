@@ -429,12 +429,23 @@ class BaseContextMenu(QtWidgets.QMenu):
         @QtCore.Slot()
         def show_add_shot_task_widget():
             import bookmarks.shotgun_widgets as shotgun_widgets
-            w = shotgun_widgets.CreateShotTaskVersion(self.index.data(QtCore.Qt.StatusTipRole))
+            w = shotgun_widgets.CreateTaskVersion(self.index.data(QtCore.Qt.StatusTipRole))
             w.open()
 
-        menu_set[k][u'Add a task version for review...'] = {
+        @QtCore.Slot()
+        def show_publish_widget():
+            import bookmarks.shotgun_widgets as shotgun_widgets
+            w = shotgun_widgets.CreateTaskPublish(self.index.data(QtCore.Qt.StatusTipRole))
+            w.open()
+
+        menu_set[k][u'Add task version for review...'] = {
             u'icon': pixmap,
             u'action': show_add_shot_task_widget
+        }
+
+        menu_set[k][u'Publish file to Shotgun...'] = {
+            u'icon': pixmap,
+            u'action': show_publish_widget
         }
 
         pixmap = images.ImageCache.get_rsc_pixmap(
