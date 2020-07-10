@@ -89,7 +89,7 @@ def find_entities(sg, sg_entity, project_id):
         [
             ["project.Project.id", "is", int(project_id)],
         ],
-        [u'id', u'code', u'type'],
+        [u'id', u'code', u'type', 'sg_cut_duration', 'sg_cut_in', 'sg_cut_out'],
     )
     return v
 

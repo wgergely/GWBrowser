@@ -1131,7 +1131,7 @@ class CreateTaskPublish(QtWidgets.QDialog):
             common_ui.ErrorBox(u'Could not publish.', unicode(e)).open()
             log.error('An error occured.')
             raise
-            
+
     def showEvent(self, event):
         self.init_timer.start()
 
@@ -1392,6 +1392,9 @@ class LinkAssets(QtWidgets.QDialog):
                 shotgun_id = self.assets[k].currentData(role=QtCore.Qt.UserRole)
                 shotgun_type = self.assets[k].currentData(role=QtCore.Qt.UserRole + 1)
                 shotgun_name = self.assets[k].currentData(role=QtCore.Qt.UserRole + 2)
+                cut_duration = self.assets[k].currentData(role=QtCore.Qt.UserRole + 3)
+                cut_in = self.assets[k].currentData(role=QtCore.Qt.UserRole + 4)
+                cut_out = self.assets[k].currentData(role=QtCore.Qt.UserRole + 5)
 
                 if not all((
                     shotgun_id is not None,
@@ -1404,6 +1407,9 @@ class LinkAssets(QtWidgets.QDialog):
                 db.setValue(_k, u'shotgun_id', shotgun_id)
                 db.setValue(_k, u'shotgun_type', shotgun_type)
                 db.setValue(_k, u'shotgun_name', shotgun_name)
+                db.setValue(_k, u'cut_duration', cut_duration)
+                db.setValue(_k, u'cut_in', cut_in)
+                db.setValue(_k, u'cut_out', cut_out)
 
 
         self.done(QtWidgets.QDialog.Accepted)
@@ -1450,8 +1456,8 @@ class LinkAssets(QtWidgets.QDialog):
         item.setFlags(QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
         model.appendRow(item)
 
-        for sg_type in (u'Shot', u'Sequence', u'Asset'):
-            with shotgun.init_sg(domain, script_name, api_key):
+        with shotgun.init_sg(domain, script_name, api_key):
+            for sg_type in (u'Shot', u'Sequence', u'Asset'):
                 item = QtGui.QStandardItem(u'------------' + sg_type + u's' + u'------------')
                 item.setFlags(QtCore.Qt.NoItemFlags)
                 model.appendRow(item)
@@ -1483,11 +1489,21 @@ class LinkAssets(QtWidgets.QDialog):
                             sg_item['type'],
                             sg_item['id']
                         )
+                    cut_duration = sg_item['sg_cut_duration'] if 'sg_cut_duration' in sg_item else -1
+                    cut_in = sg_item['sg_cut_in'] if 'sg_cut_in' in sg_item else -1
+                    cut_out = sg_item['sg_cut_out'] if 'sg_cut_out' in sg_item else -1
+
+
                     item = QtGui.QStandardItem()
                     item.setData(k.upper(), role=QtCore.Qt.DisplayRole)
                     item.setData(sg_item['id'], role=QtCore.Qt.UserRole)
                     item.setData(sg_item['type'], role=QtCore.Qt.UserRole + 1)
                     item.setData(k, role=QtCore.Qt.UserRole + 2)
+
+                    item.setData(cut_duration, role=QtCore.Qt.UserRole + 3)
+                    item.setData(cut_in, role=QtCore.Qt.UserRole + 4)
+                    item.setData(cut_out, role=QtCore.Qt.UserRole + 5)
+
                     item.setData(
                         QtCore.QSize(common.ROW_HEIGHT() * 0.66, common.ROW_HEIGHT() * 0.66),
                         role=QtCore.Qt.SizeHintRole

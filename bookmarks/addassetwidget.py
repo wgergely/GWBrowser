@@ -74,6 +74,9 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.shotgun_id_editor = None
         self.shotgun_name_editor = None
         self.shotgun_type_editor = None
+        self.cut_duration_editor = None
+        self.cut_in_editor = None
+        self.cut_out_editor = None
         self.url1_editor = None
         self.url2_editor = None
         self.url1_button = None
@@ -162,6 +165,16 @@ class AddAssetWidget(QtWidgets.QDialog):
                 QtCore.Qt.DecorationRole,
             )
 
+        self.cut_duration_editor = common_ui.LineEdit(parent=self)
+        self.cut_duration_editor.setPlaceholderText(u'1234...')
+        self.cut_duration_editor.setValidator(numvalidator)
+        self.cut_in_editor = common_ui.LineEdit(parent=self)
+        self.cut_in_editor.setPlaceholderText(u'1234...')
+        self.cut_in_editor.setValidator(numvalidator)
+        self.cut_out_editor = common_ui.LineEdit(parent=self)
+        self.cut_out_editor.setPlaceholderText(u'1234...')
+        self.cut_out_editor.setValidator(numvalidator)
+
         self.url1_editor = common_ui.LineEdit(parent=self)
         self.url1_editor.setPlaceholderText(u'https://my.customurl1.com...')
         self.url2_editor = common_ui.LineEdit(parent=self)
@@ -243,6 +256,15 @@ class AddAssetWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.shotgun_id_editor, 0)
         row = common_ui.add_row(u'Shotgun Name', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_name_editor, 0)
+
+        grp = common_ui.get_group(parent=self)
+        _add_title(None, u'Cut', grp)
+        row = common_ui.add_row(u'Cut Duration', parent=grp, height=h)
+        row.layout().addWidget(self.cut_duration_editor, 0)
+        row = common_ui.add_row(u'Cut In', parent=grp, height=h)
+        row.layout().addWidget(self.cut_in_editor, 0)
+        row = common_ui.add_row(u'Cut Out', parent=grp, height=h)
+        row.layout().addWidget(self.cut_out_editor, 0)
 
         grp = common_ui.get_group(parent=self)
         _add_title(None, u'Custom URLs', grp)
@@ -354,6 +376,9 @@ class AddAssetWidget(QtWidgets.QDialog):
             'shotgun_type',
             'shotgun_id',
             'shotgun_name',
+            'cut_duration',
+            'cut_in',
+            'cut_out',
             'url1',
             'url2',
         ):
@@ -406,6 +431,9 @@ class AddAssetWidget(QtWidgets.QDialog):
             u'shotgun_type',
             u'shotgun_id',
             u'shotgun_name',
+            u'cut_duration',
+            u'cut_in',
+            u'cut_out',
             u'url1',
             u'url2',
 

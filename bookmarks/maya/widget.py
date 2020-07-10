@@ -1817,15 +1817,50 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 for _k in bookmark_db.KEYS[t]:
                     v[_k] = db.value(1, _k, table=t)
 
-            if (v['width'] and v['height']):
-                cmds.setAttr('defaultResolution.width', v['width'])
-                cmds.setAttr('defaultResolution.height', v['height'])
-            if v['framerate']:
-                _set_framerate(v['framerate'])
-            if v['startframe']:
-                set_start_frame(v['startframe'])
-            if v['duration']:
-                set_end_frame(v['startframe'] + v['duration'])
+                asset = u'{}/{}/{}/{}'.format(
+                    settings.ACTIVE['server'],
+                    settings.ACTIVE['job'],
+                    settings.ACTIVE['root'],
+                    settings.ACTIVE['asset'],
+                )
+
+                duration = db.value(asset, 'cut_duration')
+                try:
+                    duration = int(duration)
+                except:
+                    duration = None
+                if not duration:
+                    duration = v['duration']
+
+                try:
+                    duration = int(duration)
+                except:
+                    duration = None
+
+            try:
+                if (v['width'] and v['height']):
+                    cmds.setAttr('defaultResolution.width', v['width'])
+                    cmds.setAttr('defaultResolution.height', v['height'])
+            except:
+                log.error('Could not set resolution')
+
+            try:
+                if v['framerate']:
+                    _set_framerate(v['framerate'])
+            except:
+                log.error('Could not set frame rate')
+
+            try:
+                if v['startframe']:
+                    set_start_frame(v['startframe'])
+            except:
+                log.error('Could not set start frame')
+
+            try:
+                if duration:
+                    set_end_frame(v['startframe'] + duration)
+            except:
+                log.error('Could not set end frame')
 
             cmds.setAttr('defaultRenderGlobals.extensionPadding', 4)
             cmds.setAttr('defaultRenderGlobals.animation', 1)

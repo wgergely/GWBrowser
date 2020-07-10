@@ -41,6 +41,9 @@ KEYS = {
         u'shotgun_id',
         u'shotgun_name',
         u'shotgun_type',
+        u'cut_duration',
+        u'cut_in',
+        u'cut_out',
         u'url1',
         u'url2',
     ),
@@ -306,6 +309,9 @@ CREATE TABLE IF NOT EXISTS data (
     shotgun_id INTEGER,
     shotgun_name TEXT,
     shotgun_type TEXT,
+    cut_duration INT,
+    cut_in INT,
+    cut_out INT,
     url1 TEXT,
     url2 TEXT
 );
@@ -368,9 +374,9 @@ CREATE TABLE IF NOT EXISTS info (
 
     def _patch_database(self, _cursor, table):
         """For backwards compatibility, we will ALTER the database any of the
-        required columns are missing. This might happen if we have added new
+        required columns that are missing. This might happen if we have added new
         columns to the table definition but the database on the server is
-        running an older version.
+        based on an older version of Bookmarks.
 
         """
         info = _cursor.execute("""PRAGMA table_info('{}');""".format(table)).fetchall()
