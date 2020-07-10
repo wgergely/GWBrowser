@@ -893,6 +893,7 @@ class BaseListWidget(QtWidgets.QListView):
 
     Delegate = NotImplementedError
     ContextMenu = NotImplementedError
+    ThumbnailContextMenu = ThumbnailsContextMenu
 
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
@@ -1773,7 +1774,7 @@ class BaseListWidget(QtWidgets.QListView):
             gpos = self.viewport().mapToGlobal(event.pos())
             rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
             if rectangles[delegate.ThumbnailRect].contains(event.pos()):
-                widget = ThumbnailsContextMenu(index, parent=self)
+                widget = self.ThumbnailContextMenu(index, parent=self)
             else:
                 widget = self.ContextMenu(index, parent=self)
             widget.move(
