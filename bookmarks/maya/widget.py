@@ -1754,7 +1754,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             raise
 
     @QtCore.Slot()
-    def apply_settings(self):
+    def apply_settings():
         """Apply the Bookmark Properties to the current scene.
 
         """
@@ -1798,20 +1798,21 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.playbackOptions(animationEndTime=animationEndTime)
             cmds.playbackOptions(maxTime=maxTime)
 
-        try:
-            widget = self.mainwidget.stackedwidget.widget(0)
-            model = widget.model().sourceModel()
-            index = model.active_index()
-            if not index.isValid():
-                return
+        if not all((
+            settings.ACTIVE['server'],
+            settings.ACTIVE['job'],
+            settings.ACTIVE['root'],
+        )):
+            return
 
+        try:
             t = u'properties'
             v = {}
 
             db = bookmark_db.get_db(
-                index.data(common.ParentPathRole)[0],
-                index.data(common.ParentPathRole)[1],
-                index.data(common.ParentPathRole)[2]
+                settings.ACTIVE['server'],
+                settings.ACTIVE['job'],
+                settings.ACTIVE['root'],
             )
             with db.transactions():
                 for _k in bookmark_db.KEYS[t]:
@@ -1825,17 +1826,15 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 )
 
                 duration = db.value(asset, 'cut_duration')
-                try:
-                    duration = int(duration)
-                except:
-                    duration = None
-                if not duration:
-                    duration = v['duration']
 
                 try:
                     duration = int(duration)
                 except:
-                    duration = None
+                    duration = v['duration']
+                    try:
+                        duration = int(duration)
+                    except:
+                        duration = None
 
             try:
                 if (v['width'] and v['height']):
@@ -1881,8 +1880,8 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 start=u'  |  {}'.format(
                     int(v['startframe'])) if v['startframe'] else u'',
                 duration=u'-{} ({} frames)'.format(
-                    int(v['startframe']) + int(v['duration']),
-                    int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
+                    int(v['startframe']) + int(duration),
+                    int(duration) if duration else u'') if duration else u''
             )
 
             s = u'Successfully applied the default scene settings: {}'.format(
