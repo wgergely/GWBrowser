@@ -1086,6 +1086,13 @@ class BaseListWidget(QtWidgets.QListView):
         creep in.
 
         """
+        # We should not mess with the filters when toggling items
+        try:
+            if self.multi_toggle_state is not None:
+                return
+        except:
+            pass
+
         def _next(rect):
             rect.moveTop(rect.top() + rect.height())
             return self.indexAt(rect.topLeft())
