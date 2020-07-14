@@ -1754,7 +1754,7 @@ class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             raise
 
     @QtCore.Slot()
-    def apply_settings():
+    def apply_settings(self):
         """Apply the Bookmark Properties to the current scene.
 
         """
