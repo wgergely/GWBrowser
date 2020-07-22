@@ -219,6 +219,8 @@ def _get_lib_dependencies(libpath, l):
     """Find recursively dependencies of `libpath` and append the results to `l`.
 
     """
+    sys.stdout.write('Getting dependencies of {}\n'.format(l))
+
     libpath = os.path.basename(libpath)
     _libpath = find_lib(libpath)
     if not _libpath:
@@ -249,6 +251,7 @@ def get_dependencies():
     """Get all library dependencies based on the set configuration.
 
     """
+    sys.stdout.write('\nGetting dependencies\n')
     dependencies = []
     for L in TOP_LEVEL_LIBS:
         if L.lower().endswith('dll'):
