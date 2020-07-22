@@ -33,12 +33,11 @@ import re
 import sys
 import contextlib
 
-from maya import cmds
-from maya import mel
-
+import maya.cmds as cmds
+import maya.mel as mel
+import maya.OpenMayaUI as OpenMayaUI
 
 from PySide2 import QtGui, QtWidgets
-import maya.OpenMayaUI as OpenMayaUI
 from shiboken2 import wrapInstance
 
 

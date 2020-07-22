@@ -18,6 +18,8 @@ import time
 import sys
 import functools
 import collections
+import gc
+import imp
 
 import shiboken2
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -35,6 +37,8 @@ from .. import images
 from .. import contextmenu
 from .. import main
 from .. import addfile
+from .. import bookmark_db
+from .. import __path__ as package_path
 
 
 maya_button = None
@@ -593,7 +597,8 @@ def capture_viewport(size=1.0):
 
 
     """
-    import bookmarks.maya._mCapture as mCapture
+    from . import mCapture
+    
     ext = u'png'
 
     DisplayOptions = {
@@ -1470,10 +1475,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def terminate(self):
         @QtCore.Slot()
         def delete_module_import_cache():
-            import gc
-            import imp
-            import bookmarks
-
             name = common.PRODUCT.lower()
             name_ext = '{}.'.format(name)
 
@@ -1493,7 +1494,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 # remove sub modules and packages from import cache
                 # but only if submodules of bookmarks`
                 try:
-                    imp.find_module(p[0], bookmarks.__path__)
+                    imp.find_module(p[0], package_path)
                     del sys.modules[pkg]
                 except ImportError:
                     continue
@@ -1502,8 +1503,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 except ValueError as e:
                     print e
 
-            # del bookmarks
-            # del sys.modules['bookmarks']
             gc.collect()
 
         @QtCore.Slot()
@@ -1754,8 +1753,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         """Apply the Bookmark Properties to the current scene.
 
         """
-        import bookmarks.bookmark_db as bookmark_db
-
         def set_start_frame(frame):
             frame = round(frame, 0)
             currentFrame = round(cmds.currentTime(query=True))

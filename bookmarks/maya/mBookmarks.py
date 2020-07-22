@@ -55,8 +55,9 @@ def initializePlugin(plugin):
 
     try:
         package = __import__(pkg_name)
-        common = __import__('{}.common'.format(pkg_name))
-        widget = __import__('{}.maya.widget'.format(pkg_name))
+        __import__('{}.common'.format(pkg_name))
+        __import__('{}.maya'.format(pkg_name))
+        __import__('{}.maya.widget'.format(pkg_name))
     except:
         raise
 
@@ -66,17 +67,17 @@ def initializePlugin(plugin):
 
     try:
         # Initiate the font_db. This will load the used custom fonts to Maya.
-        common.font_db = common.FontDatabase()
+        package.common.font_db = package.common.FontDatabase()
 
         # Let Bookmarks know we're not launching it in standalone mode
-        common.STANDALONE = False
+        package.common.STANDALONE = False
 
         # If Maya has any UI scaling set scale Bookmark's interface accordingly
-        common.UI_SCALE = cmds.mayaDpiSetting(scaleValue=True, query=True)
+        package.common.UI_SCALE = cmds.mayaDpiSetting(scaleValue=True, query=True)
 
         # Load Bookmarks
-        widget.maya_button = widget.MayaBrowserButton()
-        cmds.evalDeferred(widget.maya_button.initialize)
+        package.maya.widget.maya_button = package.maya.widget.MayaBrowserButton()
+        cmds.evalDeferred(package.maya.widget.maya_button.initialize)
     except Exception as e:
         raise Exception(e)
 
@@ -85,7 +86,7 @@ def uninitializePlugin(plugin):
     """Method is called by Maya when unloading the plug-in."""
     try:
         package = __import__(pkg_name)
-        widget = __import__('{}.maya.widget'.format(pkg_name))
+        __import__('{}.maya.widget'.format(pkg_name))
     except ImportError as e:
         raise 'Could not import \'{}\''.format(pkg_name)
 
@@ -95,5 +96,5 @@ def uninitializePlugin(plugin):
     def done():
         print '{} uninitialised.'.format(pkg_name)
 
-    widget.instance().terminated.connect(done)
-    widget.instance().main.shutdown.emit()
+    package.maya.widget.instance().terminated.connect(done)
+    package.maya.widget.instance().main.shutdown.emit()

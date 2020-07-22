@@ -25,18 +25,18 @@ import urllib2
 import json
 
 import socket
-socket.setdefaulttimeout(5)
 
 from PySide2 import QtWidgets, QtCore
 
-import bookmarks
-import bookmarks.versioncontrol.version as version
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
+from . import version
+from .. import log
+from .. import common
+from .. import common_ui
+from .. import __version__ as package_version
 
 
 URL = u'https://api.github.com/repos/wgergely/bookmarks/releases'
+socket.setdefaulttimeout(5)
 
 responses = {
     100: ('Continue', 'Request received, please continue'),
@@ -190,7 +190,7 @@ def check():
 
     # Getting the latest version
     latest = max(tags, key=lambda x: x[0])
-    current_version = version.parse(bookmarks.__version__)
+    current_version = version.parse(package_version)
     latest_version = version.parse(latest[1][u'tag_name'])
 
     # We're good and there's not need to update

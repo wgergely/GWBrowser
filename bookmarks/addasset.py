@@ -469,11 +469,3 @@ class AddAssetWidget(QtWidgets.QDialog):
     def sizeHint(self):
         """Custom size hint"""
         return QtCore.QSize(common.WIDTH(), common.HEIGHT())
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    w = AddAssetWidget('a', 'b', 'c', 'e', update=True)
-    w.show()
-    app.exec_()

@@ -762,11 +762,3 @@ class PreferencesWidget(QtWidgets.QDialog):
         if not index.isValid():
             return
         self.sections_stack_widget.setCurrentIndex(index.row())
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    w = PreferencesWidget()
-    w.show()
-    app.exec_()

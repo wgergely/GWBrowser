@@ -12,7 +12,7 @@ author = 'Gergely Wootsch'
 website = 'https://gergely-wootsch.com'
 email = 'hello@gergely-wootsch.com'
 __version__ = u'0.3.14'
-
+__all__ = ['common',]
 
 def get_info():
     return (
@@ -57,13 +57,13 @@ def exec_():
     common.UI_SCALE = float(ui_scale)
     common.STANDALONE = True
 
-    import bookmarks.standalone as standalone
+    from . import standalone
     if QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication.instance()
     else:
         app = standalone.StandaloneApp([])
 
-    import bookmarks.main as main
+    from . import main
     standalone.StandaloneMainWidget()
     main.show_window()
 
