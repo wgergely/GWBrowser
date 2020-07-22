@@ -5,7 +5,7 @@
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.common as common
-import bookmarks.mainwidget as mainwidget
+import bookmarks.main as main
 import bookmarks.settings as settings
 import bookmarks.images as images
 
@@ -23,7 +23,7 @@ def instance():
     return _instance
 
 
-class StandaloneMainWidget(mainwidget.MainWidget):
+class StandaloneMainWidget(main.MainWidget):
     """Modified ``MainWidget``adapted to run it as a standalone
     application, with or without window borders.
 
@@ -87,7 +87,7 @@ class StandaloneMainWidget(mainwidget.MainWidget):
             u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
-        self.tray.setContextMenu(mainwidget.TrayMenu(parent=self))
+        self.tray.setContextMenu(main.TrayMenu(parent=self))
         self.tray.setToolTip(common.PRODUCT)
         self.tray.show()
 
@@ -211,11 +211,11 @@ class StandaloneMainWidget(mainwidget.MainWidget):
         """Modifies layout for display in standalone-mode."""
         self.headerwidget.widgetMoved.connect(self.save_widget_settings)
         self.headerwidget.findChild(
-            mainwidget.MinimizeButton).clicked.connect(self.showMinimized)
-        self.headerwidget.findChild(mainwidget.CloseButton).clicked.connect(self.close)
+            main.MinimizeButton).clicked.connect(self.showMinimized)
+        self.headerwidget.findChild(main.CloseButton).clicked.connect(self.close)
 
         self.fileswidget.activated.connect(common.execute)
-        self.favouriteswidget.activated.connect(common.execute)
+        self.listfavourites.activated.connect(common.execute)
         self.terminated.connect(QtWidgets.QApplication.instance().quit)
 
     def trayActivated(self, reason):

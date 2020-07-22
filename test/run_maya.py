@@ -23,7 +23,6 @@ paths.insert(1, _bin)
 os.environ['PATH'] = ';'.join(paths)
 
 try:
-    from PySide2 import QtWidgets
     import maya.standalone as maya_standalone
     import maya.mel as mel
     import maya.cmds as cmds
@@ -31,10 +30,9 @@ except ImportError as e:
     raise
 
 try:
-    from bookmarks.maya.widget import MayaBrowserButton
+    import bookmarks.maya.widget as mayawidget
     import bookmarks.common as common
     import bookmarks.standalone as standalone
-    import bookmarks.maya as maya
 except ImportError as e:
     raise
 
@@ -55,7 +53,7 @@ cmds.sets([], name=u'emptyTestMesh_geo_set')
 
 
 common.STANDALONE = False
-w = MayaBrowserButton()
+w = mayawidget.MayaBrowserButton()
 w.show()
 
 try:

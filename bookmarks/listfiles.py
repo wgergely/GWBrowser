@@ -4,14 +4,14 @@
 """
 from PySide2 import QtWidgets, QtCore, QtGui
 
-import bookmarks.basecontextmenu as basecontextmenu
-import bookmarks.baselist as baselist
+import bookmarks.contextmenu as contextmenu
+import bookmarks.lists as lists
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.threads as threads
 import _scandir as _scandir
 import bookmarks.settings as settings
-import bookmarks.delegate as delegate
+import bookmarks.listdelegate as listdelegate
 import bookmarks.defaultpaths as defaultpaths
 import bookmarks.images as images
 
@@ -19,7 +19,7 @@ import bookmarks.images as images
 FILTER_EXTENSIONS = False
 
 
-class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
+class FilesWidgetContextMenu(contextmenu.BaseContextMenu):
     """Context menu associated with the `FilesWidget`."""
 
     def __init__(self, index, parent=None):
@@ -54,7 +54,7 @@ class FilesWidgetContextMenu(basecontextmenu.BaseContextMenu):
         self.add_refresh_menu()
 
 
-class FilesModel(baselist.BaseModel):
+class FilesModel(lists.BaseModel):
     """The model used store individual and file sequences found in `parent_path`.
 
     File data is saved ``self.INTERNAL_MODEL_DATA`` using the **task folder**,
@@ -92,7 +92,7 @@ class FilesModel(baselist.BaseModel):
             else:
                 yield entry
 
-    @baselist.initdata
+    @lists.initdata
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and
         sequence definitions by running a file-iterator stemming from
@@ -486,12 +486,12 @@ class DragPixmap(QtWidgets.QWidget):
         painter.end()
 
 
-class FilesWidget(baselist.ThreadedBaseWidget):
+class FilesWidget(lists.ThreadedBaseWidget):
     """The view used to display the contents of a ``FilesModel`` instance.
 
     """
     SourceModel = FilesModel
-    Delegate = delegate.FilesWidgetDelegate
+    Delegate = listdelegate.FilesWidgetDelegate
     ContextMenu = FilesWidgetContextMenu
 
     newFileAdded = QtCore.Signal(unicode)
@@ -683,7 +683,7 @@ class FilesWidget(baselist.ThreadedBaseWidget):
             drag.setPixmap(pixmap)
 
         try:
-            lc = self.parent().parent().listcontrolwidget
+            lc = self.parent().parent().listcontrol
             lc.drop_overlay.show()
         except:
             log.error(u'Could not show drag overlay')

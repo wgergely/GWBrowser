@@ -63,8 +63,8 @@ def exec_():
     else:
         app = standalone.StandaloneApp([])
 
-    import bookmarks.mainwidget as mainwidget
+    import bookmarks.main as main
     standalone.StandaloneMainWidget()
-    mainwidget.show_window()
+    main.show_window()
 
     app.exec_()

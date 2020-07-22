@@ -1057,8 +1057,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         @QtCore.Slot(unicode)
         def show_widget(ext):
-            import bookmarks.addfilewidget as addfilewidget
-            widget = addfilewidget.AddFileWidget(ext)
+            import bookmarks.addfile as addfile
+            widget = addfile.AddFileWidget(ext)
             widget.fileSaveRequested.connect(accepted)
             widget.fileSaveRequested.connect(self.parent().new_file_added)
             widget.open()
@@ -1188,7 +1188,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                             index, QtWidgets.QAbstractItemView.PositionAtCenter)
                         break
 
-            import bookmarks.addassetwidget as addassetwidget
+            import bookmarks.addasset as addasset
 
             bookmarks_widget = self.parent().parent().parent().stackedwidget.widget(0)
             index = bookmarks_widget.model().sourceModel().active_index()
@@ -1198,7 +1198,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             bookmark = index.data(common.ParentPathRole)
             bookmark = u'/'.join(bookmark)
 
-            widget = addassetwidget.AddAssetWidget(
+            widget = addasset.AddAssetWidget(
                 index.data(common.ParentPathRole)[0],
                 index.data(common.ParentPathRole)[1],
                 index.data(common.ParentPathRole)[2],

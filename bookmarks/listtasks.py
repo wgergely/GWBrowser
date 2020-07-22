@@ -10,19 +10,17 @@ See the `defaultpaths` module for implemented task folder descriptions.
 """
 import weakref
 from functools import partial
+import _scandir
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import _scandir as _scandir
 import bookmarks.log as log
 import bookmarks.common as common
-
-from bookmarks.delegate import paintmethod
-from bookmarks.baselist import BaseModel
-from bookmarks.baselist import initdata
-from bookmarks.delegate import BaseDelegate
+import bookmarks.lists as lists
+import bookmarks.listdelegate as listdelegate
+import bookmarks.contextmenu as contextmenu
 import bookmarks.images as images
 import bookmarks.settings as settings
-from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.threads as threads
 import bookmarks.defaultpaths as defaultpaths
 
@@ -37,7 +35,7 @@ def reset_monitor():
 
 
 
-class TaskFolderContextMenu(BaseContextMenu):
+class TaskFolderContextMenu(contextmenu.BaseContextMenu):
     """The context menu associated with the TaskFolderWidget."""
 
     def __init__(self, index, parent=None):
@@ -46,8 +44,8 @@ class TaskFolderContextMenu(BaseContextMenu):
         self.add_copy_menu()
 
 
-class TaskFolderWidgetDelegate(BaseDelegate):
-    """The delegate used to paint the available subfolders inside the asset folder."""
+class TaskFolderWidgetDelegate(listdelegate.BaseDelegate):
+    """The listdelegate used to paint the available subfolders inside the asset folder."""
 
     def paint(self, painter, option, index):
         """The main paint method."""
@@ -59,7 +57,7 @@ class TaskFolderWidgetDelegate(BaseDelegate):
     def get_text_segments(self):
         return []
 
-    @paintmethod
+    @listdelegate.paintmethod
     def paint_background(self, *args):
         """Paints the background."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -76,7 +74,7 @@ class TaskFolderWidgetDelegate(BaseDelegate):
         painter.setBrush(color)
         painter.drawRect(rect)
 
-    @paintmethod
+    @listdelegate.paintmethod
     def paint_name(self, *args):
         """Paints the name and the number of files available for the given data-key."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -159,7 +157,7 @@ class TaskFolderWidgetDelegate(BaseDelegate):
         return QtCore.QSize(1, height)
 
 
-class TaskFolderModel(BaseModel):
+class TaskFolderModel(lists.BaseModel):
     """This model holds all the necessary data needed to display items to
     select for selecting the asset subfolders and/or bookmarks and assets.
 
@@ -225,7 +223,7 @@ class TaskFolderModel(BaseModel):
         """This model is always alphabetical."""
         pass
 
-    @initdata
+    @lists.initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         reset_monitor()

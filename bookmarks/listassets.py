@@ -3,23 +3,20 @@
 
 """
 import re
+import _scandir
+
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.log as log
-import _scandir as _scandir
 import bookmarks.threads as threads
-import bookmarks.delegate as delegate
-import bookmarks.baselist as baselist
-import bookmarks.basecontextmenu as basecontextmenu
+import bookmarks.listdelegate as listdelegate
+import bookmarks.lists as lists
+import bookmarks.contextmenu as contextmenu
 import bookmarks.bookmark_db as bookmark_db
-
-
 import bookmarks.settings as settings
 
 
-class AssetsWidgetContextMenu(basecontextmenu.BaseContextMenu):
+class AssetsWidgetContextMenu(contextmenu.BaseContextMenu):
     """The context menu associated with the AssetsWidget."""
 
     def __init__(self, index, parent=None):
@@ -47,7 +44,7 @@ class AssetsWidgetContextMenu(basecontextmenu.BaseContextMenu):
         self.add_refresh_menu()
 
 
-class AssetModel(baselist.BaseModel):
+class AssetModel(lists.BaseModel):
     """Asset data model."""
     DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT())
     val = settings.local_settings.value(u'widget/assetmodel/rowheight')
@@ -62,7 +59,7 @@ class AssetModel(baselist.BaseModel):
         super(AssetModel, self).__init__(
             has_threads=has_threads, parent=parent)
 
-    @baselist.initdata
+    @lists.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model by querrying
         the active root folder.
@@ -202,10 +199,10 @@ class AssetModel(baselist.BaseModel):
         return u'/'.join(ks)
 
 
-class AssetsWidget(baselist.ThreadedBaseWidget):
+class AssetsWidget(lists.ThreadedBaseWidget):
     """The view used to display the contents of a ``AssetModel`` instance."""
     SourceModel = AssetModel
-    Delegate = delegate.AssetsWidgetDelegate
+    Delegate = listdelegate.AssetsWidgetDelegate
     ContextMenu = AssetsWidgetContextMenu
 
     def __init__(self, parent=None):
@@ -244,7 +241,7 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
 
     @QtCore.Slot()
     def show_properties_widget(self):
-        import bookmarks.addassetwidget as addassetwidget
+        import bookmarks.addasset as addasset
 
         if not self.selectionModel().hasSelection():
             return
@@ -273,7 +270,7 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
             data[idx][common.DescriptionRole] = s
             self.update(index)
 
-        widget = addassetwidget.AddAssetWidget(
+        widget = addasset.AddAssetWidget(
             *index.data(common.ParentPathRole),
             update=True
         )
@@ -293,11 +290,11 @@ class AssetsWidget(baselist.ThreadedBaseWidget):
             return
 
         rect = self.visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
 
-        if rectangles[delegate.AddAssetRect].contains(cursor_position):
+        if rectangles[listdelegate.AddAssetRect].contains(cursor_position):
             self.show_add_widget()
-        elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
+        elif rectangles[listdelegate.BookmarkPropertiesRect].contains(cursor_position):
             self.show_properties_widget()
         else:
             super(AssetsWidget, self).mouseReleaseEvent(event)

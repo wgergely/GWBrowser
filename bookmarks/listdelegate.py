@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""The delegate used to  paint the bookmark, asset and file widgets.
+"""The listdelegate used to  paint the bookmark, asset and file widgets.
 
-The delegate is fully integerated with the BaseListViews because we're relying
+The listdelegate is fully integerated with the BaseListViews because we're relying
 on the drawing of the elements to define clickable regions on a row.
 
-The delegate itself is very slow - we're using QPainterPaths to draw aliased
+The listdelegate itself is very slow - we're using QPainterPaths to draw aliased
 text output and hence backing some of the operations by simple caches.
 
 """
@@ -138,7 +138,7 @@ def paintmethod(func):
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
-    """Base delegate containing methods to draw our list items."""
+    """Base listdelegate containing methods to draw our list items."""
     fallback_thumb = u'placeholder'
 
     def __init__(self, parent=None):
@@ -203,8 +203,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         interactive regions.
 
         For instance, folder names are clickable and used to toggle filters.
-        Since the size of the rectangle depends on how the delegate is handling
-        painting, we're using the delegate calculate and cache these rectangles.
+        Since the size of the rectangle depends on how the listdelegate is handling
+        painting, we're using the listdelegate calculate and cache these rectangles.
 
         The actual rectangles are calculated and saved when a relavant paint
         method is called.
@@ -598,7 +598,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
 
 class BookmarksWidgetDelegate(BaseDelegate):
-    """The delegate used to paint the bookmark items."""
+    """The listdelegate used to paint the bookmark items."""
     fallback_thumb = u'thumb_bookmark_gray'
 
     def paint(self, painter, option, index):

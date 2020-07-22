@@ -29,12 +29,11 @@ import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.bookmark_db as bookmark_db
-from bookmarks.basecontextmenu import BaseContextMenu
-import bookmarks.delegate as delegate
+import bookmarks.contextmenu as contextmenu
+import bookmarks.listdelegate as listdelegate
 import bookmarks.settings as settings
 import bookmarks.images as images
 import bookmarks.alembicpreview as alembicpreview
-
 import bookmarks.threads as threads
 
 
@@ -114,7 +113,7 @@ def flagsmethod(func):
     return func_wrapper
 
 
-class ThumbnailsContextMenu(BaseContextMenu):
+class ThumbnailsContextMenu(contextmenu.BaseContextMenu):
     def __init__(self, index, parent=None):
         super(ThumbnailsContextMenu, self).__init__(index, parent=parent)
         self.add_thumbnail_menu()
@@ -1779,8 +1778,8 @@ class BaseListWidget(QtWidgets.QListView):
         if index.isValid():
             rect = self.visualRect(index)
             gpos = self.viewport().mapToGlobal(event.pos())
-            rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
-            if rectangles[delegate.ThumbnailRect].contains(event.pos()):
+            rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
+            if rectangles[listdelegate.ThumbnailRect].contains(event.pos()):
                 widget = self.ThumbnailContextMenu(index, parent=self)
             else:
                 widget = self.ContextMenu(index, parent=self)
@@ -1837,14 +1836,14 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         rect = self.visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
         description_rectangle = self.itemDelegate().get_description_rect(rectangles, index)
 
         if description_rectangle.contains(cursor_position):
             self.description_editor_widget.show()
             return
 
-        if rectangles[delegate.ThumbnailRect].contains(cursor_position):
+        if rectangles[listdelegate.ThumbnailRect].contains(cursor_position):
             images.pick(index)
             return
 
@@ -1872,7 +1871,7 @@ class BaseListWidget(QtWidgets.QListView):
                     common.reveal(path)
                     return
 
-        if rectangles[delegate.DataRect].contains(cursor_position):
+        if rectangles[listdelegate.DataRect].contains(cursor_position):
             if not self.selectionModel().hasSelection():
                 return
             index = self.selectionModel().currentIndex()
@@ -1958,7 +1957,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         painter.setOpacity(1.0)
         painter.setBrush(common.REMOVE)
-        path = delegate.get_painter_path(x, y, font, text)
+        path = listdelegate.get_painter_path(x, y, font, text)
         painter.drawPath(path)
         painter.end()
 
@@ -2194,17 +2193,17 @@ class BaseInlineIconWidget(BaseListWidget):
         self.reset_multitoggle()
 
         rect = self.visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
 
-        if rectangles[delegate.FavouriteRect].contains(cursor_position):
+        if rectangles[listdelegate.FavouriteRect].contains(cursor_position):
             self.multi_toggle_pos = QtCore.QPoint(0, cursor_position.y())
             self.multi_toggle_state = not index.flags() & common.MarkedAsFavourite
-            self.multi_toggle_idx = delegate.FavouriteRect
+            self.multi_toggle_idx = listdelegate.FavouriteRect
 
-        if rectangles[delegate.ArchiveRect].contains(cursor_position):
+        if rectangles[listdelegate.ArchiveRect].contains(cursor_position):
             self.multi_toggle_pos = cursor_position
             self.multi_toggle_state = not index.flags() & common.MarkedAsArchived
-            self.multi_toggle_idx = delegate.ArchiveRect
+            self.multi_toggle_idx = listdelegate.ArchiveRect
 
         super(BaseInlineIconWidget, self).mousePressEvent(event)
 
@@ -2221,7 +2220,7 @@ class BaseInlineIconWidget(BaseListWidget):
         resets the associated variables.
 
         The inlince icon buttons are also triggered here. We're using the
-        delegate's ``get_rectangles`` function to determine which icon was
+        listdelegate's ``get_rectangles`` function to determine which icon was
         clicked.
 
         """
@@ -2248,12 +2247,12 @@ class BaseInlineIconWidget(BaseListWidget):
 
         # Responding the click-events based on the position:
         rect = self.visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
         cursor_position = self.mapFromGlobal(common.cursor.pos())
 
         self.reset_multitoggle()
 
-        if rectangles[delegate.FavouriteRect].contains(cursor_position):
+        if rectangles[listdelegate.FavouriteRect].contains(cursor_position):
             self.toggle_item_flag(
                 index,
                 common.MarkedAsFavourite
@@ -2261,7 +2260,7 @@ class BaseInlineIconWidget(BaseListWidget):
             self.update(index)
             self.model().invalidateFilter()
 
-        if rectangles[delegate.ArchiveRect].contains(cursor_position):
+        if rectangles[listdelegate.ArchiveRect].contains(cursor_position):
             self.toggle_item_flag(
                 index,
                 common.MarkedAsArchived
@@ -2269,10 +2268,10 @@ class BaseInlineIconWidget(BaseListWidget):
             self.update(index)
             self.model().invalidateFilter()
 
-        if rectangles[delegate.RevealRect].contains(cursor_position):
+        if rectangles[listdelegate.RevealRect].contains(cursor_position):
             common.reveal(index.data(QtCore.Qt.StatusTipRole))
 
-        if rectangles[delegate.TodoRect].contains(cursor_position):
+        if rectangles[listdelegate.TodoRect].contains(cursor_position):
             self.show_todos(index)
 
         super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
@@ -2293,15 +2292,15 @@ class BaseInlineIconWidget(BaseListWidget):
             app.restoreOverrideCursor()
             return
 
-        rectangles = delegate.get_rectangles(self.visualRect(index), self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(self.visualRect(index), self.inline_icons_count())
         for k in (
-            delegate.BookmarkPropertiesRect,
-            delegate.AddAssetRect,
-            delegate.DataRect,
-            delegate.TodoRect,
-            delegate.RevealRect,
-            delegate.ArchiveRect,
-            delegate.FavouriteRect
+            listdelegate.BookmarkPropertiesRect,
+            listdelegate.AddAssetRect,
+            listdelegate.DataRect,
+            listdelegate.TodoRect,
+            listdelegate.RevealRect,
+            listdelegate.ArchiveRect,
+            listdelegate.FavouriteRect
         ):
             if rectangles[k].contains(cursor_position):
                 self.update(index)
@@ -2337,7 +2336,7 @@ class BaseInlineIconWidget(BaseListWidget):
             archived = index.flags() & common.MarkedAsArchived
 
             if idx not in self.multi_toggle_items:
-                if self.multi_toggle_idx == delegate.FavouriteRect:
+                if self.multi_toggle_idx == listdelegate.FavouriteRect:
                     self.multi_toggle_items[idx] = favourite
                     self.toggle_item_flag(
                         index,
@@ -2345,7 +2344,7 @@ class BaseInlineIconWidget(BaseListWidget):
                         state=self.multi_toggle_state
                     )
 
-                if self.multi_toggle_idx == delegate.ArchiveRect:
+                if self.multi_toggle_idx == listdelegate.ArchiveRect:
                     self.multi_toggle_items[idx] = archived
                     self.toggle_item_flag(
                         index,
@@ -2357,13 +2356,13 @@ class BaseInlineIconWidget(BaseListWidget):
             if index == initial_index:
                 return
 
-            if self.multi_toggle_idx == delegate.FavouriteRect:
+            if self.multi_toggle_idx == listdelegate.FavouriteRect:
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsFavourite,
                     state=self.multi_toggle_items.pop(idx)
                 )
-            elif self.multi_toggle_idx == delegate.FavouriteRect:
+            elif self.multi_toggle_idx == listdelegate.FavouriteRect:
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsArchived,
@@ -2379,26 +2378,26 @@ class BaseInlineIconWidget(BaseListWidget):
         """Shows the ``TodoEditorWidget`` for the current item."""
         if not index.isValid():
             return
-        from bookmarks.todo_editor import TodoEditorWidget
+
+        import bookmarks.notes as notes
 
         # Let's check if other editors are open and close them if so
-        editors = [f for f in self.children() if isinstance(f,
-                                                            TodoEditorWidget)]
+        editors = [f for f in self.children() if isinstance(f, notes.TodoEditorWidget)]
         if editors:
             for editor in editors:
                 editor.done(QtWidgets.QDialog.Rejected)
 
         source_index = self.model().mapToSource(index)
 
-        widget = TodoEditorWidget(source_index, parent=self)
+        widget = notes.TodoEditorWidget(source_index, parent=self)
         self.resized.connect(widget.setGeometry)
         widget.finished.connect(widget.deleteLater)
         widget.open()
 
     @QtCore.Slot()
     def show_preferences(self):
-        import bookmarks.preferenceswidget as preferenceswidget
-        widget = preferenceswidget.PreferencesWidget()
+        import bookmarks.preferences as preferences
+        widget = preferences.PreferencesWidget()
         widget.show()
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -2457,7 +2456,7 @@ class BaseInlineIconWidget(BaseListWidget):
     def clickableRectangleEvent(self, event):
         """Used to handle a mouse press/release on a clickable element. The
         clickable rectangles define interactive regions on the list widget, and
-        are set by the delegate.
+        are set by the listdelegate.
 
         For instance, the files widget has a few addittional clickable inline icons
         that control filtering we set the action for here.
@@ -2481,7 +2480,7 @@ class BaseInlineIconWidget(BaseListWidget):
         control_modifier = modifiers & QtCore.Qt.ControlModifier
 
         rect = self.visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
         clickable_rectangles = self.itemDelegate().get_clickable_rectangles(
             index, rectangles)
         if not clickable_rectangles:

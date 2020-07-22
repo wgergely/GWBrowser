@@ -8,16 +8,14 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
-from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.basecontextmenu import contextmenu
-from bookmarks.common_ui import ClickableIconButton
-from bookmarks.taskfolderwidget import TaskFolderWidget
+import bookmarks.contextmenu as contextmenu
+import bookmarks.listtasks as listtasks
 import bookmarks.images as images
-import bookmarks.delegate as delegate
+import bookmarks.listdelegate as listdelegate
 import bookmarks.settings as settings
 
 
-class QuickSwitchMenu(BaseContextMenu):
+class QuickSwitchMenu(contextmenu.BaseContextMenu):
     """Quick asset change menu."""
 
     def __init__(self, parent=None):
@@ -32,7 +30,7 @@ class QuickSwitchMenu(BaseContextMenu):
         stackedwidget = self.parent().parent().parent().stackedwidget
         self.add_switch_menu(stackedwidget.widget(1), u'Change asset')
 
-    @contextmenu
+    @contextmenu.contextmenu
     def add_switch_menu(self, menu_set, widget, label):
         """Adds the items needed to quickly change bookmarks or assets."""
         # if hasattr(widget.model(), 'sourceModel'):
@@ -76,7 +74,7 @@ class QuickSwitchMenu(BaseContextMenu):
         return menu_set
 
 
-class BaseControlButton(ClickableIconButton):
+class BaseControlButton(common_ui.ClickableIconButton):
     """Base class with a few default values."""
 
     def __init__(self, pixmap, description, parent=None):
@@ -371,7 +369,7 @@ class GenerateThumbnailsButton(BaseControlButton):
         self.update()
 
 
-class CollapseSequenceMenu(BaseContextMenu):
+class CollapseSequenceMenu(contextmenu.BaseContextMenu):
     def __init__(self, parent=None):
         super(CollapseSequenceMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
@@ -512,7 +510,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
             x = (self.width() / 2.0) - (width / 2.0)
             y = self.rect().center().y() + (metrics.ascent() * 0.5)
-            path = delegate.get_painter_path(x, y, font, self.text())
+            path = listdelegate.get_painter_path(x, y, font, self.text())
             painter.drawPath(path)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
@@ -847,7 +845,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.files_button = FilesTabButton(parent=self)
         self.favourites_button = FavouritesTabButton(parent=self)
 
-        self.task_folder_view = TaskFolderWidget(
+        self.task_folder_view = listtasks.TaskFolderWidget(
             parent=self.parent().fileswidget, altparent=self)
         self.task_folder_view.setHidden(True)
 

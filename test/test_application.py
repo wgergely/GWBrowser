@@ -283,15 +283,15 @@ class TestBookmarksWidget(BaseCase):
         settings.local_settings.setValue(u'servers', None)
         settings.local_settings.sync()
 
-    def test_open_addbookmarks(self):
-        import bookmarks.addbookmarks as addbookmarks
-        w = addbookmarks.ManageBookmarks()
+    def test_open_addbookmark(self):
+        import bookmarks.addbookmark as addbookmark
+        w = addbookmark.ManageBookmarks()
 
-    def test_addbookmarks_add_bookmark(self):
-        import bookmarks.addbookmarks as addbookmarks
+    def test_addbookmark_add_bookmark(self):
+        import bookmarks.addbookmark as addbookmark
         import bookmarks.common as common
 
-        w = addbookmarks.ManageBookmarks()
+        w = addbookmark.ManageBookmarks()
 
         val = u'INVALID_SERVER'
         w.scrollarea.widget().server_editor.add_server_lineeditor.setText(val)
@@ -312,10 +312,10 @@ class TestBookmarksWidget(BaseCase):
         self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
 
     def test_read_jobs(self):
-        import bookmarks.addbookmarks as addbookmarks
+        import bookmarks.addbookmark as addbookmark
         import bookmarks.common as common
 
-        w = addbookmarks.ManageBookmarks()
+        w = addbookmark.ManageBookmarks()
 
         val = self.server
         w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
@@ -329,32 +329,32 @@ class TestBookmarksWidget(BaseCase):
 
 class TestGui(BaseCase):
 
-    def test_addassetwidget(self):
-        import bookmarks.addassetwidget as addassetwidget
-        w = addassetwidget.AddAssetWidget(
+    def test_addasset(self):
+        import bookmarks.addasset as addasset
+        w = addasset.AddAssetWidget(
             self.server,
             self.job,
             self.bookmarks[0],
         )
         w.open()
 
-    def test_addfilewidget(self):
-        import bookmarks.addfilewidget as addfilewidget
-        w = addfilewidget.AddFileWidget(u'ma')
+    def test_addfile(self):
+        import bookmarks.addfile as addfile
+        w = addfile.AddFileWidget(u'ma')
         w.open()
 
     def test_assetwidget(self):
-        import bookmarks.assetswidget as assetswidget
-        widget = assetswidget.AssetsWidget()
+        import bookmarks.listassets as listassets
+        widget = listassets.AssetsWidget()
         widget.model().sourceModel().parent_path = (
             self.server, self.job, self.bookmarks[1 ],)
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.show()
 
-    def test_basecontextmenu(self):
+    def test_contextmenu(self):
         from PySide2 import QtCore
-        import bookmarks.basecontextmenu as basecontextmenu
-        w = basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
+        import bookmarks.contextmenu as contextmenu
+        w = contextmenu.BaseContextMenu(QtCore.QModelIndex())
         w.show()
 
     def test_bookmark_properties_widget(self):
@@ -367,34 +367,34 @@ class TestGui(BaseCase):
         )
         w.open()
 
-    def test_baselist_widget(self):
-        import bookmarks.baselist as baselist
+    def test_list_widget(self):
+        import bookmarks.lists as lists
 
     def test_bookmarks_widget(self):
-        import bookmarks.bookmarkswidget as bookmarkswidget
-        widget = bookmarkswidget.BookmarksWidget()
+        import bookmarks.listbookmarks as listbookmarks
+        widget = listbookmarks.BookmarksWidget()
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.show()
 
     def test_taskfolders_widget(self):
-        import bookmarks.taskfolderwidget as taskfolderwidget
-        widget = taskfolderwidget.TaskFolderWidget()
+        import bookmarks.listtasks as listtasks
+        widget = listtasks.TaskFolderWidget()
         widget.model().modelDataResetRequested.emit()
         widget.show()
 
     def test_main_widget(self):
-        import bookmarks.mainwidget as mainwidget
-        widget = mainwidget.MainWidget()
+        import bookmarks.main as main
+        widget = main.MainWidget()
         widget.show()
 
     def test_favourites_widget(self):
-        import bookmarks.favouriteswidget as favouriteswidget
-        widget = favouriteswidget.FavouritesWidget()
+        import bookmarks.listfavourites as listfavourites
+        widget = listfavourites.FavouritesWidget()
         widget.show()
 
     def test_preferences_widget(self):
-        import bookmarks.preferenceswidget as preferenceswidget
-        widget = preferenceswidget.PreferencesWidget()
+        import bookmarks.preferences as preferences
+        widget = preferences.PreferencesWidget()
         widget.open()
 
     def test_slacker_widget(self):
@@ -404,10 +404,10 @@ class TestGui(BaseCase):
 
     def test_standalone_widget(self):
         import bookmarks.standalone as standalone
-        import bookmarks.mainwidget as mainwidget
-        if mainwidget._instance:
-            mainwidget._instance.deleteLater()
-            mainwidget._instance = None
+        import bookmarks.main as main
+        if main._instance:
+            main._instance.deleteLater()
+            main._instance = None
 
         widget = standalone.StandaloneMainWidget()
         widget.show()
@@ -415,18 +415,18 @@ class TestGui(BaseCase):
             standalone.StandaloneMainWidget()
 
     def test_files_widget(self):
-        import bookmarks.fileswidget as fileswidget
-        widget = fileswidget.FilesWidget()
+        import bookmarks.listfiles as listfiles
+        widget = listfiles.FilesWidget()
         widget.model().sourceModel().parent_path = (
             self.server, self.job, self.bookmarks[0], u'asset_a')
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.model().sourceModel().taskFolderChanged.emit('taskdir_a')
         widget.show()
 
-    def test_todo_editor(self):
+    def test_notes(self):
         from PySide2 import QtCore
-        import bookmarks.todo_editor as todo_editor
-        widget = todo_editor.TodoEditorWidget(QtCore.QModelIndex())
+        import bookmarks.notes as notes
+        widget = notes.TodoEditorWidget(QtCore.QModelIndex())
         widget.add_item(
             idx=0, text=u'Hello world', checked=False)
         widget.add_item(
@@ -450,9 +450,9 @@ class TestLocalSettings(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from bookmarks.settings import LocalSettings
-        LocalSettings.filename = 'unittestconfig.ini'
-        cls.local_settings = LocalSettings()
+        import bookmarks.settings as settings
+        settings.LocalSettings.filename = 'unittestconfig.ini'
+        cls.local_settings = settings.LocalSettings()
         cls.local_settings.sync()
 
     @classmethod
@@ -731,37 +731,37 @@ class TestAddFileWidget(BaseCase):
             self.fail('Test directory does not exists')
 
     def testImport(self):
-        import bookmarks.addfilewidget as addfilewidget
+        import bookmarks.addfile as addfile
 
     def testWidget(self):
-        import bookmarks.addfilewidget as addfilewidget
+        import bookmarks.addfile as addfile
 
         with self.assertRaises(ValueError):
-            w = addfilewidget.AddFileWidget(None)
+            w = addfile.AddFileWidget(None)
             w.deleteLater()
 
         with self.assertRaises(ValueError):
-            w = addfilewidget.AddFileWidget(u'')
+            w = addfile.AddFileWidget(u'')
             w.deleteLater()
             w.deleteLater()
 
-        w = addfilewidget.AddFileWidget(u'ma')
+        w = addfile.AddFileWidget(u'ma')
         w.deleteLater()
 
         destination = u'{}/testfile.ma'.format(self.root_dir)
-        w = addfilewidget.AddFileWidget(None, file=destination)
+        w = addfile.AddFileWidget(None, file=destination)
         destination = u'{}/testfile_v0001.ma'.format(self.root_dir)
         self.assertEqual(w.get_file_path(), destination)
 
         destination = u'{}/testfile_v0001.ma'.format(self.root_dir)
-        w = addfilewidget.AddFileWidget(None, file=destination)
+        w = addfile.AddFileWidget(None, file=destination)
         self.assertEqual(w.get_file_path(), destination)
 
         with open(destination, 'w') as f:
             f.write(destination)
 
         destination = u'{}/testfile_v0001.ma'.format(self.root_dir)
-        w = addfilewidget.AddFileWidget(None, file=destination)
+        w = addfile.AddFileWidget(None, file=destination)
         destination = u'{}/testfile_v0002.ma'.format(self.root_dir)
         self.assertEqual(w.get_file_path(), destination)
 

@@ -5,15 +5,15 @@
 """
 import re
 import zipfile
+import _scandir
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
-from _scandir import scandir as scandir_it
 import bookmarks.images as images
-from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
+import bookmarks.contextmenu as contextmenu
 import bookmarks.settings as settings
 
 
@@ -53,7 +53,7 @@ class ComboBox(QtWidgets.QComboBox):
         super(ComboBox, self).paintEvent(event)
 
 
-class TemplateContextMenu(BaseContextMenu):
+class TemplateContextMenu(contextmenu.BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(TemplateContextMenu, self).__init__(index, parent=parent)
@@ -65,7 +65,7 @@ class TemplateContextMenu(BaseContextMenu):
         self.add_separator()
         self.add_remove_menu()
 
-    @contextmenu
+    @contextmenu.contextmenu
     def add_remove_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'close', common.REMOVE, common.MARGIN())
@@ -99,7 +99,7 @@ class TemplateContextMenu(BaseContextMenu):
 
         return menu_set
 
-    @contextmenu
+    @contextmenu.contextmenu
     def add_refresh_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.MARGIN())
@@ -122,7 +122,7 @@ class TemplateContextMenu(BaseContextMenu):
             pass
         return menu_set
 
-    @contextmenu
+    @contextmenu.contextmenu
     def add_new_template_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.MARGIN())
@@ -1476,14 +1476,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             return
 
         n = 0
-        for entry in scandir_it(server):
+        for entry in _scandir.scandir(server):
             if not entry.is_dir():
                 continue
             # Let's explicitly check read access by trying to get the
             # files inside the folder
             is_valid = False
             try:
-                next(scandir_it(entry.path))
+                next(_scandir.scandir(entry.path))
                 is_valid = True
             except StopIteration:
                 is_valid = True
@@ -1550,7 +1550,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             return arr
 
         try:
-            it = scandir_it(path)
+            it = _scandir.scandir(path)
         except:
             return
 

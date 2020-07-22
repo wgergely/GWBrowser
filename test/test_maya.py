@@ -42,7 +42,7 @@ class TestMaya(unittest.TestCase):
             raise
 
         try:
-            from bookmarks.maya.widget import MayaBrowserButton
+            import bookmarks.maya.widget as mayawidget
             import bookmarks.common as common
             import bookmarks.standalone as standalone
             import bookmarks.maya as maya
@@ -68,7 +68,7 @@ class TestMaya(unittest.TestCase):
             raise
 
         try:
-            from bookmarks.maya.widget import MayaBrowserButton
+            import bookmarks.maya.widget as mayawidget
             import bookmarks.common as common
             import bookmarks.standalone as standalone
             import bookmarks.maya as maya
@@ -96,14 +96,14 @@ class TestMaya(unittest.TestCase):
 
     def test_MayaBrowserButton(self):
         try:
-            from bookmarks.maya.widget import MayaBrowserButton
+            import bookmarks.maya.widget as mayawidget
             import bookmarks.common as common
             import bookmarks.standalone as standalone
             import bookmarks.maya as maya
         except ImportError as e:
             raise
 
-        w = MayaBrowserButton()
+        w = mayawidget.MayaBrowserButton()
         w.show()
 
         try:
@@ -118,7 +118,7 @@ class TestMaya(unittest.TestCase):
     def test_widget(self):
         try:
             import os
-            from bookmarks.maya.widget import MayaBrowserButton
+            import bookmarks.maya.widget as mayawidget
             import bookmarks.common as common
             import bookmarks.standalone as standalone
             import bookmarks.maya as maya

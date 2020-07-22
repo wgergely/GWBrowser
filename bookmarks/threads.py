@@ -336,8 +336,8 @@ class BaseWorker(QtCore.QObject):
         """
         verify_thread_affinity()
 
-        import bookmarks.mainwidget as mainwidget
-        if not mainwidget.instance():
+        import bookmarks.main as main
+        if not main.instance():
             return
 
         # Let's determine the type
@@ -351,7 +351,7 @@ class BaseWorker(QtCore.QObject):
             n = 3
 
         # and load the data
-        view = mainwidget.instance().stackedwidget.widget(n)
+        view = main.instance().stackedwidget.widget(n)
         model = view.model().sourceModel()
 
         q = QUEUES[self.queue_type]
@@ -620,7 +620,7 @@ class ThumbnailWorker(BaseWorker):
     """Thread worker responsible for creating and loading thumbnails.
 
     The resulting image data is saved in the `ImageCache` and used by the item
-    delegates to paint thumbnails.
+    listdelegates to paint thumbnails.
 
     """
     @process

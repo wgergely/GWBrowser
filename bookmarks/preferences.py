@@ -9,7 +9,6 @@ import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.settings as settings
 import bookmarks.defaultpaths as defaultpaths
-import bookmarks.images as images
 
 
 _widget_instance = None

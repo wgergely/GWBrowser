@@ -11,18 +11,18 @@ import re
 import zipfile
 import hashlib
 import weakref
+import _scandir
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
 
-import _scandir as _scandir
 
 SERVERS = []
 
 font_db = None  # Must be set before bookmarks is initialized
 STANDALONE = True  # The current mode of bookmarks
 PRODUCT = u'Bookmarks'
-ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks'
+ABOUT_URL = ur'https://github.com/wgergely/bookmarks'
 
 
 SynchronisedMode = 0
@@ -908,7 +908,7 @@ def get_sequence_paths(index):
     individual sequence items.
 
     Args:
-        index (QtCore.QModelIndex): A baselistview index.
+        index (QtCore.QModelIndex): A listview index.
 
     """
     path = index.data(QtCore.Qt.StatusTipRole)
@@ -942,7 +942,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
         int: The width of the drawn text in pixels.
 
     """
-    import bookmarks.delegate as delegate
+    import bookmarks.listdelegate as listdelegate
     painter.save()
 
     painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
@@ -978,7 +978,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.setBrush(color)
     painter.setPen(QtCore.Qt.NoPen)
 
-    path = delegate.get_painter_path(x, y, font, text)
+    path = listdelegate.get_painter_path(x, y, font, text)
     painter.drawPath(path)
 
     painter.restore()

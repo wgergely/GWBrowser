@@ -3,8 +3,8 @@
 
 import os
 from datetime import datetime
-import _scandir
 import subprocess
+import _scandir
 
 from PySide2 import QtCore, QtWidgets
 import bookmarks.log as log
@@ -22,9 +22,6 @@ def get_font_path(name='bmRobotoMedium'):
     font_file = __file__ + os.path.sep + os.path.pardir + os.path.sep + 'rsc' + os.path.sep + 'fonts' + os.path.sep + '{}.ttf'.format(name)
     font_file = os.path.abspath(os.path.normpath(font_file))
     return font_file.replace(u'\\', u'/').replace(u':', u'\\\\:') # needed for ffmpeg
-
-
-
 
 
 def launch_ffmpeg_command(input, preset, server=None, job=None, root=None, asset=None, task_folder=None):

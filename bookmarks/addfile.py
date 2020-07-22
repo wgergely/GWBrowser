@@ -30,22 +30,22 @@ These task, or modes, are defined in ``SCENE_FOLDERS`` and ``EXPORT_FOLDERS``.
 import base64
 import functools
 import uuid
+import _scandir
+
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.settings as settings
-import _scandir as _scandir
 import bookmarks.common_ui as common_ui
-import bookmarks.delegate as delegate
-import bookmarks.baselist as baselist
-import bookmarks.basecontextmenu as basecontextmenu
+import bookmarks.listdelegate as listdelegate
+import bookmarks.lists as lists
+import bookmarks.contextmenu as contextmenu
 import bookmarks.images as images
 import bookmarks.defaultpaths as defaultpaths
-
-from bookmarks.bookmarkswidget import BookmarksModel
-from bookmarks.assetswidget import AssetModel
+import bookmarks.listbookmarks as listbookmarks
+import bookmarks.listassets as listassets
 
 
 class SelectButton(QtWidgets.QLabel):
@@ -270,10 +270,10 @@ class SelectButton(QtWidgets.QLabel):
         self.widgetMoved.emit(self.rect())
 
 
-class BaseListView(baselist.BaseInlineIconWidget):
+class BaseListView(lists.BaseInlineIconWidget):
     """The base class used to view the ``BookmarksModel`` and ``AssetModel``
     models. The class is a control icon-less version of the
-    ``baselist.BaseInlineIconWidget`` widget.
+    ``lists.BaseInlineIconWidget`` widget.
 
     The ``activated`` signal will hide the view but the activated signal itself
     is **not** connected in this class.
@@ -354,7 +354,7 @@ class BaseListView(baselist.BaseInlineIconWidget):
         return 0
 
 
-class ThreadlessBookmarksModel(BookmarksModel):
+class ThreadlessBookmarksModel(listbookmarks.BookmarksModel):
     def __init__(self, has_threads=False, parent=None):
         super(ThreadlessBookmarksModel, self).__init__(
             has_threads=False, parent=parent)
@@ -362,7 +362,7 @@ class ThreadlessBookmarksModel(BookmarksModel):
 
 class BookmarksListView(BaseListView):
     SourceModel = ThreadlessBookmarksModel
-    Delegate = delegate.BookmarksWidgetDelegate
+    Delegate = listdelegate.BookmarksWidgetDelegate
     ContextMenu = None
 
     @QtCore.Slot()
@@ -381,7 +381,7 @@ class BookmarksListView(BaseListView):
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
 
-class ThreadlessAssetModel(AssetModel):
+class ThreadlessAssetModel(listassets.AssetModel):
     def __init__(self, has_threads=False, parent=None):
         super(ThreadlessAssetModel, self).__init__(
             has_threads=False, parent=parent)
@@ -389,7 +389,7 @@ class ThreadlessAssetModel(AssetModel):
 
 class AssetsListView(BaseListView):
     SourceModel = ThreadlessAssetModel
-    Delegate = delegate.AssetsWidgetDelegate
+    Delegate = listdelegate.AssetsWidgetDelegate
     ContextMenu = None
 
     @QtCore.Slot()
@@ -408,7 +408,7 @@ class AssetsListView(BaseListView):
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
 
-class SelectFolderViewContextMenu(basecontextmenu.BaseContextMenu):
+class SelectFolderViewContextMenu(contextmenu.BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
 
     def __init__(self, index, parent=None):
@@ -423,7 +423,7 @@ class SelectFolderViewContextMenu(basecontextmenu.BaseContextMenu):
         self.add_separator()
         self.add_view_options()
 
-    @basecontextmenu.contextmenu
+    @contextmenu.contextmenu
     def add_view_options(self, menu_set):
         menu_set[u'expand_all'] = {
             u'text': u'Expand all',
@@ -435,7 +435,7 @@ class SelectFolderViewContextMenu(basecontextmenu.BaseContextMenu):
         }
         return menu_set
 
-    @basecontextmenu.contextmenu
+    @contextmenu.contextmenu
     def add_new_folder_menu(self, menu_set):
         if not self.index.isValid():
             return menu_set
@@ -468,7 +468,7 @@ class SelectFolderViewContextMenu(basecontextmenu.BaseContextMenu):
         }
         return menu_set
 
-    @basecontextmenu.contextmenu
+    @contextmenu.contextmenu
     def add_reveal_item_menu(self, menu_set):
         def reveal():
             file_path = self.parent().model().filePath(self.index)
@@ -817,7 +817,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self._context_menu_open = False
 
 
-class ThumbnailContextMenu(basecontextmenu.BaseContextMenu):
+class ThumbnailContextMenu(contextmenu.BaseContextMenu):
     """Context menu associated with the thumbnail."""
 
     def __init__(self, parent=None):
@@ -825,7 +825,7 @@ class ThumbnailContextMenu(basecontextmenu.BaseContextMenu):
             QtCore.QModelIndex(), parent=parent)
         self.add_thumbnail_menu()
 
-    @basecontextmenu.contextmenu
+    @contextmenu.contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_pixmap = images.ImageCache.get_rsc_pixmap(

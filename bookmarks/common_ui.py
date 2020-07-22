@@ -8,7 +8,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import bookmarks.common as common
 import bookmarks.images as images
 import bookmarks.bookmark_db as bookmark_db
-import bookmarks.delegate as delegate
+import bookmarks.listdelegate as listdelegate
 
 
 _message_box_instance = None
@@ -604,21 +604,21 @@ class DescriptionEditorWidget(LineEdit):
             return
 
         rect = self.parent().visualRect(index)
-        rectangles = delegate.get_rectangles(
+        rectangles = listdelegate.get_rectangles(
             rect, self.parent().inline_icons_count())
         description_rect = self.parent().itemDelegate(
         ).get_description_rect(rectangles, index)
 
         # Won't be showing the editor if there's no appropiate description area
-        # provided by the delegate (eg. the bookmark items don't have this)
+        # provided by the listdelegate (eg. the bookmark items don't have this)
         if not description_rect:
             self.hide()
 
-        # Let's set the size based on the size provided by the delegate but
+        # Let's set the size based on the size provided by the listdelegate but
         # center it instead
         o = common.INDICATOR_WIDTH() * 2.0
         rect = description_rect.marginsAdded(QtCore.QMargins(0, o, 0, o))
-        rect.moveCenter(rectangles[delegate.DataRect].center())
+        rect.moveCenter(rectangles[listdelegate.DataRect].center())
         self.setGeometry(rect)
 
         # Set the text and select it

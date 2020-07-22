@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """The widget used to add a new asset (eg. a shot) to a bookmark.
 
-See `addbookmarks.TemplatesWidget` for more information, the main widget
+See `addbookmark.TemplatesWidget` for more information, the main widget
 responsible for listing, saving and expanding zip template files.
 
 """
@@ -13,7 +13,7 @@ import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 import bookmarks.bookmark_db as bookmark_db
-import bookmarks.addbookmarks as addbookmarks
+import bookmarks.addbookmark as addbookmark
 import bookmarks.shotgun as shotgun
 import bookmarks.shotgun_widgets as shotgun_widgets
 
@@ -135,7 +135,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
-        self.templates_widget = addbookmarks.TemplatesWidget(
+        self.templates_widget = addbookmark.TemplatesWidget(
             u'asset', parent=self)
         self.description_editor = common_ui.LineEdit(parent=self)
         self.description_editor.setPlaceholderText(u'Enter a description...')

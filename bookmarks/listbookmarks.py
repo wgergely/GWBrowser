@@ -14,10 +14,10 @@ import bookmarks.bookmark_db as bookmark_db
 import bookmarks.bookmark_properties as bookmark_properties
 import bookmarks.threads as threads
 import _scandir as _scandir
-import bookmarks.baselist as baselist
-import bookmarks.basecontextmenu as basecontextmenu
+import bookmarks.lists as lists
+import bookmarks.contextmenu as contextmenu
 import bookmarks.settings as settings
-import bookmarks.delegate as delegate
+import bookmarks.listdelegate as listdelegate
 
 
 def count_assets(bookmark_path, ASSET_IDENTIFIER):
@@ -39,7 +39,7 @@ def count_assets(bookmark_path, ASSET_IDENTIFIER):
     return n
 
 
-class BookmarksWidgetContextMenu(basecontextmenu.BaseContextMenu):
+class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
     """Context menu associated with the BookmarksWidget.
 
     Methods:
@@ -71,7 +71,7 @@ class BookmarksWidgetContextMenu(basecontextmenu.BaseContextMenu):
         self.add_refresh_menu()
 
 
-class BookmarksModel(baselist.BaseModel):
+class BookmarksModel(lists.BaseModel):
     """The model used store the data necessary to display bookmarks.
 
     """
@@ -88,7 +88,7 @@ class BookmarksModel(baselist.BaseModel):
         super(BookmarksModel, self).__init__(
             has_threads=has_threads, parent=parent)
 
-    @baselist.initdata
+    @lists.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -273,7 +273,7 @@ class BookmarksModel(baselist.BaseModel):
         """Returns a tuple of text and colour information to be used to mimick
         rich-text like colouring of individual text elements.
 
-        Used by the delegate to represent the job name and root folder.
+        Used by the listdelegate to represent the job name and root folder.
 
         """
         if not text:
@@ -303,20 +303,20 @@ class BookmarksModel(baselist.BaseModel):
         return d
 
 
-class BookmarksWidget(baselist.ThreadedBaseWidget):
+class BookmarksWidget(lists.ThreadedBaseWidget):
     """The view used to display the contents of a ``BookmarksModel`` instance."""
     SourceModel = BookmarksModel
-    Delegate = delegate.BookmarksWidgetDelegate
+    Delegate = listdelegate.BookmarksWidgetDelegate
     ContextMenu = BookmarksWidgetContextMenu
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Bookmarks')
 
-        import bookmarks.addbookmarks as addbookmarks
+        import bookmarks.addbookmark as addbookmark
 
         self._background_icon = u'bookmark'
-        self.manage_bookmarks = addbookmarks.ManageBookmarks(parent=self)
+        self.manage_bookmarks = addbookmark.ManageBookmarks(parent=self)
 
         @QtCore.Slot(unicode)
         def _update(bookmark):
@@ -342,11 +342,11 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
             return
 
         rect = self.visualRect(index)
-        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
 
-        if rectangles[delegate.AddAssetRect].contains(cursor_position):
+        if rectangles[listdelegate.AddAssetRect].contains(cursor_position):
             self.show_add_widget()
-        elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
+        elif rectangles[listdelegate.BookmarkPropertiesRect].contains(cursor_position):
             self.show_properties_widget()
         else:
             super(BookmarksWidget, self).mouseReleaseEvent(event)
@@ -397,7 +397,7 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
                 return
 
             view.model().sourceModel().modelDataResetRequested.emit()
-            self.parent().parent().listcontrolwidget.listChanged.emit(1)
+            self.parent().parent().listcontrol.listChanged.emit(1)
 
             for n in xrange(view.model().rowCount()):
                 index = view.model().index(n, 0)
@@ -410,7 +410,7 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
                         index, QtWidgets.QAbstractItemView.PositionAtCenter)
                     break
 
-        import bookmarks.addassetwidget as addassetwidget
+        import bookmarks.addasset as addasset
 
         if not self.selectionModel().hasSelection():
             return
@@ -418,7 +418,7 @@ class BookmarksWidget(baselist.ThreadedBaseWidget):
         if not index.isValid():
             return
 
-        widget = addassetwidget.AddAssetWidget(
+        widget = addasset.AddAssetWidget(
             index.data(common.ParentPathRole)[0],
             index.data(common.ParentPathRole)[1],
             index.data(common.ParentPathRole)[2]

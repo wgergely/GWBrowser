@@ -2,21 +2,19 @@
 """Classes responsible for viewing and editing items marked as favourites.
 
 """
+import _scandir
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import bookmarks.log as log
 import bookmarks.common as common
 import bookmarks.threads as threads
 import bookmarks.settings as settings
-
-from bookmarks.basecontextmenu import BaseContextMenu
-from bookmarks.delegate import FavouritesWidgetDelegate
-from bookmarks.fileswidget import FilesModel
-from bookmarks.fileswidget import FilesWidget
-import _scandir as _scandir
+import bookmarks.contextmenu as contextmenu
+import bookmarks.listdelegate as listdelegate
+import bookmarks.listfiles as listfiles
 
 
-class FavouritesWidgetContextMenu(BaseContextMenu):
+class FavouritesWidgetContextMenu(contextmenu.BaseContextMenu):
     def __init__(self, index, parent=None):
         super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
         self.index = index
@@ -40,7 +38,7 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         self.add_refresh_menu()
 
 
-class FavouritesModel(FilesModel):
+class FavouritesModel(listfiles.FilesModel):
     """The model responsible for displaying the saved favourites."""
 
     queue_type = threads.FavouriteInfoQueue
@@ -122,10 +120,10 @@ class DropIndicatorWidget(QtWidgets.QWidget):
         super(DropIndicatorWidget, self).show()
 
 
-class FavouritesWidget(FilesWidget):
+class FavouritesWidget(listfiles.FilesWidget):
     """The widget responsible for showing all the items marked as favourites."""
     SourceModel = FavouritesModel
-    Delegate = FavouritesWidgetDelegate
+    Delegate = listdelegate.FavouritesWidgetDelegate
     ContextMenu = FavouritesWidgetContextMenu
 
     def __init__(self, parent=None):
