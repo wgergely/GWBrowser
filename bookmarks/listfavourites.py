@@ -5,13 +5,13 @@
 import _scandir
 from PySide2 import QtWidgets, QtCore, QtGui
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.threads as threads
-import bookmarks.settings as settings
-import bookmarks.contextmenu as contextmenu
-import bookmarks.listdelegate as listdelegate
-import bookmarks.listfiles as listfiles
+from . import log
+from . import common
+from . import threads
+from . import settings
+from . import contextmenu
+from . import listdelegate
+from . import listfiles
 
 
 class FavouritesWidgetContextMenu(contextmenu.BaseContextMenu):

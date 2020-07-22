@@ -14,14 +14,15 @@ import collections
 import os
 import json
 import re
-import psutil
 from functools import wraps
+
+import psutil
+import _scandir
 
 from PySide2 import QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import _scandir as _scandir
+from . import log
+from . import common
 
 
 ACTIVE = collections.OrderedDict()
@@ -321,7 +322,7 @@ class LocalSettings(QtCore.QSettings):
         self.setValue(u'bookmarks', _valid)
         s = u'Bookmarks pruned:\n{}'.format(u'\n'.join(_invalid))
 
-        import bookmarks.common_ui as common_ui
+        from . import common_ui
         common_ui.OkBox('Bookmarks pruned. Refresh the list to see the changes.', s).open()
         log.success(s)
 

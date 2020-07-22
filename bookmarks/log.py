@@ -13,7 +13,7 @@ import cStringIO
 
 from PySide2 import QtGui, QtCore, QtWidgets
 
-import bookmarks.common as common
+from . import common
 
 
 mutex = QtCore.QMutex()
@@ -324,7 +324,7 @@ class LogWidget(QtWidgets.QWidget):
         self.reset_button.clicked.connect(reset)
 
     def _create_UI(self):
-        import bookmarks.common_ui as common_ui
+        from . import common_ui
 
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN() * 0.5

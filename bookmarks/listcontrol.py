@@ -5,14 +5,14 @@
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.contextmenu as contextmenu
-import bookmarks.listtasks as listtasks
-import bookmarks.images as images
-import bookmarks.listdelegate as listdelegate
-import bookmarks.settings as settings
+from . import log
+from . import common
+from . import common_ui
+from . import contextmenu
+from . import listtasks
+from . import images
+from . import listdelegate
+from . import settings
 
 
 class QuickSwitchMenu(contextmenu.BaseContextMenu):
@@ -772,7 +772,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
     def dropEvent(self, event):
         """Slack drop event"""
         try:
-            import bookmarks.slacker as slacker
+            from . import slacker
         except ImportError as err:
             common_ui.ErrorBox(
                 u'Could not import SlackClient',

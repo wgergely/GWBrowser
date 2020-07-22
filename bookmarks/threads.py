@@ -15,10 +15,10 @@ import uuid
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.images as images
-import bookmarks.bookmark_db as bookmark_db
+from . import log
+from . import common
+from . import images
+from . import bookmark_db
 
 
 THREADS = {}
@@ -336,7 +336,7 @@ class BaseWorker(QtCore.QObject):
         """
         verify_thread_affinity()
 
-        import bookmarks.main as main
+        from . import main
         if not main.instance():
             return
 

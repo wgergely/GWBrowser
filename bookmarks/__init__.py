@@ -46,8 +46,8 @@ def exec_():
         sys.stdout.write(u'{}\n'.format(info))
 
     from PySide2 import QtWidgets
-    import bookmarks.settings as settings
-    import bookmarks.common as common
+    from . import settings
+    from . import common
 
     if not settings.local_settings:
         settings.local_settings = settings.LocalSettings()

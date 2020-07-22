@@ -25,11 +25,11 @@ from slackclient import SlackClient
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.images as images
-import bookmarks.settings as settings
+from . import log
+from . import common
+from . import common_ui
+from . import images
+from . import settings
 
 
 IdRole = QtCore.Qt.UserRole + 1
@@ -664,12 +664,3 @@ class LoadingWidget(QtWidgets.QWidget):
             self._text
         )
         painter.end()
-
-
-if __name__ == '__main__':
-    common.DEBUG_ON = True
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    w = SlackWidget(None, None)
-    w.show()
-    app.exec_()

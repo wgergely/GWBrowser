@@ -6,18 +6,19 @@ import json
 import base64
 import weakref
 import functools
+import _scandir
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.bookmark_properties as bookmark_properties
-import bookmarks.threads as threads
-import _scandir as _scandir
-import bookmarks.lists as lists
-import bookmarks.contextmenu as contextmenu
-import bookmarks.settings as settings
-import bookmarks.listdelegate as listdelegate
+from . import log
+from . import common
+from . import bookmark_db
+from . import bookmark_properties
+from . import threads
+from . import lists
+from . import contextmenu
+from . import settings
+from . import listdelegate
 
 
 def count_assets(bookmark_path, ASSET_IDENTIFIER):
@@ -313,7 +314,7 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Bookmarks')
 
-        import bookmarks.addbookmark as addbookmark
+        from . import addbookmark
 
         self._background_icon = u'bookmark'
         self.manage_bookmarks = addbookmark.ManageBookmarks(parent=self)
@@ -410,7 +411,7 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
                         index, QtWidgets.QAbstractItemView.PositionAtCenter)
                     break
 
-        import bookmarks.addasset as addasset
+        from . import addasset
 
         if not self.selectionModel().hasSelection():
             return

@@ -8,13 +8,13 @@ responsible for listing, saving and expanding zip template files.
 import _scandir
 from PySide2 import QtWidgets, QtCore, QtGui
 
-import bookmarks.common as common
-import bookmarks.log as log
-import bookmarks.images as images
-import bookmarks.common_ui as common_ui
-import bookmarks.shotgun as shotgun
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.settings as settings
+from . import common
+from . import log
+from . import images
+from . import common_ui
+from . import shotgun
+from . import bookmark_db
+from . import settings
 
 
 _create_shot_task_instance = None
@@ -1536,13 +1536,3 @@ class LinkAssets(QtWidgets.QDialog):
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH(), common.HEIGHT())
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    w = CreateTaskVersion(
-        u'//aka03/pjct01/frills/data/shot/060_0060/captures/frl_060_0060_block_gw_v0003/frl_060_0060_block_gw_v0003.1001.png'
-    )
-    w.open()
-    app.exec_()

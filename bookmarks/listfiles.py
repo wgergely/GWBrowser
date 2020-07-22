@@ -2,18 +2,18 @@
 """The view and model used to browse files.
 
 """
+import _scandir
 from PySide2 import QtWidgets, QtCore, QtGui
 
-import bookmarks.contextmenu as contextmenu
-import bookmarks.lists as lists
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.threads as threads
-import _scandir as _scandir
-import bookmarks.settings as settings
-import bookmarks.listdelegate as listdelegate
-import bookmarks.defaultpaths as defaultpaths
-import bookmarks.images as images
+from . import contextmenu
+from . import lists
+from . import log
+from . import common
+from . import threads
+from . import settings
+from . import listdelegate
+from . import defaultpaths
+from . import images
 
 
 FILTER_EXTENSIONS = False

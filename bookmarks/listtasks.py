@@ -14,15 +14,15 @@ import _scandir
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.lists as lists
-import bookmarks.listdelegate as listdelegate
-import bookmarks.contextmenu as contextmenu
-import bookmarks.images as images
-import bookmarks.settings as settings
-import bookmarks.threads as threads
-import bookmarks.defaultpaths as defaultpaths
+from . import log
+from . import common
+from . import lists
+from . import listdelegate
+from . import contextmenu
+from . import images
+from . import settings
+from . import threads
+from . import defaultpaths
 
 
 

@@ -11,11 +11,11 @@ import re
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.images as images
+from . import log
+from . import common
+from . import common_ui
+from . import bookmark_db
+from . import images
 
 
 NoHighlightFlag = 0b000000
@@ -1124,7 +1124,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             k = self.index.data(QtCore.Qt.StatusTipRole)
         elif self.index.data(common.TypeRole) == common.SequenceItem:
             k = common.proxy_path(self.index)
-            
+
         db = bookmark_db.get_db(
             self.index.data(common.ParentPathRole)[0],
             self.index.data(common.ParentPathRole)[1],

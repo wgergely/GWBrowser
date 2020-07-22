@@ -299,7 +299,7 @@ def proxy_path(v):
     elif isinstance(v, unicode):
         pass
     else:
-        import bookmarks.log as log
+        from . import log
         s = u'Invalid type. Expected `<type \'unicode\'>'
         log.error(s)
         raise ValueError(s)
@@ -354,9 +354,9 @@ def export_favourites():
     """Saves all favourites including the descriptions and the thumbnails."""
     try:
         import uuid
-        import bookmarks.settings as settings
-        import bookmarks.images as images
-        import bookmarks.bookmark_db as bookmark_db
+        from . import settings
+        from . import images
+        from . import bookmark_db
 
         res = QtWidgets.QFileDialog.getSaveFileName(
             caption=u'Select where to save your favourites',
@@ -403,8 +403,8 @@ def export_favourites():
         reveal(destination)
 
     except Exception as e:
-        import bookmarks.log as log
-        import bookmarks.common_ui as common_ui
+        from . import log
+        from . import common_ui
         common_ui.ErrorBox(
             u'Could not save the favourites.',
             u'{}'.format(e)
@@ -421,8 +421,8 @@ def import_favourites(source=None):
 
     """
     try:
-        import bookmarks.settings as settings
-        import bookmarks.images as images
+        from . import settings
+        from . import images
 
         if not isinstance(source, unicode):
             res = QtWidgets.QFileDialog.getOpenFileName(
@@ -442,8 +442,8 @@ def import_favourites(source=None):
             namelist = [f.lower() for f in namelist]
 
             if u'favourites' not in namelist:
-                import bookmarks.log as log
-                import bookmarks.common_ui as common_ui
+                from . import log
+                from . import common_ui
                 s = u'The favourites list is missing from the archive.'
                 common_ui.ErrorBox(
                     u'Invalid ".favourites" file',
@@ -477,8 +477,8 @@ def import_favourites(source=None):
             settings.local_settings.setValue(u'favourites', current_favourites)
 
     except Exception as e:
-        import bookmarks.log as log
-        import bookmarks.common_ui as common_ui
+        from . import log
+        from . import common_ui
         common_ui.ErrorBox(
             u'Could not import the favourites.',
             u'{}'.format(e)
@@ -489,7 +489,7 @@ def import_favourites(source=None):
 
 def clear_favourites():
     """Clear the list of saved items."""
-    import bookmarks.settings as settings
+    from . import settings
     mbox = QtWidgets.QMessageBox()
     mbox.setWindowTitle(u'Clear favourites')
     mbox.setText(
@@ -557,7 +557,7 @@ def move_widget_to_available_geo(widget):
 
 def set_custom_stylesheet(widget):
     """Applies the app's custom stylesheet to the given widget."""
-    import bookmarks.images as images
+    from . import images
 
     path = os.path.normpath(
         os.path.abspath(
@@ -608,7 +608,7 @@ def set_custom_stylesheet(widget):
                 u'branch_open', None, None, get_path=True)
         )
     except KeyError as err:
-        import bookmarks.log as log
+        from . import log
         msg = u'Looks like there might be an error in the css file: {}'.format(
             err)
         log.error(msg)
@@ -698,7 +698,7 @@ def copy_path(path, mode=WindowsPath, first=True, copy=True):
     if copy:
         QtGui.QClipboard().setText(path)
 
-        import bookmarks.log as log
+        from . import log
         log.success(u'Copied {}'.format(path))
 
     return path
@@ -942,7 +942,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
         int: The width of the drawn text in pixels.
 
     """
-    import bookmarks.listdelegate as listdelegate
+    from . import listdelegate
     painter.save()
 
     painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
@@ -1058,9 +1058,9 @@ def create_asset_template(source, dest, overwrite=False):
 def push_to_rv(path):
     """Uses `rvpush` to view a given footage."""
     import subprocess
-    import bookmarks.log as log
-    import bookmarks.common_ui as common_ui
-    import bookmarks.settings as settings
+    from . import log
+    from . import common_ui
+    from . import settings
 
     def get_preference(k): return settings.local_settings.value(
         u'preferences/{}'.format(k))

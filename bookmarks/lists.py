@@ -25,16 +25,16 @@ from functools import wraps, partial
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.contextmenu as contextmenu
-import bookmarks.listdelegate as listdelegate
-import bookmarks.settings as settings
-import bookmarks.images as images
-import bookmarks.alembicpreview as alembicpreview
-import bookmarks.threads as threads
+from . import log
+from . import common
+from . import common_ui
+from . import bookmark_db
+from . import contextmenu
+from . import listdelegate
+from . import settings
+from . import images
+from . import alembicpreview
+from . import threads
 
 
 ActiveFlagFilterKey = u'filter_active'
@@ -2379,7 +2379,7 @@ class BaseInlineIconWidget(BaseListWidget):
         if not index.isValid():
             return
 
-        import bookmarks.notes as notes
+        from . import notes
 
         # Let's check if other editors are open and close them if so
         editors = [f for f in self.children() if isinstance(f, notes.TodoEditorWidget)]
@@ -2396,7 +2396,7 @@ class BaseInlineIconWidget(BaseListWidget):
 
     @QtCore.Slot()
     def show_preferences(self):
-        import bookmarks.preferences as preferences
+        from . import preferences
         widget = preferences.PreferencesWidget()
         widget.show()
 
@@ -2405,7 +2405,7 @@ class BaseInlineIconWidget(BaseListWidget):
         if not index.isValid():
             return None
         try:
-            import bookmarks.slacker as slacker
+            from . import slacker
         except ImportError as err:
             common_ui.ErrorBox(
                 u'Could not import SlackClient',

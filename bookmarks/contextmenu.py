@@ -9,15 +9,15 @@ import collections
 import OpenImageIO
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.shotgun as shotgun
-import bookmarks.images as images
-import bookmarks.settings as settings
-import bookmarks.defaultpaths as defaultpaths
-import bookmarks.ffmpeg as ffmpeg
+from . import log
+from . import common
+from . import common_ui
+from . import bookmark_db
+from . import shotgun
+from . import images
+from . import settings
+from . import defaultpaths
+from . import ffmpeg
 
 
 def contextmenu(func):
@@ -428,13 +428,13 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         @QtCore.Slot()
         def show_add_shot_task_widget():
-            import bookmarks.shotgun_widgets as shotgun_widgets
+            from . import shotgun_widgets
             w = shotgun_widgets.CreateTaskVersion(self.index.data(QtCore.Qt.StatusTipRole))
             w.open()
 
         @QtCore.Slot()
         def show_publish_widget():
-            import bookmarks.shotgun_widgets as shotgun_widgets
+            from . import shotgun_widgets
             w = shotgun_widgets.CreateTaskPublish(self.index.data(QtCore.Qt.StatusTipRole))
             w.open()
 
@@ -1057,7 +1057,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         @QtCore.Slot(unicode)
         def show_widget(ext):
-            import bookmarks.addfile as addfile
+            from . import addfile
             widget = addfile.AddFileWidget(ext)
             widget.fileSaveRequested.connect(accepted)
             widget.fileSaveRequested.connect(self.parent().new_file_added)
@@ -1188,7 +1188,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                             index, QtWidgets.QAbstractItemView.PositionAtCenter)
                         break
 
-            import bookmarks.addasset as addasset
+            from . import addasset
 
             bookmarks_widget = self.parent().parent().parent().stackedwidget.widget(0)
             index = bookmarks_widget.model().sourceModel().active_index()

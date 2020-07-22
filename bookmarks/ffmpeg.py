@@ -7,11 +7,11 @@ import subprocess
 import _scandir
 
 from PySide2 import QtCore, QtWidgets
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.settings as settings
-import bookmarks.bookmark_db as bookmark_db
+from . import log
+from . import common
+from . import common_ui
+from . import settings
+from . import bookmark_db
 
 
 IMAGESEQ_TO_H264 = '"{BIN}" -y -hwaccel auto -framerate {FRAMERATE} -start_number {STARTFRAME} -i "{INPUT}" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2, drawtext=fontfile={FONT}: text=\'{LABEL} %{{frame_num}}\': start_number={STARTFRAME}: x=10: y=h-lh-10: fontcolor=white: fontsize=ceil(h/40): box=1: boxcolor=black: boxborderw=10" -c:v libx264 -preset slow -b:v 9500K -x264-params "colormatrix=bt709" -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc gamma22 -map 0:v:0? -map_chapters 0 -c:s mov_text -map 0:s? -an -map_metadata 0 -f mp4 -threads 0 -movflags +faststart "{OUTPUT}"'

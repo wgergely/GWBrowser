@@ -8,8 +8,8 @@ import shotgun_api3
 
 from PySide2 import QtCore
 
-import bookmarks.common_ui as common_ui
-import bookmarks.log as log
+from . import common_ui
+from . import log
 
 
 _instance = None

@@ -12,8 +12,8 @@ import re
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.common as common
-import bookmarks.images as images
+from . import common
+from . import images
 
 
 regex_remove_version = re.compile(

@@ -27,8 +27,8 @@ from sqlite3 import Error
 
 from PySide2 import QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
+from . import log
+from . import common
 
 
 KEYS = {
@@ -81,7 +81,7 @@ DB_CONNECTIONS = {}
 
 
 def get_property(key, server=None, job=None, root=None, asset=None, asset_property=False):
-    import bookmarks.settings as settings
+    from . import settings
 
     if not all((server, root, job)):
         server = settings.ACTIVE['server']
@@ -110,7 +110,7 @@ def get_property(key, server=None, job=None, root=None, asset=None, asset_proper
 
 
 def get_asset_property(key, server=None, job=None, root=None):
-    import bookmarks.settings as settings
+    from . import settings
 
     if not all((server, root, job)):
         server = settings.ACTIVE['server']
@@ -166,7 +166,7 @@ def get_db(server, job, root):
     n = 0
     while True:
         if n > 100:
-            import bookmarks.common_ui as common_ui
+            from . import common_ui
             # After 5 seconds we will give up and return `None`
             s = u'Unable to get the database.'
             s2 = u'{}/{}/{} might be locked'.format(server, job, root)

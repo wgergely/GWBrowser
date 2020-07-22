@@ -11,20 +11,20 @@ import functools
 import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.images as images
-import bookmarks.settings as settings
-import bookmarks.threads as threads
-import bookmarks.contextmenu as contextmenu
-import bookmarks.listassets as listassets
-import bookmarks.lists as lists
-import bookmarks.listbookmarks as listbookmarks
-import bookmarks.listfavourites as listfavourites
-import bookmarks.listfiles as listfiles
-import bookmarks.listcontrol as listcontrol
+from . import log
+from . import common
+from . import common_ui
+from . import bookmark_db
+from . import images
+from . import settings
+from . import threads
+from . import contextmenu
+from . import lists
+from . import listassets
+from . import listbookmarks
+from . import listfavourites
+from . import listfiles
+from . import listcontrol
 
 
 _instance = None
@@ -343,11 +343,11 @@ class MainWidget(QtWidgets.QWidget):
 
         self.headerwidget = None
         self.stackedwidget = None
-        self.listbookmarks = None
+        self.bookmarkswidget = None
         self.listcontrol = None
-        self.listassets = None
+        self.assetswidget = None
         self.fileswidget = None
-        self.listfavourites = None
+        self.favouriteswidget = None
         self.statusbar = None
         self.solo_button = None
 
@@ -378,15 +378,15 @@ class MainWidget(QtWidgets.QWidget):
 
         self.headerwidget = HeaderWidget(parent=self)
         self.stackedwidget = lists.StackedWidget(parent=self)
-        self.listbookmarks = listbookmarks.BookmarksWidget(parent=self)
-        self.listassets = listassets.AssetsWidget(parent=self)
+        self.bookmarkswidget = listbookmarks.BookmarksWidget(parent=self)
+        self.assetswidget = listassets.AssetsWidget(parent=self)
         self.fileswidget = listfiles.FilesWidget(parent=self)
-        self.listfavourites = listfavourites.FavouritesWidget(parent=self)
+        self.favouriteswidget = listfavourites.FavouritesWidget(parent=self)
 
-        self.stackedwidget.addWidget(self.listbookmarks)
-        self.stackedwidget.addWidget(self.listassets)
+        self.stackedwidget.addWidget(self.bookmarkswidget)
+        self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
-        self.stackedwidget.addWidget(self.listfavourites)
+        self.stackedwidget.addWidget(self.favouriteswidget)
 
         # Setting the tab now before we do any more initialisation
         idx = settings.local_settings.value(u'widget/current_tab')
@@ -452,10 +452,10 @@ class MainWidget(QtWidgets.QWidget):
         settings.local_settings.load_and_verify_stored_paths()
 
         # Proxy model
-        b = self.listbookmarks.model()
-        a = self.listassets.model()
+        b = self.bookmarkswidget.model()
+        a = self.assetswidget.model()
         f = self.fileswidget.model()
-        ff = self.listfavourites.model()
+        ff = self.favouriteswidget.model()
 
         b.filterTextChanged.emit(b.filter_text())
         a.filterTextChanged.emit(a.filter_text())
@@ -511,19 +511,19 @@ class MainWidget(QtWidgets.QWidget):
             self.listcontrol.files_button.timer.stop()
             self.listcontrol.favourites_button.timer.stop()
 
-            self.listbookmarks.timer.stop()
-            self.listassets.timer.stop()
+            self.bookmarkswidget.timer.stop()
+            self.assetswidget.timer.stop()
             self.fileswidget.timer.stop()
-            self.listfavourites.timer.stop()
+            self.favouriteswidget.timer.stop()
 
             self.hide()
             self.setUpdatesEnabled(False)
             self.deleteLater()
 
             for widget in (
-                self.listassets,
+                self.assetswidget,
                 self.fileswidget,
-                self.listfavourites,
+                self.favouriteswidget,
                 self.listcontrol.task_folder_view
             ):
                 try:
@@ -690,10 +690,10 @@ class MainWidget(QtWidgets.QWidget):
         signals and slots are connected.
 
         """
-        b = self.listbookmarks
-        a = self.listassets
+        b = self.bookmarkswidget
+        a = self.assetswidget
         f = self.fileswidget
-        ff = self.listfavourites
+        ff = self.favouriteswidget
         lc = self.listcontrol
         l = lc.control_view()
         lb = lc.control_button()

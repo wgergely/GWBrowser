@@ -18,7 +18,7 @@ to make sure that the `render` folder does not contain scene files, etc.
 """
 import re
 import OpenImageIO
-import bookmarks.settings as settings
+from . import settings
 
 
 def sort(s):

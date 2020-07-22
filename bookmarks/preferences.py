@@ -4,11 +4,11 @@
 import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.settings as settings
-import bookmarks.defaultpaths as defaultpaths
+from . import log
+from . import common
+from . import common_ui
+from . import settings
+from . import defaultpaths
 
 
 _widget_instance = None
@@ -326,8 +326,8 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.layout().addStretch(1)
 
     def _connect_signals(self):
-        import bookmarks.versioncontrol.versioncontrol as vc
-        self.check_updates.clicked.connect(vc.check)
+        from .versioncontrol import versioncontrol
+        self.check_updates.clicked.connect(versioncontrol.check)
         self.show_help.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
 

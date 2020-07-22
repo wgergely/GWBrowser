@@ -5,10 +5,10 @@
 import base64
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.common as common
-import bookmarks.images as images
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.listdelegate as listdelegate
+from . import common
+from . import images
+from . import bookmark_db
+from . import listdelegate
 
 
 _message_box_instance = None

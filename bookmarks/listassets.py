@@ -7,13 +7,13 @@ import _scandir
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import bookmarks.common as common
-import bookmarks.threads as threads
-import bookmarks.listdelegate as listdelegate
-import bookmarks.lists as lists
-import bookmarks.contextmenu as contextmenu
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.settings as settings
+from . import common
+from . import threads
+from . import listdelegate
+from . import lists
+from . import contextmenu
+from . import bookmark_db
+from . import settings
 
 
 class AssetsWidgetContextMenu(contextmenu.BaseContextMenu):
@@ -241,7 +241,7 @@ class AssetsWidget(lists.ThreadedBaseWidget):
 
     @QtCore.Slot()
     def show_properties_widget(self):
-        import bookmarks.addasset as addasset
+        from . import addasset
 
         if not self.selectionModel().hasSelection():
             return
@@ -305,7 +305,7 @@ class AssetsWidget(lists.ThreadedBaseWidget):
 
     @QtCore.Slot()
     def link_assets(self):
-        import bookmarks.shotgun_widgets as shotgun_widgets
+        from . import shotgun_widgets
         model = self.model().sourceModel()
         data = model.model_data()
 

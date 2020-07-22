@@ -10,14 +10,14 @@ import functools
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.images as images
-import bookmarks.settings as settings
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.shotgun as shotgun
-import bookmarks.shotgun_widgets as shotgun_widgets
+from . import log
+from . import common
+from . import common_ui
+from . import images
+from . import settings
+from . import bookmark_db
+from . import shotgun
+from . import shotgun_widgets
 
 _widget_instance = None
 
@@ -494,7 +494,7 @@ class ScrollArea(QtWidgets.QScrollArea):
             return
 
         try:
-            import bookmarks.slacker as slacker
+            from . import slacker
         except ImportError as err:
             common_ui.ErrorBox(
                 u'Could not import SlackClient',

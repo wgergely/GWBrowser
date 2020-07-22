@@ -27,14 +27,14 @@ import maya.OpenMayaUI as OpenMayaUI
 import maya.OpenMaya as OpenMaya
 import maya.cmds as cmds
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.settings as settings
-import bookmarks.images as images
-import bookmarks.contextmenu as contextmenu
-import bookmarks.main as main
-import bookmarks.addfile as addfile
+from .. import log
+from .. import common
+from .. import common_ui
+from .. import settings
+from .. import images
+from .. import contextmenu
+from .. import main
+from .. import addfile
 
 
 maya_button = None
@@ -520,8 +520,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             world_shapes.append(world_shape)
 
         # Our custom progress callback
-        perframecallback = u'"import bookmarks.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
-            startframe, endframe, time.time())
+        perframecallback = u'"import {}.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
+            common.PRODUCT.lower(), startframe, endframe, time.time())
 
         # Let's build the export command
         jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {sn} {rt} {df} {pfc} {ro}'.format(
@@ -1209,7 +1209,7 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         self.add_capture_menu()
 
     @contextmenu.contextmenu
-    @contextmenu.contextmenu_main
+    @contextmenu_main
     def add_apply_bookmark_settings_menu(self, menu_set, main=None):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.MARGIN())
@@ -1223,7 +1223,7 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
     @contextmenu.contextmenu
-    @contextmenu.contextmenu_main
+    @contextmenu_main
     def add_save_actions_menu(self, menu_set, main=None):
         """Save actions.
 
@@ -1249,7 +1249,7 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
     @contextmenu.contextmenu
-    @contextmenu.contextmenu_main
+    @contextmenu_main
     def add_scenes_menu(self, menu_set, main=None):
         """Maya scene actions."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
@@ -1282,7 +1282,7 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
     @contextmenu.contextmenu
-    @contextmenu.contextmenu_main
+    @contextmenu_main
     def add_alembic_actions_menu(self, menu_set, main=None):
         """Actions associated with ``alembic`` cache operations."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
@@ -1312,7 +1312,7 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
     @contextmenu.contextmenu
-    @contextmenu.contextmenu_main
+    @contextmenu_main
     def add_export_alembic_menu(self, menu_set, main=None):
         objectset_pixmap = images.ImageCache.get_rsc_pixmap(
             u'set', None, common.MARGIN())
@@ -1374,7 +1374,7 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
     @contextmenu.contextmenu
-    @contextmenu.contextmenu_main
+    @contextmenu_main
     def add_capture_menu(self, menu_set, main=None):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'capture', None, common.MARGIN())
@@ -1406,26 +1406,26 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         self._workspacecontrol = None
         self._callbacks = []  # Maya api callbacks
-        self.main = None
+        self.mainwidget = None
 
         self.setWindowTitle(common.PRODUCT)
 
         self._create_UI()
-        self.setFocusProxy(self.main.stackedwidget)
+        self.setFocusProxy(self.mainwidget.stackedwidget)
 
         self.workspace_timer = QtCore.QTimer(parent=self)
         self.workspace_timer.setSingleShot(False)
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
 
-        self.main.sizeHint = self.sizeHint
+        self.mainwidget.sizeHint = self.sizeHint
 
-        self.main.initialized.connect(
-            lambda: self.main.layout().setContentsMargins(0, 0, 0, 0))
-        self.main.initialized.connect(self._connect_signals)
-        self.main.initialized.connect(self.add_context_callbacks)
-        self.main.initialized.connect(self.set_workspace)
-        self.main.initialized.connect(self.workspace_timer.start)
+        self.mainwidget.initialized.connect(
+            lambda: self.mainwidget.layout().setContentsMargins(0, 0, 0, 0))
+        self.mainwidget.initialized.connect(self._connect_signals)
+        self.mainwidget.initialized.connect(self.add_context_callbacks)
+        self.mainwidget.initialized.connect(self.set_workspace)
+        self.mainwidget.initialized.connect(self.workspace_timer.start)
 
         if maya_button is not None:
             maya_button.saveRequested.connect(self.save_scene)
@@ -1441,7 +1441,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         # We will get a warning when we change to a new bookmark and Bookmarks
         # unsets the current workspace. Whilst technically correct, it is
         # counterintuitive to be warned of a direct action just performed
-        assets_model = self.main.listassets.model().sourceModel()
+        assets_model = self.mainwidget.assetswidget.model().sourceModel()
         if not assets_model.active_index().isValid():
             return
 
@@ -1462,9 +1462,9 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        self.main = main.MainWidget(parent=self)
-        self.layout().addWidget(self.main)
-        self.main.terminated.connect(self.terminate)
+        self.mainwidget = main.MainWidget(parent=self)
+        self.layout().addWidget(self.mainwidget)
+        self.mainwidget.terminated.connect(self.terminate)
 
     @QtCore.Slot()
     def terminate(self):
@@ -1596,7 +1596,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
     @QtCore.Slot()
     def unmark_active(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
-        f = self.main.listfiles
+        f = self.mainwidget.fileswidget
         if not f:
             return
         if not f.model().sourceModel().active_index().isValid():
@@ -1608,7 +1608,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         """Callback responsible for keeping the active-file in the list updated."""
         scene = common.get_sequence_endpath(
             cmds.file(query=True, expandName=True))
-        f = self.main.listfiles
+        f = self.mainwidget.fileswidget
         if not f:
             return
 
@@ -1662,24 +1662,24 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     @QtCore.Slot()
     def _connect_signals(self):
-        self.main.headerwidget.hide()
+        self.mainwidget.headerwidget.hide()
 
-        listbookmarks = self.main.listbookmarks
-        listassets = self.main.listassets
-        listfiles = self.main.listfiles
-        listfavourites = self.main.listfavourites
+        bookmarkswidget = self.mainwidget.bookmarkswidget
+        assetswidget = self.mainwidget.assetswidget
+        fileswidget = self.mainwidget.fileswidget
+        favouriteswidget = self.mainwidget.favouriteswidget
 
         # Asset/project
-        listassets.model().sourceModel().activeChanged.connect(self.set_workspace)
+        assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
 
         # Context menu
-        listbookmarks.customContextMenuRequested.connect(
+        bookmarkswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
-        listassets.customContextMenuRequested.connect(
+        assetswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
-        listfiles.customContextMenuRequested.connect(
+        fileswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
-        listfavourites.customContextMenuRequested.connect(
+        favouriteswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
         @QtCore.Slot()
@@ -1692,10 +1692,10 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 return
             common.execute(index)
 
-        listfiles.activated.connect(execute)
-        listfavourites.activated.connect(execute)
-        listfiles.model().sourceModel().modelReset.connect(self.unmark_active)
-        listfiles.model().sourceModel().modelReset.connect(self.update_active_item)
+        fileswidget.activated.connect(execute)
+        favouriteswidget.activated.connect(execute)
+        fileswidget.model().sourceModel().modelReset.connect(self.unmark_active)
+        fileswidget.model().sourceModel().modelReset.connect(self.update_active_item)
 
     @QtCore.Slot(QtCore.QModelIndex)
     @QtCore.Slot(QtCore.QObject)
@@ -1727,7 +1727,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             # When active sync is disabled we won't set workspaces
             if get_preference(u'disable_workspace_sync') is True:
                 return
-            index = self.main.listassets.model().sourceModel().active_index()
+            index = self.mainwidget.assetswidget.model().sourceModel().active_index()
             if not index.isValid():
                 return
             parent = index.data(common.ParentPathRole)
@@ -1939,8 +1939,8 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         try:
             cmds.file(rename=file_path)
             cmds.file(force=True, save=True, type=u'mayaAscii')
-            listfiles = self.main.stackedwidget.widget(2)
-            listfiles.new_file_added(file_path)
+            fileswidget = self.mainwidget.stackedwidget.widget(2)
+            fileswidget.new_file_added(file_path)
             return file_path
 
         except Exception as e:
@@ -2317,7 +2317,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             ext=ext
         )
 
-        listfiles = self.main.stackedwidget.widget(2)
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
 
         # Let's make sure destination folder exists
         file_info = QtCore.QFileInfo(file_path)
@@ -2352,7 +2352,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 arnold.AI_NODE_OVERRIDE |
                 arnold.AI_NODE_LIGHT
             )
-            listfiles.new_file_added(file_path)
+            fileswidget.new_file_added(file_path)
             return file_path
         except Exception as e:
             s = u'Could not export the set'
@@ -2415,7 +2415,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if widget.exec_() == QtWidgets.QDialog.Rejected:
             return None
 
-        listfiles = self.main.stackedwidget.widget(2)
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
         file_path = widget.filePath()
         file_info = QtCore.QFileInfo(file_path)
 
@@ -2444,7 +2444,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 start,
                 end
             )
-            listfiles.new_file_added(file_path)
+            fileswidget.new_file_added(file_path)
             return file_path
         except Exception as e:
             s = u'Could not export the set'
@@ -2506,7 +2506,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if widget.exec_() == QtWidgets.QDialog.Rejected:
             return None
 
-        listfiles = self.main.stackedwidget.widget(2)
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
         file_path = widget.filePath()
         file_info = QtCore.QFileInfo(file_path)
 
@@ -2529,7 +2529,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 exportSelected=True,
                 options='groups=1;ptgroups=1;materials=1;smoothing=1; normals=1'
             )
-            listfiles.new_file_added(file_path)
+            fileswidget.new_file_added(file_path)
             return file_path
         except Exception as e:
             s = u'Could not export the set'

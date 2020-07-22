@@ -16,13 +16,13 @@ import uuid
 import os
 import functools
 import OpenImageIO
+import _scandir
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.log as log
-import bookmarks.common as common
-import _scandir as _scandir
-import bookmarks.defaultpaths as defaultpaths
+from . import log
+from . import common
+from . import defaultpaths
 
 
 oiio_cache = OpenImageIO.ImageCache(shared=True)
@@ -60,7 +60,7 @@ def set_from_source(index, source):
     )
     if QtCore.QFileInfo(destination).exists():
         if not QtCore.QFile(destination).remove():
-            import bookmarks.common_ui as common_ui
+            from . import common_ui
             s = u'Error removing the previous thumbnail file'
             log.error(s)
             common_ui.ErrorBox(s, u'').open()
@@ -72,7 +72,7 @@ def set_from_source(index, source):
         common.THUMBNAIL_IMAGE_SIZE
     )
     if not res:
-        import bookmarks.common_ui as common_ui
+        from . import common_ui
         s = u'Failed to make thumbnail.'
         log.error(s)
         common_ui.ErrorBox(s, u'').open()
@@ -157,7 +157,7 @@ def remove(index):
 
     if QtCore.QFile(source).exists():
         if not QtCore.QFile(source).remove():
-            import bookmarks.common_ui as common_ui
+            from . import common_ui
             s = u'Could not remove the thumbnail'
             log.error(s)
             common_ui.ErrorBox(u'Error.', s).open()
@@ -983,7 +983,7 @@ class ScreenCapture(QtWidgets.QDialog):
             self._capture_rect.height()
         )
         if pixmap.isNull():
-            import bookmarks.common_ui as common_ui
+            from . import common_ui
             s = u'Unknown error occured capturing the pixmap.'
             log.error(s)
             common_ui.ErrorBox(u'Capture failed', s).open()
@@ -1000,7 +1000,7 @@ class ScreenCapture(QtWidgets.QDialog):
         f = QtCore.QFileInfo(destination)
         if not f.dir().exists():
             if not f.dir().mkpath(u'.'):
-                import bookmarks.common_ui as common_ui
+                from . import common_ui
                 s = u'Could not create temp folder.'
                 log.error(s)
                 common_ui.ErrorBox(u'Capture failed', s).open()
@@ -1013,7 +1013,7 @@ class ScreenCapture(QtWidgets.QDialog):
         )
 
         if not res:
-            import bookmarks.common_ui as common_ui
+            from . import common_ui
             s = u'Could not save the capture.'
             log.error(s)
             common_ui.ErrorBox(
@@ -1346,7 +1346,7 @@ class ImageViewer(QtWidgets.QDialog):
             raise ValueError(
                 u'Expected <type \'unicode\'>, got {}'.format(type(path)))
 
-        import bookmarks.common_ui as common_ui
+        from . import common_ui
 
         self.path = path
 
@@ -1594,7 +1594,7 @@ class ThumbnailLibraryWidget(QtWidgets.QDialog):
 
     def _create_UI(self):
         """Using scandir we will get all the installed thumbnail files from the rsc directory."""
-        import bookmarks.common_ui as common_ui
+        from . import common_ui
 
         if not self.parent():
             common.set_custom_stylesheet(self)

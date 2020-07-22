@@ -34,18 +34,18 @@ import _scandir
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.bookmark_db as bookmark_db
-import bookmarks.settings as settings
-import bookmarks.common_ui as common_ui
-import bookmarks.listdelegate as listdelegate
-import bookmarks.lists as lists
-import bookmarks.contextmenu as contextmenu
-import bookmarks.images as images
-import bookmarks.defaultpaths as defaultpaths
-import bookmarks.listbookmarks as listbookmarks
-import bookmarks.listassets as listassets
+from . import log
+from . import common
+from . import bookmark_db
+from . import settings
+from . import common_ui
+from . import listdelegate
+from . import lists
+from . import contextmenu
+from . import images
+from . import defaultpaths
+from . import listbookmarks
+from . import listassets
 
 
 class SelectButton(QtWidgets.QLabel):
@@ -1925,7 +1925,7 @@ class AddFileWidget(QtWidgets.QDialog):
                     u'Enter a prefix and try again.',
                 ).exec_()
 
-                import bookmarks.bookmark_properties as bookmark_properties
+                from . import bookmark_properties
 
                 model = self.bookmark_widget.view().model().sourceModel()
                 index = model.active_index()

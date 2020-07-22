@@ -9,12 +9,12 @@ import _scandir
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.images as images
-import bookmarks.contextmenu as contextmenu
-import bookmarks.settings as settings
+from . import log
+from . import common
+from . import common_ui
+from . import images
+from . import contextmenu
+from . import settings
 
 
 AddMode = 0
@@ -1654,12 +1654,3 @@ class ManageBookmarks(QtWidgets.QDialog):
 
     def sizeHint(self):
         return QtCore.QSize(common.HEIGHT(), common.WIDTH())
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-    # widget = TemplateListWidget('job')
-    widget = ManageBookmarks()
-    widget.open()
-    app.exec_()

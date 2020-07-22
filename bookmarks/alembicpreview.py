@@ -16,10 +16,10 @@ Example:
 from PySide2 import QtCore, QtWidgets, QtGui
 import alembic
 
-import bookmarks.log as log
-import bookmarks.common as common
-import bookmarks.common_ui as common_ui
-import bookmarks.images as images
+from . import log
+from . import common
+from . import common_ui
+from . import images
 
 _viewer_instance = None
 

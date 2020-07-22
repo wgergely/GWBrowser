@@ -4,10 +4,10 @@
 """
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import bookmarks.common as common
-import bookmarks.main as main
-import bookmarks.settings as settings
-import bookmarks.images as images
+from . import common
+from . import main
+from . import settings
+from . import images
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
@@ -101,7 +101,7 @@ class StandaloneMainWidget(main.MainWidget):
         self.initialized.connect(self.activateWindow)
 
         def say_hello():
-            import bookmarks.common_ui as common_ui
+            from . import common_ui
             if self.stackedwidget.widget(0).model().sourceModel().rowCount() == 0:
                 common_ui.MessageBox(
                     u'Bookmarks is not set up (yet!).',
@@ -215,7 +215,7 @@ class StandaloneMainWidget(main.MainWidget):
         self.headerwidget.findChild(main.CloseButton).clicked.connect(self.close)
 
         self.fileswidget.activated.connect(common.execute)
-        self.listfavourites.activated.connect(common.execute)
+        self.favouriteswidget.activated.connect(common.execute)
         self.terminated.connect(QtWidgets.QApplication.instance().quit)
 
     def trayActivated(self, reason):
