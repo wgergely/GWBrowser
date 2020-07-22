@@ -1,12 +1,12 @@
 """ Packager script for Bookmarks.
 
 Builds `Bookmarks.exe` and collects the library dependencies
-needed to run Bookmarks as a standalone desktop application.
+needed to run and Bookmarks as a standalone windows desktop application.
 
 Requirements:
 
     Visual Studio 2015:     -
-    Dependencies.exe:       Used to list traverse the dependencies of a given DLL.
+    Dependencies.exe:       Used to traverse the dependencies of a given DLL.
     CPython 2.7.x:          Must be built using VS2015 x64.
     Alembic:                DLLs including the *.pyd module.
     OpenImageIO 2.x.x:      DLLs including the *.pyd module.
@@ -22,10 +22,9 @@ Configure:                  Source and destination paths.
     PREFIX:                 The root directory for the standalone package files.
                             This is where the installer and the collected
                             package file will be places.
-    {PACKAGE}_ROOT:         The install directory of the given package.
+    {PACKAGE}_ROOT:         The install directory of the given dependency.
                             Eg. C:/openexr/install
-    {PACKAGE}_LIB:          Paths to core `*.dll`, to be run agains Dependencies.exe
-                            to collect the
+    {PACKAGE}_LIB:          Paths to core `*.dll`s, to be run agains Dependencies.exe
 
 Note:
 
@@ -41,71 +40,91 @@ import shutil
 import zipfile
 from distutils.dir_util import copy_tree
 
+
+def _find_lib(_ROOT, lib):
+    """Recursively search a top level root path for a given library.
+
+    Args:
+        root (str): A root apth eg `mypackages/dlls`
+        lib (str): A library name, eg. `openimageio.dll`
+
+    Returns:
+        str: The library's full file path.
+
+    """
+    if os.path.isfile(lib):
+        return lib
+    for root, _, files in os.walk(_ROOT):
+        for f in files:
+            if f.lower() == lib.lower():
+                print '\x1B[37m\n', 'Found', '\x1B[0m ', '\x1B[32m', root + os.path.sep + f, '\x1B[0m'
+                return root + os.path.sep + f
+    raise RuntimeError('{} not found'.format(lib))
+
+
+def path(s):
+    """Helper function to find a relative path to a package root. Modify as needed."""
+    p = os.path.normpath(
+        os.path.dirname(__file__) + os.pardir.join([os.path.sep] * 4) + s)
+    if not os.path.isdir(p) and not os.path.isfile(p):
+        raise OSError('{} does not exist'.format(p))
+    return p
+
 ################################################################################
 # CONFIGURATION
 ################################################################################
+
 # General
+PREFIX = path('bookmarks-standalone')
 VC_ROOT = ur'C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64'
 DUMPBIN = VC_ROOT + os.path.sep + ur'dumpbin.exe'
-PREFIX = os.path.normpath(
-    os.path.dirname(__file__) + ur'\..\..\..\bookmarks-standalone')
-VC_REDIST = PREFIX + os.path.sep + ur'VC_redist.x64.exe'
-# Install root folders
-ALEMBIC_ROOT = ur'I:\dev\alembic-build\install'
-OIIO_ROOT = ur'I:\dev\OpenImageIO-build\install'
-OPENEXR_ROOT = ur'I:\dev\openexr-build\install'
-OPENVDB_ROOT = ur'I:\dev\openvdb-build\install'
-QT5_ROOT = ur'I:\dev\qt5_13_2_build'
-PYSIDE2_ROOT = ur'I:\dev\pyside-setup\pyside2_install\py2.7-qt5.13.2-64bit-release'
-HEIF_ROOT = ur'I:\dev\libheif-build\libheif\Release'
-VCPKG_BIN = ur'I:\dev\vcpkg\installed\x64-windows\bin'
-#Python
-PYTHON_ROOT = ur'C:\Python27'
-# scandir
-LIB_SCANDIR_D = PYTHON_ROOT + os.path.sep + '_scandir.pyd'
-# sqlite3
-LIB_SQLITE = PYTHON_ROOT + os.path.sep + 'sqlite3.dll'
+VCPKG_BIN = path('vcpkg/installed/x64-windows/bin')
+VC_REDIST = _find_lib(PREFIX, 'VC_redist.x64.exe')
+
+# Package Roots
+PYTHON_ROOT = path('Python-2.7.15/install')
+ALEMBIC_ROOT = path('alembic-build/install')
+QT5_ROOT = path('qt5_13_2_build')
+PYSIDE2_ROOT = path('pyside-setup/pyside2_install/py2.7-qt5.13.2-64bit-release')
+OPENEXR_ROOT = path('OpenEXR-build/install')
+OIIO_ROOT = path('OpenImageIO-build/install')
+
+# Libraries
+
+# Python
+LIB_SCANDIR_D = _find_lib(PYTHON_ROOT, '_scandir.pyd')
+LIB_SQLITE = _find_lib(PYTHON_ROOT, 'sqlite3.dll')
+
 # Alembic
-LIB_ALEMBIC = ALEMBIC_ROOT + os.path.sep + 'lib' + os.path.sep + 'Alembic.dll'
-LIB_ALEMBIC_D = ALEMBIC_ROOT + os.path.sep + \
-    'site-packages' + os.path.sep + 'alembic.pyd'
+LIB_ALEMBIC = _find_lib(ALEMBIC_ROOT, 'Alembic.dll')
+LIB_ALEMBIC_D = _find_lib(ALEMBIC_ROOT, 'alembic.pyd')
+
+# Qt5 & PySide2
+LIB_QTCORE = _find_lib(QT5_ROOT, 'Qt5Core.dll')
+LIB_QTGUI = _find_lib(QT5_ROOT, 'Qt5Gui.dll')
+LIB_QTWIDGETS = _find_lib(QT5_ROOT, 'Qt5Widgets.dll')
+LIB_EGL = _find_lib(QT5_ROOT, 'libEGL.dll')
+LIB_GLES = _find_lib(QT5_ROOT, 'libGLESv2.dll')
+LIB_QTCORE_D = _find_lib(PYSIDE2_ROOT, 'QtCore.pyd')
+LIB_QTGUI_D = _find_lib(PYSIDE2_ROOT, 'QtGui.pyd')
+LIB_QTWIDGETS_D = _find_lib(PYSIDE2_ROOT, 'QtWidgets.pyd')
+LIB_SHIBOKEN = _find_lib(PYSIDE2_ROOT, 'shiboken2-python2.7.dll')
+LIB_SHIBOKEN_D = _find_lib(PYSIDE2_ROOT, 'shiboken2.pyd')
+
 # ilmbase/openexr
-LIB_ILMIMF = OPENEXR_ROOT + os.path.sep + \
-    'bin' + os.path.sep + 'IlmImf-2_4.dll'
-LIB_IEX = OPENEXR_ROOT + os.path.sep + 'bin' + \
-    os.path.sep + 'PyIex_Python2_7-2_4.dll'
-LIB_IMATH = OPENEXR_ROOT + os.path.sep + 'bin' + \
-    os.path.sep + 'PyImath_Python2_7-2_4.dll'
-LIB_IEX_D = OPENEXR_ROOT + os.path.sep + 'lib' + os.path.sep + \
-    'site-packages' + os.path.sep + 'iex.pyd'
-LIB_IMATH_D = OPENEXR_ROOT + os.path.sep + 'lib' + os.path.sep + \
-    'site-packages' + os.path.sep + 'imath.pyd'
+LIB_ILMIMF = _find_lib(OPENEXR_ROOT, 'IlmImf-2_3.dll')
+LIB_IEX = _find_lib(OPENEXR_ROOT, 'PyIex.dll')
+LIB_IMATH = _find_lib(OPENEXR_ROOT, 'PyImath.dll')
+LIB_IEX_D = _find_lib(OPENEXR_ROOT, 'iex.pyd')
+LIB_IMATH_D = _find_lib(OPENEXR_ROOT, 'imath.pyd')
+
 # OpenImageIO
-LIB_OIIO = OIIO_ROOT + os.path.sep + 'bin' + os.path.sep + 'OpenImageIO.dll'
-LIB_OIIO_D = OIIO_ROOT + os.path.sep + 'lib' + os.path.sep + 'python2.7' + \
-    os.path.sep + 'site-packages' + os.path.sep + 'OpenImageIO.pyd'
-LIB_OPENVDB = OPENVDB_ROOT + os.path.sep + 'bin' + os.path.sep + 'openvdb.dll'
-# Qt5
-LIB_QTCORE = QT5_ROOT + os.path.sep + 'bin' + os.path.sep + 'Qt5Core.dll'
-LIB_QTGUI = QT5_ROOT + os.path.sep + 'bin' + os.path.sep + 'Qt5Gui.dll'
-LIB_QTWIDGETS = QT5_ROOT + os.path.sep + 'bin' + os.path.sep + 'Qt5Widgets.dll'
-# Qt5 angle/opengl
-LIB_EGL = QT5_ROOT + os.path.sep + 'bin' + os.path.sep + 'libEGL.dll'
-LIB_GLES = QT5_ROOT + os.path.sep + 'bin' + os.path.sep + 'libGLESv2.dll'
-# PySide2
-LIB_QTCORE_D = PYSIDE2_ROOT + os.path.sep + 'lib' + os.path.sep + \
-    'site-packages' + os.path.sep + 'PySide2' + os.path.sep + 'QtCore.pyd'
-LIB_QTGUI_D = PYSIDE2_ROOT + os.path.sep + 'lib' + os.path.sep + \
-    'site-packages' + os.path.sep + 'PySide2' + os.path.sep + 'QtGui.pyd'
-LIB_QTWIDGETS_D = PYSIDE2_ROOT + os.path.sep + 'lib' + os.path.sep + \
-    'site-packages' + os.path.sep + 'PySide2' + os.path.sep + 'QtWidgets.pyd'
-LIB_SHIBOKEN = PYSIDE2_ROOT + os.path.sep + \
-    'bin' + os.path.sep + 'shiboken2-python2.7.dll'
-LIB_SHIBOKEN_D = PYSIDE2_ROOT + os.path.sep + 'lib' + os.path.sep + \
-    'site-packages' + os.path.sep + 'shiboken2' + os.path.sep + 'shiboken2.pyd'
+LIB_OIIO = _find_lib(OIIO_ROOT, 'OpenImageIO.dll')
+LIB_OIIO_D = _find_lib(OIIO_ROOT, 'OpenImageIO.pyd')
+
 ################################################################################
-# `TOP_LEVEL_LIBS` all their dependencies distributed,
-# except the libraries defined in `SYSTEM_LIBS`.
+# `TOP_LEVEL_LIBS` will have all their dependencies distributed,
+# except the libraries defined defined in `SYSTEM_LIBS`.
 ################################################################################
 TOP_LEVEL_LIBS = (
     LIB_SCANDIR_D,
@@ -119,7 +138,6 @@ TOP_LEVEL_LIBS = (
     LIB_ALEMBIC_D,
     LIB_OIIO,
     LIB_OIIO_D,
-    LIB_OPENVDB,
     LIB_QTCORE,
     LIB_QTCORE_D,
     LIB_QTGUI,
@@ -136,7 +154,7 @@ SYSTEM_LIBS = (
     'ADVAPI32',
     'api-ms',
     'bcrypt',
-    'concrt140',
+    # 'concrt140',
     'd3d11',
     'd3d9',
     'dbeng',
@@ -160,12 +178,13 @@ SYSTEM_LIBS = (
     'USERENV',
     'UxTheme',
     'VCOMP140',
-    'VCRUNTIME',
+    # 'VCRUNTIME',
     'VERSION',
     'WINMM',
     'WS2_32',
 )
 ################################################################################
+
 
 def find_lib(lib):
     """Recursively search the top level root paths for a given library.
@@ -181,16 +200,13 @@ def find_lib(lib):
         return lib
 
     for _ROOT in (
-        ALEMBIC_ROOT,
-        OIIO_ROOT,
-        OPENEXR_ROOT,
-        HEIF_ROOT,
-        OPENVDB_ROOT,
-        HEIF_ROOT,
-        VCPKG_BIN,
+        PYTHON_ROOT,
         QT5_ROOT,
         PYSIDE2_ROOT,
-        PYTHON_ROOT,
+        OIIO_ROOT,
+        OPENEXR_ROOT,
+        ALEMBIC_ROOT,
+        VCPKG_BIN,
     ):
         for root, _, files in os.walk(_ROOT):
             for f in files:
@@ -249,9 +265,6 @@ def get_dependencies():
             ALEMBIC_ROOT,
             OIIO_ROOT,
             OPENEXR_ROOT,
-            HEIF_ROOT,
-            OPENVDB_ROOT,
-            HEIF_ROOT,
             VCPKG_BIN,
             QT5_ROOT,
             PYSIDE2_ROOT,
