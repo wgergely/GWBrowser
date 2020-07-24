@@ -16,7 +16,7 @@ import maya.cmds as cmds
 
 
 INSTALL_ROOT = 'BOOKMARKS_ROOT'
-pkg_name = INSTALL_ROOT.lower().replace('_root', '').strip()
+pkg_name = 'bookmarks'
 
 
 def maya_useNewAPI():

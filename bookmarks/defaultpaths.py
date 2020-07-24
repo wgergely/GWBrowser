@@ -36,7 +36,7 @@ FORMAT_FILTERS = {
     SceneFilter: {
         u'name': u'SceneFilter',
         u'description': u'Scene file formats',
-        u'default': sort(u'c4d,hud,hip,hiplc,hipnc,ma,mb,nk,nk~,mocha,rv,autosave'),
+        u'default': sort(u'c4d,hud,hip,hiplc,hipnc,ma,mb,nk,nk~,spm,mocha,rv,'),
         u'value': None,
     },
     OpenImageIOFilter: {
@@ -317,15 +317,27 @@ def get_task_folder_extensions(task_folder):
 
 
 def get_extensions(flag):
-    global FORMAT_FILTERS
+    """Returns a list of extensions associated with the given flag.
 
+    Args:
+        flag (int): a format filter flag, eg.
+                    `AdobeFilter`
+                    `ExportFilter`
+                    `OpenImageIOFilter`
+                    `MiscFilter`
+                    `SceneFilter`
+
+    """
     e = []
     for f in FORMAT_FILTERS:
         if not (f & flag):
             continue
+
+        # If no value is saved, use the default values instead.
         if not isinstance(FORMAT_FILTERS[f][u'value'], (str, unicode)):
-            continue
-        e += FORMAT_FILTERS[f][u'value'].split(u',')
+            e += FORMAT_FILTERS[f][u'default'].split(u',')
+        else:
+            e += FORMAT_FILTERS[f][u'value'].split(u',')
     return sorted(e)
 
 
