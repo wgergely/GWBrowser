@@ -1179,7 +1179,9 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
-        """`save_activated` is abstract and has to be implemented in the subclass."""
+        """Implemented only in the asset, bookmark and file list widgets.
+
+        """
         pass
 
     @QtCore.Slot()

@@ -598,7 +598,7 @@ def capture_viewport(size=1.0):
 
     """
     from . import mCapture
-    
+
     ext = u'png'
 
     DisplayOptions = {
@@ -1152,15 +1152,35 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
 
     def paintEvent(self, event):
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
         painter = QtGui.QPainter()
         painter.begin(self)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.drawRoundRect(
-            self.rect(), common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
-        painter.end()
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
-        super(MayaBrowserButton, self).paintEvent(event)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(0, 0, 0, 10))
+
+        if hover:
+            pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, self.width())
+            painter.setOpacity(1.0)
+        else:
+            pixmap = images.ImageCache.get_rsc_pixmap(u'icon_bw', None, self.width())
+            painter.setOpacity(0.80)
+
+        rect = self.rect()
+        center = rect.center()
+        o = common.INDICATOR_WIDTH() * 2
+        rect = rect.adjusted(0, 0, -o, -o)
+        rect.moveCenter(center)
+
+        painter.drawRoundRect(rect, o, o)
+
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+        painter.end()
 
     def enterEvent(self, event):
         self.message.emit(self.statusTip)
@@ -1737,7 +1757,8 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
             if file_info.filePath().lower() == cmds.workspace(q=True, sn=True).lower():
                 return
-            cmds.workspace(file_info.filePath(), openWorkspace=True)
+            path = os.path.normpath(os.path.abspath(file_info.absoluteFilePath()))
+            cmds.workspace(path, openWorkspace=True)
         except Exception as e:
             s = u'Could not set the workspace'
             common_ui.ErrorBox(
@@ -1750,10 +1771,10 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     @QtCore.Slot()
     def apply_settings(self):
-        """Apply the Bookmark Properties to the current scene.
+        """Apply current Bookmark Properties to the current scene.
 
         """
-        def set_start_frame(frame):
+        def _set_start_frame(frame):
             frame = round(frame, 0)
             currentFrame = round(cmds.currentTime(query=True))
 
@@ -1765,7 +1786,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             else:
                 cmds.currentTime(currentFrame, edit=True)
 
-        def set_end_frame(frame):
+        def _set_end_frame(frame):
             frame = round(frame, 0)
             currentFrame = round(cmds.currentTime(query=True))
 
@@ -1790,6 +1811,29 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.playbackOptions(minTime=minTime)
             cmds.playbackOptions(animationEndTime=animationEndTime)
             cmds.playbackOptions(maxTime=maxTime)
+
+        def _get_cut_value(bookmark_k, asset_k, db, v):
+            """ We will check if the asset has valid cut information set.
+
+            If not, we will use the bookmark's default duration, or otherwise,
+            we will not do anything.
+
+            """
+            val = None
+            if db.value(asset, asset_k):
+                try:
+                    # Stored value might be `string`, whereas we need an `int`
+                    val = int(db.value(asset, asset_k))
+                except:
+                    pass
+            if not val and v[bookmark_k]:
+                try:
+                    # Stored value might be `string`, whereas we need an `int`
+                    val = int(v[bookmark_k])
+                except:
+                    pass
+            return val
+
 
         if not all((
             settings.ACTIVE['server'],
@@ -1818,16 +1862,9 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     settings.ACTIVE['asset'],
                 )
 
-                duration = db.value(asset, 'cut_duration')
 
-                try:
-                    duration = int(duration)
-                except:
-                    duration = v['duration']
-                    try:
-                        duration = int(duration)
-                    except:
-                        duration = None
+            startframe = _get_cut_value('startframe', 'cut_in', db, v)
+            duration = _get_cut_value('duration', 'cut_duration', db, v)
 
             try:
                 if (v['width'] and v['height']):
@@ -1843,14 +1880,14 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 log.error('Could not set frame rate')
 
             try:
-                if v['startframe']:
-                    set_start_frame(v['startframe'])
+                if startframe:
+                    _set_start_frame(startframe)
             except:
                 log.error('Could not set start frame')
 
             try:
                 if duration:
-                    set_end_frame(v['startframe'] + duration)
+                    _set_end_frame(startframe + duration)
             except:
                 log.error('Could not set end frame')
 
@@ -1871,9 +1908,9 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     v['framerate']) if v['framerate'] else u'',
                 pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
                 start=u'  |  {}'.format(
-                    int(v['startframe'])) if v['startframe'] else u'',
+                    int(startframe)) if startframe else u'',
                 duration=u'-{} ({} frames)'.format(
-                    int(v['startframe']) + int(duration),
+                    int(startframe) + int(duration),
                     int(duration) if duration else u'') if duration else u''
             )
 
