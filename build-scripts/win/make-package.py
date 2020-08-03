@@ -219,7 +219,7 @@ def _get_lib_dependencies(libpath, l):
     """Find recursively dependencies of `libpath` and append the results to `l`.
 
     """
-    sys.stdout.write('Getting dependencies of {}\n'.format(l))
+    sys.stdout.write('Getting dependencies of {}\n'.format(os.path.basename(libpath)))
 
     libpath = os.path.basename(libpath)
     _libpath = find_lib(libpath)
@@ -240,6 +240,7 @@ def _get_lib_dependencies(libpath, l):
     if not _dep:
         return l
     l += _dep
+    l = sorted(list(set(l)))
     for _libpath in _dep:
         l = _get_lib_dependencies(_libpath, l)
     l = sorted(list(set(l)))
@@ -257,7 +258,7 @@ def get_dependencies():
         if L.lower().endswith('dll'):
             dependencies.append(L)
         dependencies = _get_lib_dependencies(L, dependencies)
-
+    dependencies = sorted(list(set(dependencies)))
     LIBS = {}
     for lib in dependencies:
         LIBS[lib] = None
