@@ -298,6 +298,28 @@ class LocalSettings(QtCore.QSettings):
             return data
 
     def bookmarks(self):
+        """Returns available bookmarks.
+
+        The list of bookmarks is made up of a list of persistent bookmarks, kept
+        in the `persistent_bookmarks.json`, and bookmarks added manually by the
+        user (stored in the `local_settings`).
+
+        Each bookmark is represented as a dictionary entry:
+
+        .. code-block:: python
+
+            {
+                'myserver/myjob/myroot': {
+                    'server': 'myserver',
+                    'job': 'myjob',
+                    'root': 'myroot'
+                }
+            }
+
+        Returns:
+            dict:   A dictionary containing all currently available bookmarks.
+
+        """
         _persistent = self._load_persistent_bookmarks()
         _persistent = _persistent if _persistent else {}
         _custom = self.value(u'bookmarks')
@@ -336,8 +358,8 @@ class LocalSettings(QtCore.QSettings):
         """
         v = self.value(u'favourites')
         if isinstance(v, (str, unicode)):
-            v = [v.lower(), ]
-        v = [f.strip().lower() for f in v] if v else []
+            v = [v, ]
+        v = [f.strip() for f in v] if v else []
         return v
 
 
