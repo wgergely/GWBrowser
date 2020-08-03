@@ -11,8 +11,7 @@ name = u'bookmarks'
 author = 'Gergely Wootsch'
 website = 'https://gergely-wootsch.com'
 email = 'hello@gergely-wootsch.com'
-__version__ = u'0.3.14'
-__all__ = ['common',]
+__version__ = u'0.3.15'
 
 def get_info():
     return (
