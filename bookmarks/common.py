@@ -513,9 +513,8 @@ def namekey(s):
     """Key function used to sort alphanumeric filenames."""
     if SORT_WITH_BASENAME:
         s = s.split(u'/').pop()  # order by filename
-    else:
-        n = len(s.split(u'/'))
-        s = ((u'Ω' * (n - 1)) + s)  # order by number of subfolders, then name
+    elif len(s.split(u'/')) > 1:
+        s = u'Ω' + s
     return [int(f) if f.isdigit() else f for f in s]
 
 
