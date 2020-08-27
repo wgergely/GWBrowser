@@ -414,7 +414,7 @@ QMenu::indicator:selected {{
 }}
 QMenu::item {{
 	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}px;
+	font-size: {SMALL_FONT_SIZE}px;
 	color: rgba({TEXT});
 	padding: 0px {MARGIN}px 0px {MARGIN}px;
 	margin: 0px 0px 0px 0px;
