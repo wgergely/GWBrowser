@@ -864,7 +864,7 @@ class AssetsWidgetDelegate(BaseDelegate):
 
 class FilesWidgetDelegate(BaseDelegate):
     """QAbstractItemDelegate associated with ``FilesWidget``."""
-    maximum_subdirs = 4
+    maximum_subdirs = 6
 
     def __init__(self, parent=None):
         super(FilesWidgetDelegate, self).__init__(parent=parent)
