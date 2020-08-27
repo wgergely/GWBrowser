@@ -5,7 +5,7 @@
 ; We're not distributing the
 
 #define MyAppName "Bookmarks"
-#define MyAppVersion "0.3.15"
+#define MyAppVersion "0.3.16"
 #define MyAppPublisher "Gergely Wootsch"
 #define MyAppURL "http://gergely-wootsch.com/bookmarks"
 #define MyAppExeName "bookmarks.exe"
