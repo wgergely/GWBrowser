@@ -41,6 +41,10 @@ from .. import bookmark_db
 from .. import __path__ as package_path
 
 
+
+object_name = 'm{}MainButton'.format(__name__.split('.')[0])
+
+
 maya_button = None
 """The bookmarks shortcut icon button. Set by the ``mBookmarks.py`` when the plugin is initializing."""
 
@@ -387,10 +391,10 @@ def show():
     for widget in app.allWidgets():
         # Skipping workspaceControls objects, just in case there's a name conflict
         # between what the parent().objectName() and this method yields
-        if re.match(ur'MayaMainWidget.*WorkspaceControl', widget.objectName()):
+        if re.match(ur'{}.*WorkspaceControl'.format(common.PRODUCT), widget.objectName()):
             continue
 
-        match = re.match(ur'MayaMainWidget.*', widget.objectName())
+        match = re.match(ur'{}.*'.format(common.PRODUCT), widget.objectName())
         if not match:
             continue
 
@@ -442,12 +446,12 @@ def show():
         widget.show()
 
         sys.stdout.write(
-            u'# Bookmarks: Initialized successfully\n')
+            u'# {}: Initialized successfully\n'.format(common.PRODUCT))
 
         # We will defer the execution, otherwise the widget does not dock properly
         for widget in app.allWidgets():
             match = re.match(
-                ur'MayaMainWidget.*WorkspaceControl', widget.objectName())
+                ur'{}.*WorkspaceControl'.format(common.PRODUCT), widget.objectName())
             if match:
                 func = functools.partial(
                     cmds.workspaceControl,
@@ -463,7 +467,7 @@ def show():
             u'Could not show {}'.format(common.PRODUCT),
             u'{}'.format(err)
         ).open()
-        log.error(u'Could not open Bookmarks window.')
+        log.error(u'Could not open {} window.'.format(common.PRODUCT))
         raise
 
 
@@ -1315,10 +1319,10 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             u'icon_maya',
             (None, None),
             common.ASSET_ROW_HEIGHT(),
-            description=u'Click to toggle Bookmarks.\nRight-click to see addittional options.',
+            description=u'Click to toggle {}.\nRight-click to see addittional options.'.format(common.PRODUCT),
             parent=parent
         )
-        self.setObjectName(u'MayaBrowserMainButton')
+        self.setObjectName(object_name)
         self.setAttribute(QtCore.Qt.WA_NoBackground, False)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -1617,6 +1621,11 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         self.setWindowTitle(common.PRODUCT)
 
+        # Rename object
+        _object_name = self.objectName().replace(
+            self.__class__.__name__, common.PRODUCT)
+        self.setObjectName(_object_name)
+
         self._create_UI()
         self.setFocusProxy(self.mainwidget.stackedwidget)
 
@@ -1713,8 +1722,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
             if not ptr:
                 widgets = QtWidgets.QApplication.instance().allWidgets()
-                widget = [f for f in widgets if f.objectName() ==
-                          u'MayaBrowserMainButton']
+                widget = [f for f in widgets if f.objectName() == object_name]
                 if not widget:
                     return
                 widget = widget[0]
@@ -1742,7 +1750,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 pass
 
             sys.stdout.write(
-                u'# Bookmarks: UI deleted.\n')
+                u'# {}: UI deleted.\n'.format(common.PRODUCT))
 
         for widget in QtWidgets.QApplication.instance().allWidgets():
             if re.match(ur'MayaMainWidget.*WorkspaceControl', widget.objectName()):
@@ -1791,7 +1799,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 u'Looks like you are saving "{}" outside the current project\nThe current project is "{}"'.format(
                     scene_file.fileName(),
                     workspace_info.path()),
-                u'If you didn\'t expect this message, is it possible the project was changed by Bookmarks from another instance of Maya?'
+                u'If you didn\'t expect this message, is it possible the project was changed by {} from another instance of Maya?'.format(common.PRODUCT)
             ).open()
 
     @QtCore.Slot()
@@ -1855,7 +1863,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def remove_context_callbacks(self):
         """This method is called by the Maya plug-in when unloading."""
-        sys.stdout.write('# Bookmarks: Removing callbacks...\n')
+        sys.stdout.write('# {}: Removing callbacks...\n'.format(common.PRODUCT))
         for callback in self._callbacks:
             res = OpenMaya.MMessage.removeCallback(callback)
             sys.stdout.write(u'# Callback status {}\n'.format(res))
