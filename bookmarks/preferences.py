@@ -1,6 +1,7 @@
 """Interface to browse and edit application preferences.
 
 """
+import importlib
 import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -319,8 +320,9 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         grp = common_ui.get_group(parent=self)
         o = common.MARGIN()
         grp.layout().setContentsMargins(o, o, o, o)
-        # row = common_ui.add_row(u'Version', parent=grp, height=None)
-        s = u'\n'.join(bookmarks.get_info())
+
+        mod = importlib.import_module(__name__.split('.')[0])
+        s = u'\n'.join(mod.get_info())
         common_ui.add_description(s, label=None, parent=grp)
 
         self.layout().addStretch(1)

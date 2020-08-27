@@ -2,6 +2,7 @@
 """Widgets required to run Bookmarks in standalone-mode.
 
 """
+import importlib
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from . import common
@@ -362,9 +363,8 @@ class StandaloneApp(QtWidgets.QApplication):
 
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
-        import bookmarks
-
-        self.setApplicationVersion(bookmarks.__version__)
+        mod = importlib.import_module(__name__.split('.')[0])
+        self.setApplicationVersion(mod.__version__)
         self.setApplicationName(common.PRODUCT)
         self.set_model_id()
 
