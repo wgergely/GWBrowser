@@ -44,6 +44,7 @@ from .. import __path__ as package_path
 maya_button = None
 """The bookmarks shortcut icon button. Set by the ``mBookmarks.py`` when the plugin is initializing."""
 
+
 _instance = None
 """The bookmarks widget instance."""
 
@@ -95,6 +96,217 @@ MAYA_FPS = {
     u'44100fps': 44100.0,
     u'48000fps': 48000.0,
 }
+
+SUFFIX_LABEL = u'Select a suffix for this import.\n\n\
+Suffixes are always unique and help differentiate imports when the same file \
+is imported mutiple times.'
+
+
+def _get_available_suffixes(basename):
+    """Checks for already used suffixes in the current scene and returns a list
+    of available ones.
+
+    """
+    alphabet = unicode(string.ascii_uppercase)
+    transforms = cmds.ls(transforms=True)
+    for s in transforms:
+        if basename not in s:
+            continue
+        if not cmds.attributeQuery('instance_suffix', node=s, exists=True):
+            continue
+        suffix = cmds.getAttr('{}.instance_suffix'.format(s))
+        alphabet = alphabet.replace(string.ascii_uppercase[suffix], '')
+    return alphabet
+
+
+def _add_suffix_attribute(rfn, suffix, reference=True):
+    """Adds a custom attribute to the imported scene.
+
+    """
+    id = string.ascii_uppercase.index(suffix)
+
+    if reference:
+        nodes = cmds.referenceQuery(rfn, nodes=True)
+    else:
+        nodes = cmds.namespaceInfo(rfn, listNamespace=True)
+
+    for node in nodes:
+        # Conflict of duplicate name would prefent import... this is a hackish, yikes, workaround!
+        _node = cmds.ls(node, long=True)[0]
+        if cmds.nodeType(_node) != 'transform':
+            continue
+        if cmds.listRelatives(_node, parent=True) is None:
+            if cmds.attributeQuery('instance_suffix', node=node, exists=True):
+                continue
+            cmds.addAttr(_node, ln='instance_suffix', at='enum',
+                         en=u':'.join(string.ascii_uppercase))
+            cmds.setAttr('{}.instance_suffix'.format(_node), id)
+
+
+def is_scene_modified():
+    """If the current scene was modified since the last save, the user will be
+    prompted to save the scene.
+
+    """
+    if not cmds.file(q=True, modified=True):
+        return
+
+    mbox = QtWidgets.QMessageBox()
+    mbox.setText(
+        u'Current scene has unsaved changes.'
+    )
+    mbox.setInformativeText(u'Do you want to save before continuing?')
+    mbox.setStandardButtons(
+        QtWidgets.QMessageBox.Save
+        | QtWidgets.QMessageBox.No
+        | QtWidgets.QMessageBox.Cancel
+    )
+    mbox.setDefaultButton(QtWidgets.QMessageBox.Save)
+    result = mbox.exec_()
+
+    if result == QtWidgets.QMessageBox.Cancel:
+        return result
+    elif result == QtWidgets.QMessageBox.Save:
+        cmds.SaveScene()
+        return result
+
+    return result
+
+
+def open_scene(path):
+    """Opens the given path using ``cmds.file``.
+
+    Returns:
+        unicode: The name of the input scene if the load was successfull.
+
+    Raises:
+        RuntimeError: When and invalid scene file is passed.
+
+    """
+    p = common.get_sequence_endpath(path)
+    file_info = QtCore.QFileInfo(p)
+
+    _s = file_info.suffix().lower()
+    if _s not in (u'ma', u'mb', u'abc'):
+        s = u'{} is not a valid scene.'.format(p)
+        common_ui.ErrorBox(u'Error.', s).open()
+        log.error(s)
+        raise RuntimeError(s)
+
+    if _s == 'abc':
+        if not cmds.pluginInfo('AbcImport.mll', loaded=True, q=True):
+            cmds.loadPlugin("AbcImport.mll", quiet=True)
+        if not cmds.pluginInfo("AbcExport.mll", loaded=True, q=True):
+            cmds.loadPlugin("AbcExport.mll", quiet=True)
+
+    if not file_info.exists():
+        s = u'{} does not exist.'.format(p)
+        common_ui.ErrorBox(u'Could not import scene', s).open()
+        log.error(s)
+        raise RuntimeError(s)
+
+    try:
+        if is_scene_modified() == QtWidgets.QMessageBox.Cancel:
+            return
+        cmds.file(file_info.filePath(), open=True, force=True)
+
+        s = u'Scene opened {}\n'.format(file_info.filePath())
+        log.success(s)
+        return file_info.filePath()
+    except Exception as e:
+        s = u'Could not open the scene.'
+        common_ui.ErrorBox(s, u'{}'.format(e)).open()
+        log.error(s)
+        raise
+
+
+def import_scene(path, reference=False):
+    """Imports a Maya or alembic file to the current Maya scene.
+
+    Args:
+        path (unicode): Path to a Maya scene file.
+        reference (bool): When `true` the import will be a reference.
+
+    """
+    p = common.get_sequence_endpath(path)
+    file_info = QtCore.QFileInfo(p)
+    _s = file_info.suffix().lower()
+    if _s not in (u'ma', u'mb', u'abc'):
+        s = u'{} is not a valid scene.'.format(p)
+        common_ui.ErrorBox(u'Error.', s).open()
+        log.error(s)
+        raise RuntimeError(s)
+
+    # Load the alembic plugin
+    if _s == 'abc':
+        if not cmds.pluginInfo('AbcImport.mll', loaded=True, q=True):
+            cmds.loadPlugin("AbcImport.mll", quiet=True)
+        if not cmds.pluginInfo("AbcExport.mll", loaded=True, q=True):
+            cmds.loadPlugin("AbcExport.mll", quiet=True)
+
+    if not file_info.exists():
+        s = u'{} does not exist.'.format(p)
+        common_ui.ErrorBox(u'Could not reference scene', s).open()
+        log.error(s)
+        raise RuntimeError(s)
+
+    if cmds.file(q=True, sn=True).lower() == file_info.filePath().lower() and reference:
+        raise RuntimeError('Can\'t reference self.')
+
+    try:
+        match = common.get_sequence(file_info.fileName())
+        basename = match.group(1) if match else file_info.baseName()
+        basename = re.sub(ur'_v$', u'', basename, flags=re.IGNORECASE)
+
+        alphabet = _get_available_suffixes(basename)
+        if not alphabet:  # no more suffixes to assign
+            return None
+
+        w = QtWidgets.QInputDialog()
+        w.setWindowTitle(u'Assign suffix')
+        w.setLabelText(SUFFIX_LABEL)
+        w.setComboBoxItems(alphabet)
+        w.setCancelButtonText(u'Cancel')
+        w.setOkButtonText(u'Import')
+        res = w.exec_()
+        if not res:
+            return None
+        suffix = w.textValue()
+
+        id = u'{}'.format(uuid.uuid1()).replace(u'-', u'_')
+        # This should always be a unique name in the maya scene
+        ns = u'{}_{}'.format(basename, suffix)
+        rfn = u'{}_RN_{}'.format(ns, id)
+
+        if reference:
+            cmds.file(
+                file_info.filePath(),
+                reference=True,
+                ns=ns,
+                rfn=rfn,
+            )
+            _add_suffix_attribute(rfn, suffix, reference=reference)
+
+            # The reference node is locked by default
+            cmds.lockNode(rfn, lock=False)
+            rfn = cmds.rename(rfn, u'{}_RN'.format(ns))
+            cmds.lockNode(rfn, lock=True)
+        else:
+            cmds.file(
+                file_info.filePath(),
+                i=True,
+                ns=ns
+            )
+            _add_suffix_attribute(ns, suffix, reference=reference)
+
+        s = u'{} was imported.'.format(file_info.filePath())
+        log.success(s)
+        return file_info.filePath()
+    except Exception as e:
+        s = u'Could not reference the scene.'
+        common_ui.ErrorBox(s, u'{}'.format(e)).open()
+        log.error(s)
+        raise
 
 
 def find_project_folder(key):
@@ -731,7 +943,8 @@ def capture_viewport(size=1.0):
                 ptr = OpenMayaUI.MQtUtil.findControl(panel)
                 if not ptr:
                     continue
-                panel_widget = shiboken2.wrapInstance(long(ptr), QtWidgets.QWidget)
+                panel_widget = shiboken2.wrapInstance(
+                    long(ptr), QtWidgets.QWidget)
                 if panel_widget:
                     if panel in current_state:
                         panel_widget.setVisible(current_state[panel])
@@ -843,14 +1056,13 @@ def contextmenu_main(func):
     return func_wrapper
 
 
-
 class PanelPicker(QtWidgets.QDialog):
     """Modal dialog used to select a visible modelPanel in Maya.
 
     """
+
     def __init__(self, parent=None):
         super(PanelPicker, self).__init__(parent=parent)
-
 
         effect = QtWidgets.QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(effect)
@@ -1165,10 +1377,12 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         painter.setBrush(QtGui.QColor(0, 0, 0, 10))
 
         if hover:
-            pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, self.width())
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                u'icon', None, self.width())
             painter.setOpacity(1.0)
         else:
-            pixmap = images.ImageCache.get_rsc_pixmap(u'icon_bw', None, self.width())
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                u'icon_bw', None, self.width())
             painter.setOpacity(0.80)
 
         rect = self.rect()
@@ -1222,11 +1436,6 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         self.add_separator()
 
         # Caches
-        if index.isValid():
-            self.add_alembic_actions_menu()
-
-        self.add_separator()
-
         self.add_export_alembic_menu()
 
         self.add_separator()
@@ -1276,12 +1485,15 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
     @contextmenu.contextmenu
     @contextmenu_main
     def add_scenes_menu(self, menu_set, main=None):
-        """Maya scene actions."""
+        """Maya & alembic import/open actions.
+
+        """
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        if file_info.suffix().lower() not in (u'ma', u'mb'):
+        _s = file_info.suffix().lower()
+        if _s not in (u'ma', u'mb', u'abc'):
             return menu_set
 
         maya_pixmap = images.ImageCache.get_rsc_pixmap(
@@ -1290,49 +1502,19 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
             u'maya_reference', None, common.MARGIN())
 
         menu_set[u'open_scene'] = {
-            u'text': u'Open  "{}"'.format(file_info.fileName()),
+            u'text': u'Open',
             u'icon': maya_pixmap,
-            u'action': lambda: main.open_scene(file_info.filePath())
+            u'action': lambda: open_scene(file_info.filePath())
         }
         menu_set[u'import_local_scene'] = {
-            u'text': u'Import  "{}"'.format(file_info.fileName()),
+            u'text': u'Import',
             u'icon': maya_pixmap,
-            u'action': lambda: main.import_scene(file_info.filePath())
+            u'action': lambda: import_scene(file_info.filePath(), reference=False)
         }
         menu_set[u'import_scene'] = {
-            u'text': u'Reference  "{}"'.format(file_info.fileName()),
+            u'text': u'Import as reference',
             u'icon': maya_reference_pixmap,
-            u'action': lambda: main.import_referenced_scene(file_info.filePath())
-        }
-        return menu_set
-
-    @contextmenu.contextmenu
-    @contextmenu_main
-    def add_alembic_actions_menu(self, menu_set, main=None):
-        """Actions associated with ``alembic`` cache operations."""
-        path = self.index.data(QtCore.Qt.StatusTipRole)
-        path = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(path)
-
-        alembic_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'abc', None, common.MARGIN())
-        maya_reference_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'maya_reference', None, common.MARGIN())
-
-        menu_set[u'open_alembic'] = {
-            u'text': u'Open  "{}"'.format(file_info.fileName()),
-            u'icon': alembic_pixmap,
-            u'action': lambda: main.open_alembic(file_info.filePath())
-        }
-        menu_set[u'import_local_alembic'] = {
-            u'text': u'Import alembic "{}"'.format(file_info.fileName()),
-            u'icon': alembic_pixmap,
-            u'action': lambda: main.import_alembic(file_info.filePath())
-        }
-        menu_set[u'import_ref_alembic'] = {
-            u'text': u'Import alembic as reference...',
-            u'icon': maya_reference_pixmap,
-            u'action': lambda: main.import_referenced_alembic(file_info.filePath())
+            u'action': lambda: import_scene(file_info.filePath(), reference=True)
         }
         return menu_set
 
@@ -1707,7 +1889,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 index.data(QtCore.Qt.StatusTipRole))
             file_info = QtCore.QFileInfo(file_path)
             if file_info.suffix().lower() in (u'ma', u'mb', u'abc'):
-                self.open_scene(file_info.filePath())
+                open_scene(file_info.filePath())
                 return
             common.execute(index)
 
@@ -1757,7 +1939,8 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
             if file_info.filePath().lower() == cmds.workspace(q=True, sn=True).lower():
                 return
-            path = os.path.normpath(os.path.abspath(file_info.absoluteFilePath()))
+            path = os.path.normpath(
+                os.path.abspath(file_info.absoluteFilePath()))
             cmds.workspace(path, openWorkspace=True)
         except Exception as e:
             s = u'Could not set the workspace'
@@ -1834,7 +2017,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     pass
             return val
 
-
         if not all((
             settings.ACTIVE['server'],
             settings.ACTIVE['job'],
@@ -1861,7 +2043,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     settings.ACTIVE['root'],
                     settings.ACTIVE['asset'],
                 )
-
 
             startframe = _get_cut_value('startframe', 'cut_in', db, v)
             duration = _get_cut_value('duration', 'cut_duration', db, v)
@@ -1983,335 +2164,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             log.error(s)
             raise
 
-    def open_scene(self, path):
-        """Maya Command: Opens the given path in Maya using ``cmds.file``.
-
-        Returns:
-            unicode: The name of the input scene if the load was successfull.
-
-        Raises:
-            RuntimeError: When and invalid scene file is passed.
-
-
-        """
-        p = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(p)
-
-        if file_info.suffix().lower() not in (u'ma', u'mb', u'abc'):
-            s = u'{} is not a valid scene.'.format(p)
-            common_ui.ErrorBox(u'Error.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        if not file_info.exists():
-            s = u'{} does not exist.'.format(p)
-            common_ui.ErrorBox(u'Could not import scene', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        try:
-            if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
-                return
-            cmds.file(file_info.filePath(), open=True, force=True)
-
-            s = u'Scene opened {}\n'.format(file_info.filePath())
-            log.success(s)
-
-            return file_info.filePath()
-        except Exception as e:
-            s = u'Could not open the scene.'
-            common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            log.error(s)
-            raise
-
-    def import_scene(self, path):
-        """Imports the given scene locally."""
-        p = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(p)
-
-        if file_info.suffix().lower() not in (u'ma', u'mb'):
-            s = u'{} is not a valid scene.'.format(p)
-            common_ui.ErrorBox(u'Error.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        if not file_info.exists():
-            s = u'{} does not exist.'.format(p)
-            common_ui.ErrorBox(u'Could not import scene', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        try:
-            if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
-                return
-            match = common.get_sequence(file_info.fileName())
-            ns = match.group(1) if match else file_info.baseName()
-            ns = u'{}#'.format(ns)
-            cmds.file(
-                file_info.filePath(),
-                i=True,
-                ns=ns
-            )
-            s = u'{} imported successfully.'.format(file_info.filePath())
-            log.success(s)
-            return file_info.filePath()
-
-        except Exception as e:
-            s = u'Could not open the scene.'
-            common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            log.error(s)
-            raise
-
-    def import_referenced_scene(self, path):
-        """Imports the given scene as a reference."""
-
-        def get_alphabet(basename):
-            """Checks the scene against the already used suffixes and returs a modified alphabet"""
-            alphabet = unicode(string.ascii_uppercase)
-            transforms = cmds.ls(transforms=True)
-            for s in transforms:
-                if basename not in s:
-                    continue
-                if not cmds.attributeQuery('instance_suffix', node=s, exists=True):
-                    continue
-                suffix = cmds.getAttr('{}.instance_suffix'.format(s))
-                alphabet = alphabet.replace(string.ascii_uppercase[suffix], '')
-            return alphabet
-
-        def add_attribute(rfn, suffix):
-            id = string.ascii_uppercase.index(suffix)
-            nodes = cmds.referenceQuery(rfn, nodes=True)
-            for node in nodes:
-
-                # Conflict of duplicate name would prefent import... this is a hackish, yikes, workaround!
-                _node = cmds.ls(node, long=True)[0]
-                if cmds.nodeType(_node) != 'transform':
-                    continue
-                if cmds.listRelatives(_node, parent=True) is None:
-                    if cmds.attributeQuery('instance_suffix', node=node, exists=True):
-                        continue
-                    cmds.addAttr(_node, ln='instance_suffix', at='enum',
-                                 en=u':'.join(string.ascii_uppercase))
-                    cmds.setAttr('{}.instance_suffix'.format(_node), id)
-
-        p = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(p)
-        if file_info.suffix().lower() not in (u'ma', u'mb'):
-            s = u'{} is not a valid scene.'.format(p)
-            common_ui.ErrorBox(u'Error.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        if not file_info.exists():
-            s = u'{} does not exist.'.format(p)
-            common_ui.ErrorBox(u'Could not reference scene', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        try:
-            match = common.get_sequence(file_info.fileName())
-            basename = match.group(1) if match else file_info.baseName()
-            basename = re.sub(ur'_v$', u'', basename, flags=re.IGNORECASE)
-
-            alphabet = get_alphabet(basename)
-            if not alphabet:
-                return
-
-            w = QtWidgets.QInputDialog()
-            w.setWindowTitle(u'Assign suffix')
-            w.setLabelText(
-                u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
-            w.setComboBoxItems(alphabet)
-            w.setCancelButtonText(u'Cancel')
-            w.setOkButtonText(u'Import reference')
-            res = w.exec_()
-            if not res:
-                return
-            suffix = w.textValue()
-
-            id = u'{}'.format(uuid.uuid1()).replace(u'-', u'_')
-            # This should always be a unique name in the maya scene
-            ns = u'{}_{}'.format(basename, suffix)
-            rfn = u'{}_RN_{}'.format(ns, id)
-
-            cmds.file(
-                file_info.filePath(),
-                reference=True,
-                ns=ns,
-                rfn=rfn,
-            )
-            add_attribute(rfn, suffix)
-
-            cmds.lockNode(rfn, lock=False)
-            rfn = cmds.rename(rfn, u'{}_RN'.format(ns))
-            cmds.lockNode(rfn, lock=True)
-
-            s = u'{} referenced successfully.'.format(file_info.filePath())
-            log.success(s)
-            return file_info.filePath()
-        except Exception as e:
-            s = u'Could not reference the scene.'
-            common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            log.error(s)
-            raise
-
-    def open_alembic(self, path):
-        """Opens the given scene."""
-        if not cmds.pluginInfo('AbcImport.mll', loaded=True, q=True):
-            cmds.loadPlugin("AbcExport.mll", quiet=True)
-            cmds.loadPlugin("AbcImport.mll", quiet=True)
-
-        p = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(p)
-        if file_info.suffix().lower() not in (u'abc',):
-            s = u'{} is not a valid alembic.'.format(p)
-            common_ui.ErrorBox(u'Error.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        if not file_info.exists():
-            s = u'{} does not exist.'.format(p)
-            common_ui.ErrorBox(u'Could not open alembic.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        try:
-            if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
-                return
-            cmds.AbcImport(file_info.filePath(), mode=u'open')
-            s = u'{} opened successfully.'.format(file_info.filePath())
-            log.success(s)
-            return file_info.filePath()
-        except Exception as e:
-            s = u'Could not reference the scene.'
-            common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            log.error(s)
-            raise
-
-    def import_alembic(self, path):
-        """Imports the given scene locally."""
-        if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
-            cmds.loadPlugin('AbcExport.mll', quiet=True)
-            cmds.loadPlugin('AbcImport.mll', quiet=True)
-
-        p = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(p)
-        if file_info.suffix().lower() not in (u'abc',):
-            s = u'{} is not a valid alembic.'.format(p)
-            common_ui.ErrorBox(u'Error.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        if not file_info.exists():
-            s = u'{} does not exist.'.format(p)
-            common_ui.ErrorBox(u'Could not import alembic.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        try:
-            seq = common.get_sequence(file_info.fileName())
-            if seq:
-                prefix, _, _, _ = seq.groups()
-                prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
-            else:
-                prefix = file_info.baseName().rstrip(u'_')
-
-            # Create namespace
-            n = 1
-            ns = u'abc_{}{}'.format(prefix, n)
-            while True:
-                if cmds.namespace(exists=ns):
-                    n += 1
-                    ns = u'abc_{}{}'.format(prefix, n)
-                    continue
-                break
-            cmds.namespace(add=ns)
-            root_node = u'{}:{}'.format(ns, prefix)
-            cmds.createNode(u'transform', name=root_node)
-
-            cmds.AbcImport(
-                p,
-                mode='import',
-                reparent=root_node,
-                filterObjects=u'.*Shape.*'
-            )
-
-            for s in cmds.listRelatives(root_node, children=True):
-                cmds.rename(s, u'{}:{}'.format(ns, s))
-
-            s = u'{} imported successfully.'.format(file_info.filePath())
-            log.success(s)
-            return file_info.filePath()
-        except Exception as e:
-            s = u'Could not import alembic.'
-            common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            log.error(s)
-            raise
-
-    def import_referenced_alembic(self, path):
-        """Imports the given scene as a reference."""
-        if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
-            cmds.loadPlugin('AbcExport.mll', quiet=True)
-            cmds.loadPlugin('AbcImport.mll', quiet=True)
-
-        p = common.get_sequence_endpath(path)
-        file_info = QtCore.QFileInfo(p)
-        if file_info.suffix().lower() not in (u'abc',):
-            s = u'{} is not a valid alembic.'.format(p)
-            common_ui.ErrorBox(u'Error.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        if not file_info.exists():
-            s = u'{} does not exist.'.format(p)
-            common_ui.ErrorBox(u'Could not reference alembic.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
-
-        try:
-            seq = common.get_sequence(file_info.fileName())
-            if seq:
-                prefix, _, _, _ = seq.groups()
-                prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
-            else:
-                prefix = file_info.baseName().rstrip(u'_')
-
-            # Create namespace
-            n = 1
-            ns = u'abc_{}{}'.format(prefix, n)
-            while True:
-                if cmds.namespace(exists=ns):
-                    n += 1
-                    ns = u'abc_{}{}'.format(prefix, n)
-                    continue
-                break
-
-            # The namespace will be created by the cmds.file() command
-            rfn = u'{}_RN'.format(ns)
-
-            cmds.file(
-                file_info.filePath(),
-                reference=True,
-                ns=ns,
-                rfn=rfn,
-            )
-            members = cmds.namespaceInfo(ns, listNamespace=True, fullName=True)
-            root_node = u'{}:{}'.format(ns, prefix)
-            cmds.createNode(u'transform', name=root_node)
-            for member in members:
-                if cmds.objectType(member) != u'transform':
-                    continue
-                cmds.parent(member, root_node)
-
-            s = u'{} referenced successfully.'.format(file_info.filePath())
-            log.success(s)
-            return file_info.filePath()
-        except Exception as e:
-            s = u'Could not reference alembic.'
-            common_ui.ErrorBox(s, u'{}'.format(e)).open()
-            log.error(s)
-            raise
-
     @QtCore.Slot(unicode)
     @QtCore.Slot(dict)
     @QtCore.Slot(bool)
@@ -2342,7 +2194,8 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         exportdir = find_project_folder(u'ass export')
         exportdir = exportdir if exportdir else u'export/ass'
-        layer = cmds.editRenderLayerGlobals(query=True, currentRenderLayer=True)
+        layer = cmds.editRenderLayerGlobals(
+            query=True, currentRenderLayer=True)
         file_path = u'{workspace}/{exportdir}/{set}/{set}_{layer}_v001.{ext}'.format(
             workspace=cmds.workspace(q=True, fn=True),
             exportdir=exportdir,
@@ -2379,7 +2232,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.arnoldExportAss(
                 f=file_path,
                 cam=cam,
-                s=True, # selected
+                s=True,  # selected
                 mask=arnold.AI_NODE_CAMERA |
                 arnold.AI_NODE_SHAPE |
                 arnold.AI_NODE_SHADER |
@@ -2573,35 +2426,6 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         finally:
             cmds.select(clear=True)
             cmds.select(sel, replace=True)
-
-    def is_scene_modified(self):
-        """If the current scene was modified since the last save, the user will be
-        prompted to save the scene.
-
-        """
-        if not cmds.file(q=True, modified=True):
-            return
-
-        mbox = QtWidgets.QMessageBox()
-        mbox.setText(
-            u'Current scene has unsaved changes.'
-        )
-        mbox.setInformativeText(u'Do you want to save before continuing?')
-        mbox.setStandardButtons(
-            QtWidgets.QMessageBox.Save
-            | QtWidgets.QMessageBox.No
-            | QtWidgets.QMessageBox.Cancel
-        )
-        mbox.setDefaultButton(QtWidgets.QMessageBox.Save)
-        result = mbox.exec_()
-
-        if result == QtWidgets.QMessageBox.Cancel:
-            return result
-        elif result == QtWidgets.QMessageBox.Save:
-            cmds.SaveScene()
-            return result
-
-        return result
 
     def show(self, dockable=True):
         """Initializes the Maya workspace control on show."""
