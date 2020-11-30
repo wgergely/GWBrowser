@@ -334,7 +334,7 @@ class SlackButton(BaseControlButton):
         index = bookmarks_widget.model().sourceModel().active_index()
         if not index.isValid():
             return
-        self.current_widget().show_slacker(index)
+        self.current_widget().show_slack(index)
 
     def state(self):
         return True
@@ -717,7 +717,6 @@ class FavouritesTabButton(PaintedTextButton):
         menu = QuickSwitchMenu(parent=self)
         menu.add_switch_bookmark_menu()
         menu.add_switch_asset_menu()
-        menu.add_switch_task_folder_menu()
         pos = self.mapToGlobal(event.pos())
         menu.move(pos)
         menu.exec_()
@@ -772,7 +771,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
     def dropEvent(self, event):
         """Slack drop event"""
         try:
-            from . import slacker
+            from . import slack
         except ImportError as err:
             common_ui.ErrorBox(
                 u'Could not import SlackClient',
@@ -802,7 +801,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         if not index.isValid():
             return
 
-        widget = parent.currentWidget().show_slacker(index)
+        widget = parent.currentWidget().show_slack(index)
         widget.message_widget.append_message(message)
 
     def showEvent(self, event):

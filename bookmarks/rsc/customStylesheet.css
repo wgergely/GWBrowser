@@ -293,7 +293,7 @@ QListView::item {{
 }}
 QListWidget::item:hover,
 QListView::item:hover {{
-  background: rgba({BACKGROUND_SELECTED});
+  background: rgba(255,255,255,30);
 }}
 QListWidget::item:selected,
 QListView::item:selected {{
@@ -302,6 +302,11 @@ QListView::item:selected {{
 QListWidget::item:selected:hover,
 QListView::item:selected:hover {{
 	background: rgba({BACKGROUND_SELECTED});
+}}
+QListWidget::item:disabled,
+QListView::item:disabled {{
+  color: rgba({TEXT_DISABLED});
+	background: transparent;
 }}
 QListWidget::indicator,
 QListView::indicator {{
@@ -537,7 +542,9 @@ SectionSwitcherWidget  {{
 }}
 
 LineEdit,
-NameModeWidget {{
+LineEdit:disabled,
+NameModeWidget,
+NameModeWidget:disabled {{
     background-color: rgba(0,0,0,0);
     font-family: "{PRIMARY_FONT}";
     font-size: {MEDIUM_FONT_SIZE}px;
@@ -545,6 +552,13 @@ NameModeWidget {{
     border-radius: 0px;
     color: rgba({TEXT});
 }}
+
+LineEdit:disabled,
+NameModeWidget:disabled {{
+	color: rgba({TEXT_DISABLED});
+}}
+
+
 LineEdit:!read-only:focus{{
     border-bottom: {ROW_SEPARATOR}px solid rgba({ADD});
 }}

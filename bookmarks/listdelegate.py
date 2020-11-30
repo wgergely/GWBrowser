@@ -53,6 +53,7 @@ def get_painter_path(x, y, font, text):
     return PATH_CACHE[k]
 
 
+
 RECTANGLE_CACHE = {}
 
 
@@ -238,18 +239,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints an item's thumbnail.
 
-        The underlying image data is stored in `ImageCache`. If the
-        requested QPixmap has never been drawn before we will create and store
-        it by calling `images.ImageCache.get_pixmap()`.
+        If a requested QPixmap has never been drawn before we will create and
+        store it by calling `images.get_thumbnail(*args)`. This method is
+        backed by `images.ImageCache` and stores the requested pixmaps for future
+        use.
 
         If no associated image data is available, we will use a generic thumbnail
-        associated with the item's type.
+        associated with the item's type, or a fallback thumbnail set by the delegate.
+        at `self.fallback_thumb`.
 
         See the `images` module for implementation details.
 
         """
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        # painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         # Background
         color = common.THUMBNAIL_BACKGROUND
@@ -264,52 +266,25 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             return
 
         source = index.data(QtCore.Qt.StatusTipRole)
-        if not source:
-            return
-
-        thumbnail_path = images.get_thumbnail_path(
-            _p[0],
-            _p[1],
-            _p[2],
-            source
-        )
-
         _h = index.data(QtCore.Qt.SizeHintRole)
-        if not _h:
+        if not source or not _h:
             return
         size = _h.height()
 
-        pixmap = images.ImageCache.get_pixmap(thumbnail_path, size)
+        pixmap, _color = images.get_thumbnail(
+            _p,
+            source,
+            size,
+            fallback_thumb=self.fallback_thumb
+        )
+
+        # Paint a generic thumbnail background color
+        if color:
+            painter.setBrush(color)
+            painter.drawRect(rectangles[ThumbnailRect])
+
         if not pixmap:
-            # If this item is an un-collapsed sequence item, the sequence
-            # might have a thumbnail...
-            thumbnail_path = images.get_thumbnail_path(
-                _p[0],
-                _p[1],
-                _p[2],
-                source,
-                proxy=True
-            )
-            pixmap = images.ImageCache.get_pixmap(thumbnail_path, size)
-            if pixmap:
-                color = images.ImageCache.get_color(thumbnail_path)
-                if color:
-                    painter.setBrush(color)
-                    painter.drawRect(rectangles[ThumbnailRect])
-            else:
-                # Let's load a placeholder if there's not generated thumbnail
-                pixmap = images.ImageCache.get_pixmap(
-                    images.get_placeholder_path(
-                        source, fallback=self.fallback_thumb),
-                    size
-                )
-                if not pixmap:
-                    return
-        else:
-            color = images.ImageCache.get_color(thumbnail_path)
-            if color:
-                painter.setBrush(color)
-                painter.drawRect(rectangles[ThumbnailRect])
+            return
 
         # Let's make sure the image is fully fitted, even if the image's size
         # doesn't match ThumbnailRect

@@ -2042,7 +2042,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 settings.ACTIVE['root'],
             )
             with db.transactions():
-                for _k in bookmark_db.KEYS[t]:
+                for _k in bookmark_db.BOOKMARK_DB[t]:
                     v[_k] = db.value(1, _k, table=t)
 
                 asset = u'{}/{}/{}/{}'.format(

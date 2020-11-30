@@ -24,6 +24,7 @@ STANDALONE = True  # The current mode of bookmarks
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://github.com/wgergely/bookmarks'
 
+BOOKMARK_INDICATOR = u'.bookmark'
 
 SynchronisedMode = 0
 SoloMode = 1
@@ -86,8 +87,7 @@ EndpathRole = StartpathRole + 1
 TypeRole = EndpathRole + 1
 EntryRole = TypeRole + 1
 IdRole = EntryRole + 1
-AssetCountRole = IdRole + 1
-SortByNameRole = AssetCountRole + 1
+SortByNameRole = IdRole + 1
 SortByLastModifiedRole = SortByNameRole + 1
 SortBySizeRole = SortByLastModifiedRole + 1
 TextSegmentRole = SortBySizeRole + 1
@@ -510,7 +510,9 @@ def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 def namekey(s):
-    """Key function used to sort alphanumeric filenames."""
+    """Utility function used for alphanumerically sorting filenames.
+
+    """
     if SORT_WITH_BASENAME:
         s = s.split(u'/').pop()  # order by filename
     elif len(s.split(u'/')) > 1:
@@ -633,7 +635,13 @@ def reveal(path):
     """
     path = get_sequence_endpath(path)
     if get_platform() == u'win':
-        args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
+        if QtCore.QFileInfo(path).isFile():
+            args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
+        elif QtCore.QFileInfo(path).isDir():
+            path = os.path.normpath(os.path.abspath(path))
+            args = [path,]
+        else:
+            args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
 
     if get_platform() == u'mac':

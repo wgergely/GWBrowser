@@ -11,7 +11,7 @@ by `SCENE_FOLDERS` and `EXPORT_FOLDERS`.
 
 When saving, names are generated based on the value of `FILE_NAME_PATTERN`.
 
-`FORMAT_FILTERS` contains the list of valid extensions for each `task folder`.
+`FORMATS` contains the list of valid extensions for each `task folder`.
 It is used, for instance, by the `FilesModel` to ignore invalid extensions - eg.
 to make sure that the `render` folder does not contain scene files, etc.
 
@@ -32,7 +32,7 @@ ExportFilter = 0b00100000
 MiscFilter = 0b00010000
 AdobeFilter = 0b00001000
 
-FORMAT_FILTERS = {
+FORMATS = {
     SceneFilter: {
         u'name': u'SceneFilter',
         u'description': u'Scene file formats',
@@ -220,7 +220,7 @@ def get_description(item):
         item = item.lower()
 
     for items in (
-        FORMAT_FILTERS,
+        FORMATS,
         TASK_FOLDERS,
         SCENE_FOLDERS,
         EXPORT_FOLDERS
@@ -235,14 +235,14 @@ def get_description(item):
 
 def load_saved_values():
     """Load and set value values stored in `local_settings`."""
-    global FORMAT_FILTERS
+    global FORMATS
     global TASK_FOLDERS
     global SCENE_FOLDERS
     global EXPORT_FOLDERS
     global FILE_NAME_PATTERN
 
     for idx, ITEM in enumerate(
-        (FORMAT_FILTERS,  # 0
+        (FORMATS,  # 0
          TASK_FOLDERS,  # 1
          SCENE_FOLDERS,  # 2
          EXPORT_FOLDERS)  # 3
@@ -293,11 +293,11 @@ def can_accept_extension(ext, task_folder):
     if task_folder is None:
         return True
 
-    for flag in FORMAT_FILTERS:
+    for flag in FORMATS:
         if task_folder[u'filter'] & flag:
-            if FORMAT_FILTERS[flag][u'value'] == u'*':
+            if FORMATS[flag][u'value'] == u'*':
                 return True
-            if ext.lower() in FORMAT_FILTERS[flag][u'value']:
+            if ext.lower() in FORMATS[flag][u'value']:
                 return True
 
     return False
@@ -329,15 +329,15 @@ def get_extensions(flag):
 
     """
     e = []
-    for f in FORMAT_FILTERS:
+    for f in FORMATS:
         if not (f & flag):
             continue
 
         # If no value is saved, use the default values instead.
-        if not isinstance(FORMAT_FILTERS[f][u'value'], (str, unicode)):
-            e += FORMAT_FILTERS[f][u'default'].split(u',')
+        if not isinstance(FORMATS[f][u'value'], (str, unicode)):
+            e += FORMATS[f][u'default'].split(u',')
         else:
-            e += FORMAT_FILTERS[f][u'value'].split(u',')
+            e += FORMATS[f][u'value'].split(u',')
     return sorted(e)
 
 
@@ -348,7 +348,7 @@ def save_value(data, key, value):
         settings.local_settings.setValue(
             u'defaultpaths/filenamepattern', value)
 
-    if data == FORMAT_FILTERS:
+    if data == FORMATS:
         idx = 0
     elif data == TASK_FOLDERS:
         idx = 1

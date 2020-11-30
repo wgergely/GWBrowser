@@ -232,7 +232,7 @@ class FilesModel(lists.BaseModel):
                 #
                 common.TypeRole: common.FileItem,
                 #
-                common.SortByNameRole: common.namekey(fileroot),
+                common.SortByNameRole: common.namekey(filepath),
                 common.SortByLastModifiedRole: 0,
                 common.SortBySizeRole: 0,
                 #

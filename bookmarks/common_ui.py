@@ -14,7 +14,7 @@ from . import listdelegate
 _message_box_instance = None
 
 
-def get_group(parent=None):
+def get_group(parent=None, vertical=True, margin=common.INDICATOR_WIDTH()):
     """Utility method for creating a group widget.
 
     Returns:
@@ -25,15 +25,18 @@ def get_group(parent=None):
     grp.setMinimumWidth(common.WIDTH() * 0.3)
     grp.setMaximumWidth(common.WIDTH() * 2.0)
 
-    QtWidgets.QVBoxLayout(grp)
+    if vertical:
+        QtWidgets.QVBoxLayout(grp)
+    else:
+        QtWidgets.QHBoxLayout(grp)
+
     grp.setSizePolicy(
         QtWidgets.QSizePolicy.Minimum,
         QtWidgets.QSizePolicy.Maximum,
     )
 
-    o = common.INDICATOR_WIDTH()
-    grp.layout().setContentsMargins(o, o, o, o)
-    grp.layout().setSpacing(o)
+    grp.layout().setContentsMargins(margin, margin, margin, margin)
+    grp.layout().setSpacing(margin)
     parent.layout().addWidget(grp, 1)
     return grp
 
@@ -683,98 +686,3 @@ class DescriptionEditorWidget(LineEdit):
         """Closes the editor on focus loss."""
         if event.lostFocus():
             self.hide()
-
-
-class FilterEditor(QtWidgets.QDialog):
-    """Editor widget used to set a text filter on the associated model."""
-    finished = QtCore.Signal(unicode)
-
-    def __init__(self, parent=None):
-        super(FilterEditor, self).__init__(parent=parent)
-        self.editor_widget = None
-        self.context_menu_open = False
-
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-
-        self.setWindowFlags(QtCore.Qt.Widget)
-        self._create_UI()
-        self._connect_signals()
-
-        self.setFocusProxy(self.editor_widget)
-
-    def _create_UI(self):
-        QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN() * 2
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        row = add_row(None, parent=self, padding=0, height=common.ROW_HEIGHT())
-        icon = ClickableIconButton(
-            u'filter',
-            (common.REMOVE, common.REMOVE),
-            common.ROW_HEIGHT()
-        )
-        label = u'Search filter'
-        label = PaintedLabel(label, parent=self)
-        self.editor_widget = LineEdit(parent=self)
-
-        row.layout().addWidget(icon, 0)
-        row.layout().addWidget(label, 0)
-        row.layout().addWidget(self.editor_widget, 1)
-        self.layout().addStretch(1)
-
-    def _connect_signals(self):
-        self.editor_widget.returnPressed.connect(
-            lambda: self.finished.emit(self.editor_widget.text()))
-        self.finished.connect(
-            lambda _: self.done(QtWidgets.QDialog.Accepted))
-
-    @QtCore.Slot()
-    def adjust_size(self):
-        if not self.parent():
-            return
-        self.resize(
-            self.parent().geometry().width(),
-            self.parent().geometry().height())
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
-        pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(common.ROW_SEPARATOR())
-        painter.setPen(pen)
-
-        o = common.MARGIN()
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        rect.setHeight(common.ROW_HEIGHT() + (common.MARGIN() * 2))
-        painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.setOpacity(0.9)
-        painter.drawRoundedRect(
-            rect, common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
-        painter.end()
-
-    def mousePressEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.close()
-
-    def focusOutEvent(self, event):
-        """Closes the editor on focus loss."""
-        if event.lostFocus():
-            if self.context_menu_open:
-                return
-            self.close()
-
-    def showEvent(self, event):
-        text = self.parent().model().filter_text()
-        text = text.lower() if text else u''
-        text = u'' if text == u'/' else text
-
-        self.editor_widget.setText(text)
-        self.editor_widget.selectAll()
-        self.editor_widget.setFocus()

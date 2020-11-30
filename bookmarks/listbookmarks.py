@@ -13,7 +13,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from . import log
 from . import common
 from . import bookmark_db
-from . import bookmark_properties
+from .bookmark_editor import bookmark_properties
 from . import threads
 from . import lists
 from . import contextmenu
@@ -52,7 +52,7 @@ class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_window_menu()
         self.add_separator()
-        self.add_manage_bookmarks_menu()
+        self.add_bookmark_editor_menu()
         self.add_separator()
         if index.isValid():
             self.add_mode_toggles_menu()
@@ -113,6 +113,7 @@ class BookmarksModel(lists.BaseModel):
 
         task_folder = self.task_folder()
 
+        settings.local_settings.sync()
         favourites = settings.local_settings.favourites()
         bookmarks = settings.local_settings.bookmarks()
 
@@ -132,7 +133,7 @@ class BookmarksModel(lists.BaseModel):
             else:
                 flags = dflags() | common.MarkedAsArchived
 
-            filepath = file_info.filePath().lower()
+            filepath = file_info.filePath()
 
             # Active Flag
             if all((
@@ -181,8 +182,6 @@ class BookmarksModel(lists.BaseModel):
                 common.SortByNameRole: text,
                 common.SortByLastModifiedRole: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySizeRole: file_info.size(),
-                #
-                common.AssetCountRole: 0,
                 #
                 common.IdRole: idx
             })
@@ -241,10 +240,8 @@ class BookmarksModel(lists.BaseModel):
         v = {}
 
         ASSET_IDENTIFIER = db.value(1, u'identifier', table=t)
-        data[common.AssetCountRole] = count_assets(
-            data[QtCore.Qt.StatusTipRole], ASSET_IDENTIFIER)
 
-        for _k in bookmark_db.KEYS[t]:
+        for _k in bookmark_db.BOOKMARK_DB[t]:
             v[_k] = db.value(1, _k, table=t)
 
         info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
@@ -262,13 +259,8 @@ class BookmarksModel(lists.BaseModel):
                 int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
         )
 
-        c = data[common.AssetCountRole]
-        desc = u'{count}{info}'.format(
-            count=u'{} assets'.format(c) if c else u'',
-            info=u'\n' + info if c else info,
-        )
-        data[common.DescriptionRole] = desc
-        data[QtCore.Qt.ToolTipRole] = desc
+        data[common.DescriptionRole] = info
+        data[QtCore.Qt.ToolTipRole] = info
 
     def get_text_segments(self, text):
         """Returns a tuple of text and colour information to be used to mimick
@@ -313,18 +305,30 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Bookmarks')
-
-        from . import addbookmark
-
         self._background_icon = u'bookmark'
-        self.manage_bookmarks = addbookmark.ManageBookmarks(parent=self)
 
-        @QtCore.Slot(unicode)
-        def _update(bookmark):
-            self.model().sourceModel().__resetdata__()
+        self.remove_bookmark_timer = QtCore.QTimer(parent=self)
+        self.remove_bookmark_timer.setSingleShot(True)
+        self.remove_bookmark_timer.setInterval(10)
+        self.remove_bookmark_timer.timeout.connect(self.remove_queued_bookmarks)
 
-        self.manage_bookmarks.bookmarkAdded.connect(_update)
-        self.manage_bookmarks.bookmarkRemoved.connect(_update)
+        self.bookmarks_to_remove = []
+
+    @QtCore.Slot()
+    def remove_queued_bookmarks(self):
+        from .bookmark_editor import bookmark_editor
+        for bookmark in [f for f in self.bookmarks_to_remove]:
+            bookmark_editor.remove_bookmark(*bookmark)
+            del self.bookmarks_to_remove[self.bookmarks_to_remove.index(bookmark)]
+
+        self.model().sourceModel().__resetdata__()
+
+    @QtCore.Slot()
+    def show_bookmark_editor(self):
+        from .bookmark_editor import bookmark_editor
+        w = bookmark_editor.BookmarkEditorWidget(parent=self)
+        w.bookmarksChanged.connect(self.model().sourceModel().__resetdata__)
+        w.open()
 
     def mousePressEvent(self, event):
         super(BookmarksWidget, self).mousePressEvent(event)
@@ -340,6 +344,8 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
         if not index.isValid():
             return
         if index.flags() & common.MarkedAsArchived:
+            super(BookmarksWidget, self).toggle_item_flag(
+                index, common.MarkedAsArchived, state=False)
             return
 
         rect = self.visualRect(index)
@@ -404,7 +410,7 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
                 index = view.model().index(n, 0)
                 file_info = QtCore.QFileInfo(
                     index.data(QtCore.Qt.StatusTipRole))
-                if file_info.fileName().lower() == name.lower():
+                if file_info.fileName() == name:
                     view.selectionModel().setCurrentIndex(
                         index, QtCore.QItemSelectionModel.ClearAndSelect)
                     view.scrollTo(
@@ -424,9 +430,9 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
             index.data(common.ParentPathRole)[1],
             index.data(common.ParentPathRole)[2]
         )
-        widget.templates_widget.templateCreated.connect(
+        widget.templateCreated.connect(
             show_and_select_added_asset)
-        widget.show()
+        widget.open()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index, reset=False):
@@ -448,22 +454,10 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
         if flag == common.MarkedAsArchived:
             if hasattr(index.model(), 'sourceModel'):
                 index = self.model().mapToSource(index)
+                bookmark_db.remove_db(index)
 
-            model = self.model()
-            data = model.sourceModel().model_data()[index.row()]
-
-            data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
-            self.update_row(weakref.ref(data))
-
-            self.manage_bookmarks.scrollarea.widget().remove_saved_bookmark(
-                *index.data(common.ParentPathRole))
-
-            bookmark_db.remove_db(index)
-
-            if self.model().sourceModel().active_index() == index:
-                self.save_activated(QtCore.QModelIndex(), reset=True)
-            else:
-                settings.local_settings.load_and_verify_stored_paths()
+            self.bookmarks_to_remove.append(index.data(common.ParentPathRole))
+            self.remove_bookmark_timer.start()
         else:
             super(BookmarksWidget, self).toggle_item_flag(
                 index, flag, state=state)

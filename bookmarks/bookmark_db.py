@@ -1,29 +1,45 @@
 # -*- coding: utf-8 -*-
-"""BookmarkDB is used to store all custom item information, like descriptions,
-notes and todos, item flags.
+"""BookmarkDB stores all item information Bookmarks needs
+to work.
 
-The database uses SQLite3. See :const:`.KEYS` and
-:func:`.BookmarkDB.init_tables` for table/column definitions. Don't initiate
-:class:`.BookmarkDB` directly but use the :func:`.get_db` get a thread-specific
-BookmarkDB instance.
+This includes file descriptions, properties like `width`, `height`, asset
+configs, etc. The database file itself is stored in the given bookmark's root,
+at `//server/job/root/.bookmark/bookmark.db`
 
-.. code-block:: python
+The sqlite3 database table definitions are stored in `bookmark_db.json`.
 
-    import bookmarks.bookmark_db as bookmark_db
-    db = bookmark_db.get_db(
-        u'//SERVER',
-        u'MYJOB',
-        u'DATA/SHOTS'
-    )
-    source = u'//server/myjob/data/shots/sh0010/scene/myscene.ma'
-    value = db.value(source, u'description')
+Usage:
+
+    Use the thread-safe `bookmark_db.get_db()` to create thread-specific
+    connections to a database:
+
+    .. code-block:: python
+
+        import bookmarks.bookmark_db as bookmark_db
+        db = bookmark_db.get_db(
+            u'//SERVER',
+            u'MYJOB',
+            u'DATA/SHOTS'
+        )
+        source = u'//server/myjob/data/shots/sh0010/scene/myscene.ma'
+        value = db.value(source, u'description')
+
+    To retrive data from a bookmark database, use the higher level
+    `bookmark_db.get_property()` method. The method guarantees to never fail,
+    regardless of database errors.
+
+The bookmark databases have currently 3 tables. The `data` table is used to
+store information about folders and files, eg. assets would store their
+visibility flags, cut information and Shotgun data here.
+The `info` and `properties` tables are linked to the bookmark.
 
 """
-from contextlib import contextmanager
+import os
+import contextlib
 import time
 import platform
 import sqlite3
-from sqlite3 import Error
+import json
 
 from PySide2 import QtCore
 
@@ -31,56 +47,37 @@ from . import log
 from . import common
 
 
-KEYS = {
-    u'data': (
-        u'description',
-        u'notes',
-        u'flags',
-        u'thumbnail_stamp',
-        u'user',
-        u'shotgun_id',
-        u'shotgun_name',
-        u'shotgun_type',
-        u'cut_duration',
-        u'cut_in',
-        u'cut_out',
-        u'url1',
-        u'url2',
-    ),
-    u'info': (
-        u'server',
-        u'job',
-        u'root',
-        u'user',
-        u'host',
-        u'created'
-    ),
-    u'properties': (
-        u'width',
-        u'height',
-        u'framerate',
-        u'prefix',
-        u'startframe',
-        u'duration',
-        u'identifier',
-        u'slacktoken',
-        u'shotgun_domain',
-        u'shotgun_scriptname',
-        u'shotgun_api_key',
-        u'shotgun_id',
-        u'shotgun_name',
-        u'shotgun_type',
-        u'url1',
-        u'url2',
-    ),
-}
-"""Database table/column structure definition."""
-
-
+BOOKMARK_DB = {}
 DB_CONNECTIONS = {}
 
 
+try:
+    # To resolve an absolute filename, we'll use realpath
+    _bookmark_db_config_path = os.path.normpath(
+        os.path.realpath(__file__) +
+        os.path.sep + os.pardir +
+        os.path.sep +
+        u'bookmark_db.json'
+    )
+    with open(_bookmark_db_config_path, 'r') as f:
+        BOOKMARK_DB = json.loads(f.read())
+except:
+    log.error('Fatal error. Failed to load the default bookmark configuration.')
+    raise
+
+
 def get_property(key, server=None, job=None, root=None, asset=None, asset_property=False):
+    """Returns a property from a bookmark database.
+
+    Args:
+        key (unicode):          A column.
+        server(unicode):        Server name.
+        job (unicode):          Job name.
+        root (unicode):         Root folder name.
+        asset (unicode):        Asset name.
+        asset_property (bool):  Specify if the asset is an asset property.
+
+    """
     from . import settings
 
     if not all((server, root, job)):
@@ -107,21 +104,6 @@ def get_property(key, server=None, job=None, root=None, asset=None, asset_proper
 
     source = u'{}/{}/{}/{}'.format(server, job, root, asset)
     return db.value(source, key, table=u'data')
-
-
-def get_asset_property(key, server=None, job=None, root=None):
-    from . import settings
-
-    if not all((server, root, job)):
-        server = settings.ACTIVE['server']
-        job = settings.ACTIVE['job']
-        root = settings.ACTIVE['root']
-
-    if not all((server, root, job)):
-        raise RuntimeError(u'No bookmarks specified.')
-
-    db = get_db(server, job, root)
-    return db.value(1, key, table=u'properties')
 
 
 def get_db(server, job, root):
@@ -182,6 +164,11 @@ def get_db(server, job, root):
             # Wait a little and try again
             n += 1
             QtCore.QThread.msleep(50)
+        except OSError:
+            DB_CONNECTIONS[key] = None
+            if key in DB_CONNECTIONS:
+                del DB_CONNECTIONS[key]
+            raise
 
 
 def remove_db(index, server=None, job=None, root=None):
@@ -229,25 +216,37 @@ class BookmarkDB(QtCore.QObject):
         super(BookmarkDB, self).__init__(parent=parent)
 
         self._connection = None
+
         self._server = server.lower().encode(u'utf-8')
         self._server_u = server.lower()
         self._job = job.lower().encode(u'utf-8')
         self._job_u = job.lower()
         self._root = root.lower().encode(u'utf-8')
         self._root_u = root.lower()
+
         self._bookmark = server + u'/' + job + u'/' + root
-        self._database_path = u'{server}/{job}/{root}/.bookmark/bookmark.db'.format(
-            server=server,
-            job=job,
-            root=root
+        self._database_path = u'{}/{}/{}/.bookmark/bookmark.db'.format(
+            server,
+            job,
+            root
         )
 
         # Let's make sure the parent folder exists before connecting
         _p = u'{}/.bookmark'.format(self._bookmark)
+
         if not QtCore.QFileInfo(_p).exists():
-            if not QtCore.QDir(self._bookmark).mkpath(u'.bookmark'):
-                s = u'Unable to create folder "{}"'.format(_p)
-                log.error(s)
+            # If doesn't exist, let's try to create it
+            _dir = QtCore.QDir(self._bookmark)
+            if _dir.exists():
+                if not _dir.mkdir(u'.bookmark'):
+                    s = u'Unable to create folder "{}"'.format(_p)
+                    log.error(s)
+                    raise OSError(s)
+                else:
+                    s = u'Created "{}"'.format(_p)
+                    log.success(s)
+            else:
+                s = u'{} does not exist.'.format(_dir.path())
                 raise OSError(s)
 
         try:
@@ -262,13 +261,14 @@ class BookmarkDB(QtCore.QObject):
             # DB connection when the instance is deleted
             self.destroyed.connect(self._connection.close)
 
-        except Error as e:
-            raise RuntimeError(u'Unable to connect to the database at "{}"\n-> "{}"'.format(
+        except sqlite3.Error as e:
+            log.error(u'Unable to connect to the database at "{}"\n-> "{}"'.format(
                 self._database_path, e.message))
+            raise
 
-    @contextmanager
+    @contextlib.contextmanager
     def transactions(self):
-        """Simple context manager for controlling transactions.
+        """Context manager for controlling transactions.
 
         We're explicitly calling `BEGIN` before the `execute()`. We also roll
         changes back if an error has been encountered. The transactions are
@@ -287,108 +287,86 @@ class BookmarkDB(QtCore.QObject):
     def connection(self):
         return self._connection
 
-    def init_tables(self):
-        """Initialises the database with the default tables. It is safe to call
-        this even if the table has alrady been initialised.
-
-        The  `data` table stores file information of items inside the bookmark,
-        whilst `info` contains information about the database itself.
+    def _create_table(self, cursor, table):
+        """Creates a table based on the BOOKMARK_DB definition.
 
         """
-        _cursor = self._connection.cursor()
-        with self.transactions():
-            # Main ``data`` table
-            _cursor.execute("""
-CREATE TABLE IF NOT EXISTS data (
-    id TEXT PRIMARY KEY COLLATE NOCASE,
-    description TEXT,
-    notes TEXT,
-    flags INTEGER DEFAULT 0,
-    thumbnail_stamp REAL,
-    user TEXT,
-    shotgun_id INTEGER,
-    shotgun_name TEXT,
-    shotgun_type TEXT,
-    cut_duration INT,
-    cut_in INT,
-    cut_out INT,
-    url1 TEXT,
-    url2 TEXT
-);
-            """)
-            self._patch_database(_cursor, u'data')
+        args = []
 
-            # Single-row ``info`` table
-            _cursor.execute("""
-CREATE TABLE IF NOT EXISTS info (
-    id TEXT PRIMARY KEY COLLATE NOCASE,
-    server TEXT NOT NULL,
-    job TEXT NOT NULL,
-    root TEXT NOT NULL,
-    user TEXT NOT NULL,
-    host TEXT NOT NULL,
-    created REAL NOT NULL
-);
-            """)
-            self._patch_database(_cursor, u'info')
+        for k, v in BOOKMARK_DB[table].iteritems():
+            args.append('{} {}'.format(k, v))
 
-            # Adding info data to the ``info`` table
-            _cursor.execute("""
-            INSERT OR IGNORE INTO info
-                (id, server, job, root, user, host, created)
-            VALUES
-                ('{id}', '{server}', '{job}', '{root}', '{user}', '{host}', '{created}');
-            """.format(
-                id=self._bookmark,
-                server=self._server,
-                job=self._job,
-                root=self._root,
-                user=common.get_username(),
-                host=platform.node(),
-                created=time.time(),
-            ))
+        cmd = 'CREATE TABLE IF NOT EXISTS {table} ({args})'.format(
+            table=table,
+            args=','.join(args)
+        )
 
-            _cursor.execute("""
-                CREATE TABLE IF NOT EXISTS properties (
-                    id INTEGER PRIMARY KEY,
-                    width REAL,
-                    height REAL,
-                    framerate REAL,
-                    prefix TEXT,
-                    startframe REAL,
-                    duration REAL,
-                    identifier TEXT,
-                    slacktoken TEXT,
-                    shotgun_domain TEXT,
-                    shotgun_scriptname TEXT,
-                    shotgun_api_key TEXT,
-                    shotgun_id INTEGER,
-                    shotgun_name TEXT,
-                    shotgun_type TEXT,
-                    url1 TEXT,
-                    url2 TEXT
-                );
-            """)
-            self._patch_database(_cursor, u'properties')
-        _cursor.close()
+        try:
+            cursor.execute(cmd)
+        except:
+            log.error(u'Failed create table "{}"'.format(table))
 
-    def _patch_database(self, _cursor, table):
-        """For backwards compatibility, we will ALTER the database any of the
-        required columns that are missing. This might happen if we have added new
-        columns to the table definition but the database on the server is
-        based on an older version of Bookmarks.
+    def _patch_table(self, cursor, table):
+        """For backwards compatibility, we will ALTER the database if any of the
+        required columns are missing.
 
         """
-        info = _cursor.execute("""PRAGMA table_info('{}');""".format(table)).fetchall()
-        columns = [c[1] for c in info]
-        missing = list(set(KEYS[table]) - set(columns))
+        cmd = 'PRAGMA table_info(\'{}\');'.format(table)
+        table_info = cursor.execute(cmd).fetchall()
+
+        columns = [c[1] for c in table_info]
+        missing = list(set(BOOKMARK_DB[table]) - set(columns))
+
         for column in missing:
+            cmd = 'ALTER TABLE {} ADD COLUMN {};'.format(table, column)
             try:
-                _cursor.execute('ALTER TABLE {} ADD COLUMN {};'.format(table, column))
+                cursor.execute(cmd)
                 log.success(u'Added missing column {}'.format(missing))
             except:
                 log.error(u'Failed to add missing column {}'.format(column))
-                pass # handle the error
+
+    def _add_info(self, cursor, table):
+        """Adds information about who and when created the database.
+
+        """
+        cmd = 'INSERT OR IGNORE INTO {table} ({args}) VALUES ({kwargs});'.format(
+            table=table,
+            args=','.join(sorted(BOOKMARK_DB[table])),
+            kwargs='\'{{{}}}\''.format(
+                '}\', \'{'.join(
+                    sorted(BOOKMARK_DB[table])
+                )
+            )
+        ).format(
+            id=common.get_hash(self._bookmark),
+            server=self._server,
+            job=self._job,
+            root=self._root,
+            user=common.get_username(),
+            host=platform.node(),
+            created=time.time(),
+        )
+
+        try:
+            cursor.execute(cmd)
+        except sqlite3.Error as e:
+            log.error(e)
+
+    def init_tables(self):
+        """Initialises the database with the default tables.
+
+        If the database is new or empty, we will create the tables.
+        If the database has tables already, we'll check the columns against
+        `bookmark_db.json` and add any missing ones.
+
+        """
+        cursor = self._connection.cursor()
+        with self.transactions():
+            for table in BOOKMARK_DB:
+                self._create_table(cursor, table)
+                self._patch_table(cursor, table)
+            self._add_info(cursor, 'info')
+        cursor.close()
 
     def value(self, source, key, table=u'data'):
         """Returns a value from the `bookmark.db`.
@@ -413,9 +391,9 @@ CREATE TABLE IF NOT EXISTS info (
             raise TypeError(
                 u'Invalid type. Expected <type \'unicode or int\', got {}'.format(type(source)))
 
-        if key not in KEYS[table]:
+        if key not in BOOKMARK_DB[table]:
             raise ValueError(u'Key "{}" is invalid. Expected one of "{}"'.format(
-                key, u'", "'.join(KEYS[table])))
+                key, u'", "'.join(BOOKMARK_DB[table])))
 
         hash = common.get_hash(source)
 
@@ -495,9 +473,9 @@ CREATE TABLE IF NOT EXISTS info (
         if not isinstance(source, (unicode, int)):
             raise TypeError(u'Invalid type.')
 
-        if key not in KEYS[table]:
+        if key not in BOOKMARK_DB[table]:
             raise ValueError(u'Key "{}" is invalid. Expected one of {}'.format(
-                key, u', '.join(KEYS[table])))
+                key, u', '.join(BOOKMARK_DB[table])))
 
         hash = common.get_hash(source)
         values = []
@@ -505,7 +483,7 @@ CREATE TABLE IF NOT EXISTS info (
         # Earlier versions of the SQLITE library lack `UPSERT` or `WITH`
         # A workaround is found here:
         # https://stackoverflow.com/questions/418898/sqlite-upsert-not-insert-or-replace
-        for k in KEYS[table]:
+        for k in BOOKMARK_DB[table]:
             if k == key:
                 v = u'\n \'' + unicode(value) + u'\''
             else:
@@ -515,7 +493,7 @@ CREATE TABLE IF NOT EXISTS info (
 
         kw = {
             'hash': hash,
-            'allkeys': u', '.join(KEYS[table]),
+            'allkeys': u', '.join(BOOKMARK_DB[table]),
             'values': u','.join(values),
             'table': table
         }

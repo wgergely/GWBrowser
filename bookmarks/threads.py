@@ -609,8 +609,12 @@ class InfoWorker(BaseWorker):
             if not is_valid():
                 return False
             return True
-        except:
+        except OSError:
+            log.error(u'Failed to retrieve the bookmark.')
+            return False
+        except (ValueError, RuntimeError, TypeError):
             log.error(u'Error processing file info.')
+            return False
         finally:
             if ref():
                 ref()[common.FileInfoLoaded] = True

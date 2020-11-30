@@ -901,20 +901,16 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_manage_bookmarks_menu(self, menu_set):
+    def add_bookmark_editor_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
         settings_pixmap = images.ImageCache.get_rsc_pixmap(
             u'settings', common.SECONDARY_TEXT, common.MARGIN())
 
-        menu_set[u'Add bookmark'] = {
-            u'text': u'Add bookmark',
+        menu_set[u'BookmarkEditor'] = {
+            u'text': u'Bookmark Editor',
             u'icon': pixmap,
-            u'action': self.parent().manage_bookmarks.exec_
-        }
-        menu_set[u'Prune bookmarks'] = {
-            u'text': u'Prune bookmarks',
-            u'action': settings.local_settings.prune_bookmarks
+            u'action': self.parent().show_bookmark_editor
         }
         if self.index.isValid():
             menu_set[u'bookmark_properties'] = {
@@ -1203,7 +1199,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 index.data(common.ParentPathRole)[1],
                 index.data(common.ParentPathRole)[2],
             )
-            widget.templates_widget.templateCreated.connect(
+            widget.templateCreated.connect(
                 functools.partial(show_and_select_added_asset, self.parent()))
             widget.open()
 

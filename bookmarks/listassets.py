@@ -105,7 +105,7 @@ class AssetModel(lists.BaseModel):
             settings.ACTIVE['job'],
             settings.ACTIVE['root']
         )
-        ASSET_IDENTIFIER = db.value(1, u'identifier', table='properties')
+        ASSET_IDENTIFIER = db.value(1, u'identifier', table=u'properties')
 
         nth = 1
         c = 0

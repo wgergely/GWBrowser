@@ -397,9 +397,9 @@ class TestGui(BaseCase):
         widget = preferences.PreferencesWidget()
         widget.open()
 
-    def test_slacker_widget(self):
-        import bookmarks.slacker as slacker
-        widget = slacker.SlackWidget(None, None)
+    def test_slack_widget(self):
+        import bookmarks.slack as slack
+        widget = slack.SlackWidget(None, None)
         widget.open()
 
     def test_standalone_widget(self):

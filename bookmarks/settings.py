@@ -124,21 +124,29 @@ class LocalSettings(QtCore.QSettings):
         self.load_saved_servers()
 
     def load_saved_servers(self):
-        """Returns a list of saved servers."""
+        """Loads and returns a list of saved servers from the ini config file.
 
+        The results are cached to `common.SERVERS`.
+
+        """
         def sep(s):
             return re.sub(
                 ur'[\\]', u'/', s, flags=re.UNICODE | re.IGNORECASE)
 
         self.sync()
-        val = self.value('servers')
+
+        val = self.value(u'servers')
         if not val:
             common.SERVERS = []
-            return
+            return common.SERVERS
+
+        # Will return a string if only one server is stored in the settings
         if isinstance(val, (str, unicode)):
-            common.SERVERS = [val.lower(), ]
-            return
-        common.SERVERS = sorted([sep(f).lower() for f in val])
+            common.SERVERS = [val, ]
+            return common.SERVERS
+
+        common.SERVERS = sorted(list(set([sep(f) for f in val])))
+        return common.SERVERS
 
     def value(self, k):
         """An override for the default get value method.
@@ -333,6 +341,10 @@ class LocalSettings(QtCore.QSettings):
         """Removes all invalid bookmarks from the current list."""
         bookmarks = self.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
+
+        if not bookmarks:
+            return
+
         _valid = {}
         _invalid = []
         for k, v in bookmarks.iteritems():
@@ -345,7 +357,7 @@ class LocalSettings(QtCore.QSettings):
         s = u'Bookmarks pruned:\n{}'.format(u'\n'.join(_invalid))
 
         from . import common_ui
-        common_ui.OkBox('Bookmarks pruned. Refresh the list to see the changes.', s).open()
+        common_ui.OkBox(u'Bookmarks pruned. Refresh the list to see the changes.', s).open()
         log.success(s)
 
 

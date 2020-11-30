@@ -43,6 +43,128 @@ _filedialog_widget = None
 _viewer_widget = None
 
 
+
+def _check_for_thumbnail(source):
+    """Utility method for checking for the existance of a `thumbnail.ext` file.
+
+    Args:
+        source (unicode):   Path to folder.
+
+    Returns:
+        unicode:    The path to the thumbnail file or `None` if not found.
+
+    """
+    # We'll rely on Qt5 to load the image without OpenImageIO so we'll query
+    # supportedImageFormats() to get the list of valid image formats.
+    for ext in [f.data() for f in QtGui.QImageReader.supportedImageFormats()]:
+        file_info = QtCore.QFileInfo(u'{}/thumbnail.{}'.format(source, ext))
+        if file_info.exists():
+            return file_info.filePath()
+    return None
+
+
+def get_thumbnail(parent_paths, source, size, fallback_thumb='placeholder', get_path=False):
+    """Loads a thumbnail for a bookmark, asset or file item.
+
+    The method defines logic for finding fallback images when loading
+    thumbnails. When an item is missing a bespoke cached thumbnail file, we
+    will try to load a fallback image. For files, this will be an
+    image associated with the file-format, or for asset and bookmark items,
+    we will look in the bookmark, then job folder's root to find a
+    `thumbnail.png` or `thumbnail.jpg` file. When all lookup fails we will
+    use the provided `fallback_thumb`.
+
+    Args:
+        parent_paths (tuple):    A tuple of path segments, eg. as stored in `common.ParentPathRole`.
+        source (unicode):        Full file path of source item.
+        size (int):              The size of the thumbnail image in pixels.
+        fallback_thumb(unicode): A fallback thumbnail image.
+
+    Returns:
+        QPixmap:                 A thumbnail pixmap or `None`.
+        QColor:                  A background color to use for the pixmap or `None`.
+
+    """
+    thumbnail_path = get_thumbnail_path(
+        parent_paths[0],
+        parent_paths[1],
+        parent_paths[2],
+        source
+    )
+
+    pixmap = ImageCache.get_pixmap(thumbnail_path, size)
+    if pixmap:
+        # The simplest of all cases, the source has a bespoke thumbnail saved
+        if get_path:
+            return thumbnail_path
+        color = ImageCache.get_color(thumbnail_path)
+        if color:
+            return pixmap, color
+        return pixmap, None
+
+    # If this item is an un-collapsed sequence item, the sequence
+    # might have a thumbnail:
+    thumbnail_path = get_thumbnail_path(
+        parent_paths[0],
+        parent_paths[1],
+        parent_paths[2],
+        source,
+        proxy=True
+    )
+    pixmap = ImageCache.get_pixmap(thumbnail_path, size)
+    if pixmap:
+        if get_path:
+            return thumbnail_path
+        color = ImageCache.get_color(thumbnail_path)
+        if color:
+            return pixmap, color
+        return pixmap, None
+
+    # If the item refers to a folder, eg. an asset or a bookmark we'll check for a
+    # 'thumbnail.ext' file in the folder's root and if this fails, we will check the
+    # job folder. If both fails will we proceed to load a placeholder
+    # thumbnail.
+    if QtCore.QFileInfo(source).isDir():
+        _hash = common.get_hash(source)
+
+        thumb_path = _check_for_thumbnail(u'/'.join(parent_paths[0:3]))
+        if not thumb_path:
+            thumb_path = _check_for_thumbnail(u'/'.join(parent_paths[0:2]))
+
+        if thumb_path:
+            pixmap = ImageCache.get_pixmap(
+                thumb_path,
+                size,
+                hash=_hash
+            )
+            if pixmap:
+                if get_path:
+                    return thumb_path
+                color = ImageCache.get_color(thumb_path)
+                if color:
+                    return pixmap, color
+                return pixmap, None
+
+    # Let's load a placeholder if there's no generated thumbnail or
+    # tumbnail file present in the source's root.
+    if not pixmap:
+        thumb_path = get_placeholder_path(
+            source, fallback=fallback_thumb)
+        pixmap = ImageCache.get_pixmap(
+            thumb_path,
+            size
+        )
+        if pixmap:
+            if get_path:
+                return thumb_path
+            return pixmap, None
+
+    # If the placeholder fails to load there's nothing left for us to do...
+    if get_path:
+        return None
+    return None, None
+
+
 @QtCore.Slot(QtCore.QModelIndex)
 @QtCore.Slot(unicode)
 def set_from_source(index, source):
@@ -198,8 +320,8 @@ def get_thumbnail_path(server, job, root, file_path, proxy=False):
     return (server + u'/' + job + u'/' + root + u'/.bookmark/' + name).lower()
 
 
-def get_placeholder_path(file_path, fallback=None):
-    """Returns an image path to use a generat thumbnail for the item.
+def get_placeholder_path(file_path, fallback=u'placeholder'):
+    """Returns an image path to use a general thumbnail for the item.
 
     When an item has no generated or user-set thumbnail, we'll try and find
     a general one based on the file's type.
@@ -226,8 +348,6 @@ def get_placeholder_path(file_path, fallback=None):
         ):
             if ext.lower() == suffix:
                 return common.rsc_path(__file__, ext)
-    if not fallback:
-        fallback = u'placeholder'
     return common.rsc_path(__file__, fallback)
 
 
@@ -487,7 +607,7 @@ class ImageCache(QtCore.QObject):
         Args:
             source (unicode):   Path to an OpenImageIO compliant image file.
             size (int):         The size of the requested image.
-            hash (str):         Use this hash key instead source to store the data.
+            hash (str):         Use this hash key instead of a source's hash value to store the data.
 
         Returns:
             QPixmap: The loaded and resized QPixmap, or null pixmap if loading fails.

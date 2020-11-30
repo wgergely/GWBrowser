@@ -35,6 +35,7 @@ from . import settings
 from . import images
 from . import alembicpreview
 from . import threads
+from . import filtereditor
 
 
 ActiveFlagFilterKey = u'filter_active'
@@ -919,7 +920,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.progress_widget = ProgressWidget(parent=self)
         self.progress_widget.setHidden(True)
         self.filter_active_widget = FilterOnOverlayWidget(parent=self)
-        self.filter_editor = common_ui.FilterEditor(parent=self)
+        self.filter_editor = filtereditor.FilterEditor(parent=self)
         self.filter_editor.setHidden(True)
 
         self.description_editor_widget = common_ui.DescriptionEditorWidget(
@@ -1353,6 +1354,8 @@ class BaseListWidget(QtWidgets.QListView):
 
         if hasattr(index.model(), 'sourceModel'):
             source_index = self.model().mapToSource(index)
+        else:
+            source_index = index
 
         if not index.data(common.FileInfoLoaded):
             return None
@@ -1435,33 +1438,43 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Not a readable image file...
         if not images.oiio_get_buf(source):
-            # ...let's look for the thumbnail
-            source = images.get_thumbnail_path(
-                index.data(common.ParentPathRole)[0],
-                index.data(common.ParentPathRole)[1],
-                index.data(common.ParentPathRole)[2],
-                index.data(QtCore.Qt.StatusTipRole)
+            thumb_path = images.get_thumbnail(
+                index.data(common.ParentPathRole),
+                index.data(QtCore.Qt.StatusTipRole),
+                int(common.THUMBNAIL_IMAGE_SIZE),
+                fallback_thumb=u'placeholder',
+                get_path=True
             )
-            if not images.oiio_get_buf(source):
-                # If that fails, we'll display a general placeholder image
-                source = images.get_placeholder_path(
-                    index.data(QtCore.Qt.StatusTipRole))
-                buf = images.oiio_get_buf(source, force=True)
-                if not buf:
-                    s = u'{} seems invalid.'.format(source)
-                    common_ui.ErrorBox(
-                        u'Error previewing image.', s).open()
-                    log.error(s)
-                    raise RuntimeError(s)
+            if not thumb_path:
+                return
 
-        if not source:
-            s = u'Invalid source value'
-            log.error(s)
-            raise RuntimeError(s)
+        #     # ...let's look for the thumbnail
+        #     index.data(common.ParentPathRole)[0],
+        #     source = images.get_thumbnail_path(
+        #         index.data(common.ParentPathRole)[1],
+        #         index.data(common.ParentPathRole)[2],
+        #         index.data(QtCore.Qt.StatusTipRole)
+        #     )
+        #     if not images.oiio_get_buf(source):
+        #         # If that fails, we'll display a general placeholder image
+        #         source = images.get_placeholder_path(
+        #             index.data(QtCore.Qt.StatusTipRole))
+        #         buf = images.oiio_get_buf(source, force=True)
+        #         if not buf:
+        #             s = u'{} seems invalid.'.format(source)
+        #             common_ui.ErrorBox(
+        #                 u'Error previewing image.', s).open()
+        #             log.error(s)
+        #             raise RuntimeError(s)
+        #
+        # if not source:
+        #     s = u'Invalid source value'
+        #     log.error(s)
+        #     raise RuntimeError(s)
 
         # Finally, we'll create and show our widget, and destroy it when the
         # selection changes
-        widget = images.ImageViewer(source, parent=self)
+        widget = images.ImageViewer(thumb_path, parent=self)
         self.selectionModel().currentChanged.connect(widget.delete_timer.start)
         widget.open()
 
@@ -2403,11 +2416,11 @@ class BaseInlineIconWidget(BaseListWidget):
         widget.show()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def show_slacker(self, index):
+    def show_slack(self, index):
         if not index.isValid():
             return None
         try:
-            from . import slacker
+            from . import slack
         except ImportError as err:
             common_ui.ErrorBox(
                 u'Could not import SlackClient',
@@ -2423,22 +2436,22 @@ class BaseInlineIconWidget(BaseListWidget):
         )
         token = db.value(1, u'slacktoken', table=u'properties')
 
-        if slacker.instance is not None:
-            source_model = slacker.instance.message_widget.users_widget.model().sourceModel()
+        if slack.instance is not None:
+            source_model = slack.instance.message_widget.users_widget.model().sourceModel()
             if source_model.client.token == token:
-                slacker.instance.setGeometry(self.viewport().geometry())
-                slacker.instance.open()
-                return slacker.instance
+                slack.instance.setGeometry(self.viewport().geometry())
+                slack.instance.open()
+                return slack.instance
 
-        slacker.instance = slacker.SlackWidget(token, parent=self)
-        source_model = slacker.instance.message_widget.users_widget.model().sourceModel()
-        self.resized.connect(slacker.instance.setGeometry)
-        slacker.instance.setGeometry(self.viewport().geometry())
+        slack.instance = slack.SlackWidget(token, parent=self)
+        source_model = slack.instance.message_widget.users_widget.model().sourceModel()
+        self.resized.connect(slack.instance.setGeometry)
+        slack.instance.setGeometry(self.viewport().geometry())
 
         try:
             source_model.client.verify_token()
-            slacker.instance.open()
-            return slacker.instance
+            slack.instance.open()
+            return slack.instance
         except:
             log.error(u'Invalid token')
             raise

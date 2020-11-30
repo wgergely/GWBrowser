@@ -457,7 +457,7 @@ class SaverSettingsWidget(BaseSettingsWidget):
 
         def add_section(label, description, data):
             """Utility method for creating the layout needed to edit default paths."""
-            height = common.ROW_HEIGHT() * 0.8
+            height = common.ROW_HEIGHT() * 0.7
             o = common.MARGIN()
 
             grp = common_ui.get_group(parent=self)
@@ -592,7 +592,7 @@ class SaverSettingsWidget(BaseSettingsWidget):
             _row.layout().setSpacing(0)
             scroll_area.setWidget(_row)
 
-            for k, v in sorted(defaultpaths.FORMAT_FILTERS.items(), key=lambda x: x[0]):
+            for k, v in sorted(defaultpaths.FORMATS.items(), key=lambda x: x[0]):
                 label = u'<span style="color:rgba({ADD});">{k}</span> - {v}:'.format(
                     ADD=common.rgb(common.ADD),
                     k=v[u'name'],
@@ -605,7 +605,7 @@ class SaverSettingsWidget(BaseSettingsWidget):
                     None, padding=None, height=height, parent=_row)
                 line_edit = common_ui.add_line_edit(v[u'default'], parent=row)
                 line_edit.textChanged.connect(
-                    functools.partial(text_changed, defaultpaths.FORMAT_FILTERS, k))
+                    functools.partial(text_changed, defaultpaths.FORMATS, k))
                 line_edit.setAlignment(QtCore.Qt.AlignLeft)
                 line_edit.setText(v[u'value'])
 
@@ -764,3 +764,6 @@ class PreferencesWidget(QtWidgets.QDialog):
         if not index.isValid():
             return
         self.sections_stack_widget.setCurrentIndex(index.row())
+
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH() * 1.5, common.HEIGHT() * 1.5)

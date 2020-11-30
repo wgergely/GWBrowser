@@ -512,8 +512,6 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
     def columnCount(self, parent=QtCore.QModelIndex):  # pylint: disable=W0613
         """The extra column is used for folder descriptions."""
         return 6
-        # c = super(SelectFolderModel, self).columnCount(parent=parent)
-        # return c + 1
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
         """We're matching the folder-name with our description."""
@@ -1655,7 +1653,7 @@ class AddFileWidget(QtWidgets.QDialog):
             index.data(common.ParentPathRole)[1],
             index.data(common.ParentPathRole)[2],
         )
-        prefix = db.value(1, u'prefix', table='properties')
+        prefix = db.value(1, u'prefix', table=u'properties')
         self.name_prefix_widget.setText(prefix)
 
     def increment_file(self):
@@ -1925,7 +1923,7 @@ class AddFileWidget(QtWidgets.QDialog):
                     u'Enter a prefix and try again.',
                 ).exec_()
 
-                from . import bookmark_properties
+                from .bookmark_editor import bookmark_properties
 
                 model = self.bookmark_widget.view().model().sourceModel()
                 index = model.active_index()

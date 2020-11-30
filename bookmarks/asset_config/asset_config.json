@@ -1,0 +1,160 @@
+{
+  "FORMATS": {
+    "SceneFormat": {
+      "value": "c4d, hud, hip, hiplc, hipnc, ma, mb, nk, nk~,spm, mocha, rv",
+      "description": "Scene file formats"
+    },
+    "OpenImageIOFormat": {
+      "value": "",
+      "description": "Image formats understood by OpenImageIO"
+    },
+    "ExportFormat": {
+      "value": "abc, ass, bgeo, fbx, geo, ifd, obj, rs, sc, sim, vdb, usd, usda, usdc, usdz",
+      "description": "CG cache formats"
+    },
+    "MiscFormat": {
+      "value": "txt, pdf, zip, rar, exe, app, m4v, m4a, mov, mp4",
+      "description": "Miscellaneous file formats"
+    },
+    "AdobeFormat": {
+      "value": "aep, ai, eps, fla, ppj, prproj, psb, psd, psq, xfl",
+      "description": "Adobe Creative Cloud scene formats"
+    }
+  },
+  "FILE_NAME_PATTERNS": {
+    "default": {
+      "value": "{prefix}_{asset}_{mode}_{custom}_{user}_{version}.{ext}",
+      "description": "File name with prefix, asset, mode, user name and version number."
+    },
+    "custom1": {
+      "value": "{custom}_{user}_{version}.{ext}",
+      "description": "File name with user name and version number."
+    },
+    "custom2": {
+      "value": "{custom}_{version}.{ext}",
+      "description": "File name with version number."
+    },
+    "simple": {
+      "value": "{custom}.{ext}",
+      "description": "Simple custom file name."
+    }
+  },
+  "FOLDERS": {
+    "export": {
+      "value": "export",
+      "description": "Alembic, FBX, OBJ and other CG caches",
+      "filter": "SceneFormat, OpenImageIOFormat, ExportFormat, MiscFormat, AdobeFormat",
+      "subfolders": {
+        "abc": {
+          "value": "abc",
+          "description": "Alembic cache files"
+        },
+        "obj": {
+          "value": "obj",
+          "description": "Waveform OBJ cache files"
+        },
+        "fbx": {
+          "value": "fbx",
+          "description": "Autodesk FBX cache files"
+        },
+        "ass": {
+          "value": "ass",
+          "description": "Arnold cache files"
+        },
+        "usd": {
+          "value": "usd",
+          "description": "USD cache files"
+        },
+        "geo": {
+          "value": "geo",
+          "description": "Houdini geomtery caches"
+        },
+        "sc": {
+          "value": "sc",
+          "description": "Houdini geomtery caches"
+        }
+      }
+    },
+    "data": {
+      "value": "data",
+      "description": "Temporary and system files",
+      "filter": "SceneFormat, OpenImageIOFormat, ExportFormat, MiscFormat, AdobeFormat"
+    },
+    "reference": {
+      "value": "reference",
+      "description": "Asset references",
+      "filter": "SceneFormat, OpenImageIOFormat, ExportFormat, MiscFormat, AdobeFormat"
+    },
+    "render": {
+      "value": "render",
+      "description": "2D and 3D renders",
+      "filter": "OpenImageIOFormat"
+    },
+    "scene": {
+      "value": "scene",
+      "description": "2D and 3D projects and scenes",
+      "filter": "SceneFormat, AdobeFormat",
+      "subfolders": {
+        "anim": {
+          "value": "anim",
+          "description": "2D and 3D animation scenes"
+        },
+        "fx": {
+          "value": "fx",
+          "description": "FX scenes"
+        },
+        "sfx": {
+          "value": "audio",
+          "description": "Sound and music scenes"
+        },
+        "comp": {
+          "value": "comp",
+          "description": "Compositing scenes"
+        },
+        "block": {
+          "value": "block",
+          "description": "Layout, animatic and blocking scenes"
+        },
+        "layout": {
+          "value": "layout",
+          "description": "Layout, animatic and blocking scenes"
+        },
+        "track": {
+          "value": "tracking",
+          "description": "Motion tracking scenes"
+        },
+        "look": {
+          "value": "look",
+          "description": "Lighting & visual development scenes"
+        },
+        "model": {
+          "value": "model",
+          "description": "Modeling & sculpting scenes"
+        },
+        "rig": {
+          "value": "rig",
+          "description": "Rigging and other animation ready scenes"
+        },
+        "render": {
+          "value": "render",
+          "description": "Render scenes"
+        }
+      },
+      "final": {
+        "value": "final",
+        "description": "Comps and final renders",
+        "filter": "OpenImageIOFormat"
+      },
+      "image": {
+        "value": "image",
+        "description": "2D and 3D textures",
+        "filter": "OpenImageIOFormat"
+      },
+      "other": {
+        "value": "other",
+        "description": "Miscellaneous files",
+        "filter": null
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """The widget used to add a new asset (eg. a shot) to a bookmark.
 
-See `addbookmark.TemplatesWidget` for more information, the main widget
+See `templates.TemplatesWidget` for more information, the widget
 responsible for listing, saving and expanding zip template files.
 
 """
@@ -13,9 +13,10 @@ from . import common
 from . import common_ui
 from . import images
 from . import bookmark_db
-from . import addbookmark
 from . import shotgun
 from . import shotgun_widgets
+
+from . import templates
 
 
 _widget_instance = None
@@ -30,12 +31,32 @@ style="color:rgba({H});">Preferences -> Default Paths</span>. Ideally, both \
 the template and the preferences should define the same folders.'
 
 
+def _add_title(icon, label, parent, color=None):
+    h = common.ROW_HEIGHT()
+    o = common.MARGIN()
+    row = common_ui.add_row(u'', parent=parent)
+    if icon:
+        _label = QtWidgets.QLabel(parent=parent)
+        pixmap = images.ImageCache.get_rsc_pixmap(icon, color, h)
+        _label.setPixmap(pixmap)
+        row.layout().addWidget(_label, 0)
+    else:
+        row.layout().addSpacing(common.MARGIN())
+    label = common_ui.PaintedLabel(
+        label,
+        size=common.MEDIUM_FONT_SIZE(),
+        parent=parent
+    )
+    row.layout().addWidget(label, 0)
+    row.layout().addStretch(1)
 
-class AddAssetWidget(QtWidgets.QDialog):
+
+class AddAssetWidget(templates.TemplatesWidget):
     """Widget used to create a new asset in a specified folder.
 
     Args:
         path (unicode): Destination path for the new assets.
+        update (bool=False): Enables the update mode, if the widget is used to edit an existing asset.
 
     """
     descriptionUpdated = QtCore.Signal(unicode)
@@ -44,32 +65,12 @@ class AddAssetWidget(QtWidgets.QDialog):
         global _widget_instance
         _widget_instance = self
 
-        super(AddAssetWidget, self).__init__(parent=parent)
-        if not all((server, job, root)):
-            raise RuntimeError(u'Bookmark not set.')
-
-        if not parent:
-            common.set_custom_stylesheet(self)
-
-        if update:
-            if not asset:
-                raise RuntimeError(u'When update is true, the asset must be specified.')
-            self.setWindowTitle(u'Update asset')
-        else:
-            self.setWindowTitle(u'Add a new asset')
-
         self.server = server
         self.job = job
         self.root = root
         self.asset = asset
         self._update = update
 
-        self.check_status_timer = QtCore.QTimer(parent=self)
-        self.check_status_timer.setInterval(333)
-        self.check_status_timer.setSingleShot(False)
-        self.check_status_timer.timeout.connect(self.update)
-
-        self.templates_widget = None
         self.description_editor = None
         self.shotgun_id_editor = None
         self.shotgun_name_editor = None
@@ -83,70 +84,73 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.url2_button = None
 
         self.shotgun_button = None
-        self.save_button = None
 
-        self._create_UI()
+        super(AddAssetWidget, self).__init__(u'asset', parent=parent)
+
+        self.check_status_timer = QtCore.QTimer(parent=self)
+        self.check_status_timer.setInterval(333)
+        self.check_status_timer.setSingleShot(False)
+        self.check_status_timer.timeout.connect(self.update)
+
+        if not all((server, job, root)):
+            raise RuntimeError(u'Bookmark not set.')
+
+        if not parent:
+            common.set_custom_stylesheet(self)
+
+        if update:
+            if not asset:
+                raise ValueError(u'When update is true, the asset must be specified.')
+            self.setWindowTitle(u'Update asset')
+        else:
+            self.setWindowTitle(u'Create asset')
+
 
         bookmark = u'{}/{}/{}'.format(server, job, root)
-        self.templates_widget.set_path(bookmark)
-        if all((update, asset)):
-            self.templates_widget.name_widget.setText(asset)
+        self.set_path(bookmark)
 
-        self.templates_widget.templateCreated.connect(self.save)
-        self.templates_widget.templateCreated.connect(self.popup)
+        self.name_widget.setDisabled(update)
+        self.templates_group.setHidden(update)
+        if all((update, asset)):
+            self.add_button.setText(u'Update asset')
+            self.name_widget.setText(asset)
+
+        self.templateCreated.connect(self.save)
+
         self.shotgun_button.clicked.connect(self.find_shotgun_id)
         self.url1_button.clicked.connect(lambda: self.visit_url(1))
         self.url2_button.clicked.connect(lambda: self.visit_url(2))
 
-        self.save_button.clicked.connect(self.save)
-        self.save_button.clicked.connect(
-            lambda: self.done(QtWidgets.QDialog.Accepted))
-
-    @QtCore.Slot(int)
-    def visit_url(self, idx):
-        w = getattr(self, 'url{}_editor'.format(idx))
-        url = w.text()
-        if not url:
-            return
-        QtGui.QDesktopServices.openUrl(url)
-
+        if self._update:
+            self.add_button.clicked.disconnect()
+            self.add_button.clicked.connect(self.save)
+            self.add_button.clicked.connect(self.close)
+        else:
+            self.add_button.clicked.connect(self.save)
 
     def _create_UI(self):
-        def _add_title(icon, label, parent, color=None):
-            row = common_ui.add_row(u'', parent=parent)
-            if icon:
-                _label = QtWidgets.QLabel(parent=self)
-                pixmap = images.ImageCache.get_rsc_pixmap(icon, color, h)
-                _label.setPixmap(pixmap)
-                row.layout().addWidget(_label, 0)
-            else:
-                row.layout().addSpacing(common.MARGIN())
-            label = common_ui.PaintedLabel(
-                label,
-                size=common.MEDIUM_FONT_SIZE(),
-                parent=self
-            )
-            row.layout().addWidget(label, 0)
-            row.layout().addStretch(1)
+        """We extend the template widget with property fields for setting
+        asset properties upon creation.
 
-        QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN()
+        """
+        super(AddAssetWidget, self)._create_UI()
+
         h = common.ROW_HEIGHT()
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(o)
+        o = common.MARGIN()
 
-        self.templates_widget = addbookmark.TemplatesWidget(
-            u'asset', parent=self)
-        self.description_editor = common_ui.LineEdit(parent=self)
+        parent = self.scrollarea.widget()
+
+        self.description_editor = common_ui.LineEdit(parent=parent)
         self.description_editor.setPlaceholderText(u'Enter a description...')
         self.description_editor.setFixedHeight(h)
-        self.shotgun_id_editor = common_ui.LineEdit(parent=self)
-        self.shotgun_id_editor.setPlaceholderText(u'1234...')
+        self.shotgun_id_editor = common_ui.LineEdit(parent=parent)
+        self.shotgun_id_editor.setPlaceholderText(u'eg. 4')
         self.shotgun_id_editor.setValidator(numvalidator)
-        self.shotgun_name_editor = common_ui.LineEdit(parent=self)
-        self.shotgun_name_editor.setPlaceholderText(u'asset name...')
+        self.shotgun_name_editor = common_ui.LineEdit(parent=parent)
+        self.shotgun_name_editor.setPlaceholderText(u'Shotgun asset name, eg. "SH010"')
 
-        self.shotgun_type_editor = QtWidgets.QComboBox(parent=self)
+        self.shotgun_type_editor = QtWidgets.QComboBox(parent=parent)
+        self.shotgun_type_editor.setFixedHeight(h * 0.7)
         for t in shotgun_widgets.SHOTGUN_TYPES:
             self.shotgun_type_editor.addItem(t, userData=t)
 
@@ -165,19 +169,19 @@ class AddAssetWidget(QtWidgets.QDialog):
                 QtCore.Qt.DecorationRole,
             )
 
-        self.cut_duration_editor = common_ui.LineEdit(parent=self)
-        self.cut_duration_editor.setPlaceholderText(u'1234...')
+        self.cut_duration_editor = common_ui.LineEdit(parent=parent)
+        self.cut_duration_editor.setPlaceholderText(u'Frame duration, eg. "150"')
         self.cut_duration_editor.setValidator(numvalidator)
-        self.cut_in_editor = common_ui.LineEdit(parent=self)
-        self.cut_in_editor.setPlaceholderText(u'1234...')
+        self.cut_in_editor = common_ui.LineEdit(parent=parent)
+        self.cut_in_editor.setPlaceholderText(u'Start frame, eg. "1001"')
         self.cut_in_editor.setValidator(numvalidator)
-        self.cut_out_editor = common_ui.LineEdit(parent=self)
-        self.cut_out_editor.setPlaceholderText(u'1234...')
+        self.cut_out_editor = common_ui.LineEdit(parent=parent)
+        self.cut_out_editor.setPlaceholderText(u'End frame, eg. "1150"')
         self.cut_out_editor.setValidator(numvalidator)
 
-        self.url1_editor = common_ui.LineEdit(parent=self)
+        self.url1_editor = common_ui.LineEdit(parent=parent)
         self.url1_editor.setPlaceholderText(u'https://my.customurl1.com...')
-        self.url2_editor = common_ui.LineEdit(parent=self)
+        self.url2_editor = common_ui.LineEdit(parent=parent)
         self.url2_editor.setPlaceholderText(u'https://my.customurl2.com...')
 
         self.shotgun_button = common_ui.PaintedButton(u'Find Shotgun ID and Name')
@@ -187,86 +191,32 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.url2_button = common_ui.PaintedButton(u'Visit')
         self.url2_button.setFixedHeight(h * 0.7)
 
-        self.save_button = common_ui.ClickableIconButton(
-            u'check',
-            (common.ADD, common.ADD),
-            common.ROW_HEIGHT(),
-            parent=self
-        )
+        grp = common_ui.get_group(parent=parent)
 
-        bookmark = u'{}/{}/{}'.format(self.server, self.job, self.root)
-        source = images.get_thumbnail_path(
-            self.server,
-            self.job,
-            self.root,
-            bookmark
-        )
-        pixmap = images.ImageCache.get_pixmap(source, h)
-        if not pixmap:
-            source = images.get_placeholder_path(
-                bookmark, fallback=u'thumb_bookmark_gray')
-            pixmap = images.ImageCache.get_pixmap(source, h)
-        thumbnail = QtWidgets.QLabel(parent=self)
-        thumbnail.setPixmap(pixmap)
-
-        if self._update:
-            title_text = u'{}/{}:  Edit'.format(
-                self.job.upper(), self.root.upper())
-        else:
-            title_text = u'{}/{}:  Add Asset'.format(
-                self.job.upper(), self.root.upper())
-        title_label = common_ui.PaintedLabel(
-            title_text, size=common.LARGE_FONT_SIZE())
-        _hint = hint.format(
-            ADD=common.rgb(common.ADD),
-            H=common.rgb(common.TEXT_SELECTED),
-        )
-
-        row = common_ui.add_row(u'', height=h, parent=self)
-        row.layout().addWidget(thumbnail, 0)
-        row.layout().addSpacing(o * 0.5)
-        row.layout().addWidget(title_label)
-        row.layout().addStretch(1)
-        row.layout().addWidget(self.save_button)
-        self.save_button.setHidden(not self._update)
-
-        self.layout().addWidget(self.templates_widget, 1)
-        row = common_ui.add_row(None, padding=None, height=h * 2, parent=self)
-
-
+        row = common_ui.add_row(u'Description', height=h, parent=grp)
         row.layout().addWidget(self.description_editor, 1)
-        if not self._update:
-            row.layout().addSpacing(o * 2.5)
 
-        grp = common_ui.get_group(parent=self)
+        grp = common_ui.get_group(parent=parent)
 
-        if not self._update:
-            self.templates_widget.layout().itemAt(0).widget().layout().addWidget(row)
-            d = common_ui.add_description(_hint, label=None, parent=self)
-            self.templates_widget.layout().itemAt(1).widget().layout().addWidget(d)
-            self.templates_widget.layout().addWidget(grp)
-        self.templates_widget.setHidden(self._update)
-        self.templates_widget.setDisabled(self._update)
-
-        _add_title(u'shotgun', u'Shotgun Settings', grp)
-        row = common_ui.add_row(u'Shotgun Type', parent=grp, height=h)
+        _add_title(u'shotgun', u'Shotgun', grp)
+        row = common_ui.add_row(u'Type', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_type_editor, 1)
         row.layout().addWidget(self.shotgun_button, 0)
-        row = common_ui.add_row(u'Shotgun ID', parent=grp, height=h)
+        row = common_ui.add_row(u'ID', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_id_editor, 0)
-        row = common_ui.add_row(u'Shotgun Name', parent=grp, height=h)
+        row = common_ui.add_row(u'Name', parent=grp, height=h)
         row.layout().addWidget(self.shotgun_name_editor, 0)
 
-        grp = common_ui.get_group(parent=self)
+        grp = common_ui.get_group(parent=parent)
         _add_title(None, u'Cut', grp)
-        row = common_ui.add_row(u'Cut Duration', parent=grp, height=h)
+        row = common_ui.add_row(u'Duration', parent=grp, height=h)
         row.layout().addWidget(self.cut_duration_editor, 0)
-        row = common_ui.add_row(u'Cut In', parent=grp, height=h)
+        row = common_ui.add_row(u'In frame', parent=grp, height=h)
         row.layout().addWidget(self.cut_in_editor, 0)
-        row = common_ui.add_row(u'Cut Out', parent=grp, height=h)
+        row = common_ui.add_row(u'Out frame', parent=grp, height=h)
         row.layout().addWidget(self.cut_out_editor, 0)
 
-        grp = common_ui.get_group(parent=self)
+        grp = common_ui.get_group(parent=parent)
         _add_title(None, u'Custom URLs', grp)
         row = common_ui.add_row(u'URL1', parent=grp, height=h)
         row.layout().addWidget(self.url1_editor, 0)
@@ -275,7 +225,14 @@ class AddAssetWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.url2_editor, 0)
         row.layout().addWidget(self.url2_button, 0)
 
-        self.layout().addStretch(1)
+    @QtCore.Slot(int)
+    def visit_url(self, idx):
+        w = getattr(self, 'url{}_editor'.format(idx))
+        url = w.text()
+        if not url:
+            return
+        QtGui.QDesktopServices.openUrl(url)
+
 
     @QtCore.Slot(int)
     def set_shotgun_id(self, name, id):
@@ -323,9 +280,12 @@ class AddAssetWidget(QtWidgets.QDialog):
 
     @QtCore.Slot()
     def find_shotgun_id(self):
-        self.verify_shotgun_token(silent=True)
+        """Opens a dialog to associate an asset with a shotgun entity.
 
-        # These prolperties are stored in the bookmark 'properties' table
+        """
+        print self.verify_shotgun_token(silent=True)
+
+        # These properties are stored in the bookmark 'properties' table
         domain = bookmark_db.get_property(u'shotgun_domain')
         script_name = bookmark_db.get_property(u'shotgun_scriptname')
         api_key = bookmark_db.get_property(u'shotgun_api_key')
@@ -335,7 +295,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         shotgun_type = self.shotgun_type_editor.currentText()
 
         w = shotgun_widgets.LinkToShotgunWidget(
-            self.templates_widget.name_widget.text(),
+            self.name_widget.text(),
             shotgun_type,
             domain,
             script_name,
@@ -373,22 +333,27 @@ class AddAssetWidget(QtWidgets.QDialog):
             self.description_editor.setText(description)
 
         for k in (
-            'shotgun_type',
-            'shotgun_id',
-            'shotgun_name',
-            'cut_duration',
-            'cut_in',
-            'cut_out',
-            'url1',
-            'url2',
+            u'shotgun_type',
+            u'shotgun_id',
+            u'shotgun_name',
+            u'cut_duration',
+            u'cut_in',
+            u'cut_out',
+            u'url1',
+            u'url2',
         ):
             v = db.value(source, k)
+
             if v is None:
                 continue
+            elif not isinstance(v, (str, unicode)):
+                v = unicode(v)
+
             w = getattr(self, k + '_editor')
             if 'shotgun_type' in k.lower():
                 w.setCurrentText(v)
                 continue
+
             w.setText(v)
 
     @QtCore.Slot()
@@ -416,7 +381,7 @@ class AddAssetWidget(QtWidgets.QDialog):
                 self.server,
                 self.job,
                 self.root,
-                self.templates_widget.name_widget.text()
+                self.name_widget.text()
             )
 
         # Description
@@ -445,15 +410,6 @@ class AddAssetWidget(QtWidgets.QDialog):
                 v = w.text()
             db.setValue(source, k, v)
 
-
-    @QtCore.Slot(unicode)
-    def popup(self, v):
-        """Notify the user of success."""
-        common_ui.OkBox(
-            u'Successully created "{}"'.format(v),
-            u'',
-        ).open()
-
     def showEvent(self, event):
         if self._update:
             self.check_status_timer.start()
@@ -464,8 +420,3 @@ class AddAssetWidget(QtWidgets.QDialog):
         rect = self.frameGeometry()
         rect.moveCenter(r.center())
         self.move(rect.topLeft())
-
-
-    def sizeHint(self):
-        """Custom size hint"""
-        return QtCore.QSize(common.WIDTH(), common.HEIGHT())
