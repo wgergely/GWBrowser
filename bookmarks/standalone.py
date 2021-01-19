@@ -2,6 +2,7 @@
 """Widgets required to run Bookmarks in standalone-mode.
 
 """
+import functools
 import importlib
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -9,6 +10,7 @@ from . import common
 from . import main
 from . import settings
 from . import images
+from . import shortcuts
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
@@ -19,16 +21,44 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 _instance = None
 
 
+@QtCore.Slot()
+def show():
+    """Shows the main window.
+
+    """
+    global _instance
+    if not _instance:
+        _instance = StandaloneMainWidget()
+
+    state = settings.local_settings.value(
+        settings.UIStateSection,
+        settings.WindowStateKey,
+    )
+    state = QtCore.Qt.WindowNoState if state is None else QtCore.Qt.WindowState(state)
+
+    _instance.activateWindow()
+    _instance.restore_window()
+    if state == QtCore.Qt.WindowNoState:
+        _instance.showNormal()
+    elif state & QtCore.Qt.WindowMaximized:
+        _instance.showMaximized()
+    elif state & QtCore.Qt.WindowFullScreen:
+        _instance.showFullScreen()
+    else:
+        _instance.showNormal()
+
+
 def instance():
     global _instance
     return _instance
 
 
 class StandaloneMainWidget(main.MainWidget):
-    """Modified ``MainWidget``adapted to run it as a standalone
+    """Modified ``MainWidget``adapted to run as a standalone
     application, with or without window borders.
 
-    ``HeaderWidget`` is used to move the window around.
+    When the window mode is 'frameless' the ``HeaderWidget`` is used to move the
+    window around.
 
     """
 
@@ -45,25 +75,14 @@ class StandaloneMainWidget(main.MainWidget):
         global _instance
         if _instance is not None:
             raise RuntimeError(
-                '{} cannot be initialised more than once.'.format(self.__class__.__name__))
+                u'{} cannot be initialised more than once.'.format(self.__class__.__name__))
         _instance = self
 
         super(StandaloneMainWidget, self).__init__(parent=None)
 
-        k = u'preferences/frameless_window'
-        self._frameless = settings.local_settings.value(k)
-        if self._frameless is True:
-            self.setWindowFlags(
-                self.windowFlags() | QtCore.Qt.FramelessWindowHint)
-
-            self.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=True)
-            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=True)
-
-        k = u'preferences/top_window'
-        self._ontop = settings.local_settings.value(k)
-        if self._ontop is True:
-            self.setWindowFlags(
-                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.tray = None
+        self._frameless = None
+        self._ontop = None
 
         common.set_custom_stylesheet(self)
 
@@ -83,51 +102,104 @@ class StandaloneMainWidget(main.MainWidget):
             8: QtCore.Qt.SizeHorCursor,
         }
 
-        self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
-        icon = QtGui.QIcon(pixmap)
-        self.tray.setIcon(icon)
-        self.tray.setContextMenu(main.TrayMenu(parent=self))
-        self.tray.setToolTip(common.PRODUCT)
-        self.tray.show()
-
-        self.tray.activated.connect(self.trayActivated)
-
         self.installEventFilter(self)
         self.setMouseTracking(True)
 
         self.initialized.connect(self.connect_extra_signals)
-        self.initialized.connect(self.showNormal)
-        self.initialized.connect(self.activateWindow)
-
-        def say_hello():
-            from . import common_ui
-            if self.stackedwidget.widget(0).model().sourceModel().rowCount() == 0:
-                common_ui.MessageBox(
-                    u'Bookmarks is not set up (yet!).',
-                    u'To add a server, create new jobs and bookmark folders, right-click on the main window and select "Add Bookmark".',
-                    parent=self.stackedwidget.widget(0)
-                ).open()
-
-        self.initialized.connect(say_hello)
-        self.shutdown.connect(self.hide)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+Q'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
-        shortcut.activated.connect(
-            self.shutdown, type=QtCore.Qt.QueuedConnection)
-
         self.adjustSize()
 
+        self.init_window_flags()
+        self.init_tray()
+
+    def init_window_flags(self):
+        self._frameless = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.WindowFramelessKey,
+        )
+        if self._frameless is True:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.FramelessWindowHint)
+
+            self.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=True)
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=True)
+
+        self._ontop = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.WindowAlwaysOnTopKey
+        )
+        if self._ontop is True:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+
+    def init_shortcuts(self):
+        super(StandaloneMainWidget, self).init_shortcuts()
+        connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
+
+        connect(shortcuts.Quit, self.shutdown)
+        connect(shortcuts.Minimize, self.toggle_minimized)
+        connect(shortcuts.Maximize, self.toggle_maximized)
+        connect(shortcuts.FullScreen, self.toggle_fullscreen)
+
+    def init_tray(self):
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'icon_bw', None, common.ROW_HEIGHT() * 7.0)
+        icon = QtGui.QIcon(pixmap)
+
+        self.tray = QtWidgets.QSystemTrayIcon(parent=self)
+        self.tray.setIcon(icon)
+        self.tray.setContextMenu(main.TrayMenu(parent=self))
+        self.tray.setToolTip(common.PRODUCT)
+
+        self.tray.activated.connect(self.trayActivated)
+
+        self.tray.show()
+
     @QtCore.Slot()
-    def save_widget_settings(self):
-        """Saves the position and size of thew widget to the local settings."""
-        cls = self.__class__.__name__
+    def toggle_fullscreen(self):
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+
+    @QtCore.Slot()
+    def toggle_maximized(self):
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
+    @QtCore.Slot()
+    def toggle_minimized(self):
+        if self.isMinimized():
+            self.showNormal()
+        else:
+            self.showMinimized()
+
+    @common.error
+    @common.debug
+    @QtCore.Slot()
+    def save_window(self, *args, **kwargs):
+        """Saves window's position to the local settings."""
         settings.local_settings.setValue(
-            u'widget/{}/geometry'.format(cls), self.frameGeometry())
+            settings.UIStateSection,
+            settings.WindowGeometryKey,
+            self.saveGeometry()
+        )
+        settings.local_settings.setValue(
+            settings.UIStateSection,
+            settings.WindowStateKey,
+            int(self.windowState())
+        )
+
+    @common.error
+    @common.debug
+    def restore_window(self, *args, **kwargs):
+        geometry = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.WindowGeometryKey,
+        )
+        if geometry is not None:
+            self.restoreGeometry(geometry)
 
     def _get_offset_rect(self, offset):
         """Returns an expanded/contracted edge rectangle based on the widget's
@@ -210,7 +282,7 @@ class StandaloneMainWidget(main.MainWidget):
     @QtCore.Slot()
     def connect_extra_signals(self):
         """Modifies layout for display in standalone-mode."""
-        self.headerwidget.widgetMoved.connect(self.save_widget_settings)
+        self.headerwidget.widgetMoved.connect(self.save_window)
         self.headerwidget.findChild(
             main.MinimizeButton).clicked.connect(self.showMinimized)
         self.headerwidget.findChild(main.CloseButton).clicked.connect(self.close)
@@ -238,27 +310,8 @@ class StandaloneMainWidget(main.MainWidget):
 
     def hideEvent(self, event):
         """Custom hide event."""
-        self.save_widget_settings()
+        self.save_window()
         super(StandaloneMainWidget, self).hideEvent(event)
-
-    def showEvent(self, event):
-        """Custom show event. When showing the widget we will use the saved
-        settings to set the widget's size and position.
-
-        """
-        super(StandaloneMainWidget, self).showEvent(event)
-
-        cls = self.__class__.__name__
-        geo = settings.local_settings.value(
-            u'widget/{}/geometry'.format(cls))
-        if not geo:
-            return
-
-        if geo and not self.window().windowFlags() & QtCore.Qt.FramelessWindowHint:
-            fh = self.frameGeometry().height() - self.geometry().height()
-            geo.setHeight(geo.height() - (fh * 1))
-        self.window().setGeometry(geo)
-        common.move_widget_to_available_geo(self)
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""
@@ -270,7 +323,7 @@ class StandaloneMainWidget(main.MainWidget):
             QtWidgets.QSystemTrayIcon.Information,
             3000
         )
-        self.save_widget_settings()
+        self.save_window()
 
     def mousePressEvent(self, event):
         """The mouse press event responsible for setting the properties needed
@@ -345,7 +398,7 @@ class StandaloneMainWidget(main.MainWidget):
             return
 
         if self.resize_initial_pos != QtCore.QPoint(-1, -1):
-            self.save_widget_settings()
+            self.save_window()
             if hasattr(self.stackedwidget.currentWidget(), 'reset'):
                 self.stackedwidget.currentWidget().reset()
 
@@ -355,6 +408,10 @@ class StandaloneMainWidget(main.MainWidget):
 
         app = QtWidgets.QApplication.instance()
         app.restoreOverrideCursor()
+
+    def changeEvent(self, event):
+        if event.type() == QtCore.QEvent.WindowStateChange:
+            self.save_window()
 
 
 class StandaloneApp(QtWidgets.QApplication):
@@ -366,6 +423,7 @@ class StandaloneApp(QtWidgets.QApplication):
         mod = importlib.import_module(__name__.split('.')[0])
         self.setApplicationVersion(mod.__version__)
         self.setApplicationName(common.PRODUCT)
+        self.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, bool=True)
         self.set_model_id()
 
         common.font_db = common.FontDatabase()

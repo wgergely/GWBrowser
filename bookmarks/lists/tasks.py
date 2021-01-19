@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""The widget used to change the `FilesModel`'s' `task folder`.
+"""Defines the view and model used to display and pick subfolders found
+in an asset's root.
 
-Task folders are subfolders inside the root of the asset folder. They are usually
-are associated with a task or data-type eg, ``render``, ``comp``, ``textures``
-folder.
+Folders found in an asset's root are referred to as `task folders`. Bookmarks
+generally expects them to be associated with a task or data-type eg. ``render``,
+``comp``, ``textures``, etc.
 
-See the `defaultpaths` module for implemented task folder descriptions.
+Core task folders are defined by `asset_config.py`.
 
 """
 import weakref
@@ -14,25 +15,16 @@ import _scandir
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from . import log
-from . import common
-from . import lists
-from . import listdelegate
-from . import contextmenu
-from . import images
-from . import settings
-from . import threads
-from . import defaultpaths
+from .. import log
+from .. import common
+from .. import contextmenu
+from .. import images
+from .. import settings
+from .. import threads
+from ..properties import asset_config
 
-
-
-MONITOR = QtCore.QFileSystemWatcher()
-
-
-def reset_monitor():
-    MONITOR.removePaths(MONITOR.files())
-    MONITOR.removePaths(MONITOR.directories())
-
+from . import base
+from . import delegate
 
 
 class TaskFolderContextMenu(contextmenu.BaseContextMenu):
@@ -44,8 +36,8 @@ class TaskFolderContextMenu(contextmenu.BaseContextMenu):
         self.add_copy_menu()
 
 
-class TaskFolderWidgetDelegate(listdelegate.BaseDelegate):
-    """The listdelegate used to paint the available subfolders inside the asset folder."""
+class TaskFolderWidgetDelegate(delegate.BaseDelegate):
+    """The delegate used to paint the available subfolders inside the asset folder."""
 
     def paint(self, painter, option, index):
         """The main paint method."""
@@ -57,7 +49,7 @@ class TaskFolderWidgetDelegate(listdelegate.BaseDelegate):
     def get_text_segments(self):
         return []
 
-    @listdelegate.paintmethod
+    @delegate.paintmethod
     def paint_background(self, *args):
         """Paints the background."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -74,7 +66,7 @@ class TaskFolderWidgetDelegate(listdelegate.BaseDelegate):
         painter.setBrush(color)
         painter.drawRect(rect)
 
-    @listdelegate.paintmethod
+    @delegate.paintmethod
     def paint_name(self, *args):
         """Paints the name and the number of files available for the given data-key."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -93,12 +85,12 @@ class TaskFolderWidgetDelegate(listdelegate.BaseDelegate):
         rect = QtCore.QRect(option.rect)
         if selected:
             pixmap = images.ImageCache.get_rsc_pixmap(u'check', common.ADD, o)
-            _rect = QtCore.QRect(option.rect)
-            _rect.setSize(pixmap.size())
+            _rect = QtCore.QRect(0, 0, o, o)
             _rect.moveCenter(option.rect.center())
-            _rect.moveLeft(option.rect.left() +
-                           ((o + common.INDICATOR_WIDTH()) * 0.5))
+            _rect.moveLeft(
+                option.rect.left() + ((o + common.INDICATOR_WIDTH()) * 0.5))
             painter.drawPixmap(_rect, pixmap, pixmap.rect())
+
             rect = rect.marginsRemoved(QtCore.QMargins(o * 2, 0, o, 0))
         else:
             rect = rect.marginsRemoved(QtCore.QMargins(o, 0, o, 0))
@@ -153,30 +145,50 @@ class TaskFolderWidgetDelegate(listdelegate.BaseDelegate):
 
     def sizeHint(self, option, index):
         """Returns the size of the TaskFolderWidgetDelegate items."""
-        height = index.data(QtCore.Qt.SizeHintRole).height()
-        return QtCore.QSize(1, height)
+        return index.data(QtCore.Qt.SizeHintRole)
 
 
-class TaskFolderModel(lists.BaseModel):
+class TaskFolderModel(base.BaseModel):
     """This model holds all the necessary data needed to display items to
     select for selecting the asset subfolders and/or bookmarks and assets.
 
     The model keeps track of the selections internally and is updated
     via the signals and slots."""
-    ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT() * 0.8)
-
     queue_type = threads.TaskFolderInfoQueue
     taskFolderChangeRequested = QtCore.Signal()
 
     def __init__(self, parent=None):
         self._parent = parent
+        self._monitor = None
+
         super(TaskFolderModel, self).__init__(parent=parent)
+
+        self.init_monitor()
         self.modelDataResetRequested.connect(self.__resetdata__)
 
-        MONITOR.fileChanged.connect(self.__resetdata__)
-        MONITOR.directoryChanged.connect(self.__resetdata__)
+    @QtCore.Slot()
+    def init_monitor(self):
+        """We're using a QFileSystemWatcher to check keep track of any folder
+        changes in the model's parent folder.
 
-    def initialise_threads(self):
+        If a new file/folder is added or changed we will trigger a model reset.
+
+        """
+        if not isinstance(self._monitor, QtCore.QFileSystemWatcher):
+            self._monitor = QtCore.QFileSystemWatcher()
+            self._monitor.fileChanged.connect(self.__resetdata__)
+            self._monitor.directoryChanged.connect(self.__resetdata__)
+
+    @QtCore.Slot()
+    def reset_monitor(self):
+        if self._monitor is None:
+            self._monitor = QtCore.QFileSystemWatcher()
+        for f in self._monitor.files():
+            self._monitor.removePath(f)
+        for f in self._monitor.directories():
+            self._monitor.removePath(f)
+
+    def init_threads(self):
         """Starts and connects the threads."""
         @QtCore.Slot(QtCore.QThread)
         def thread_started(thread):
@@ -202,19 +214,19 @@ class TaskFolderModel(lists.BaseModel):
 
         info_thread.start()
 
-    @property
     def parent_path(self):
-        """We will use the currently active asset as the parent."""
-        return (
-            settings.ACTIVE['server'],
-            settings.ACTIVE['job'],
-            settings.ACTIVE['root'],
-            settings.ACTIVE['asset'],
-        )
+        """The model's parent folder path.
 
-    @parent_path.setter
-    def parent_path(self, val):
-        pass
+        Returns:
+            tuple: A tuple of path segments.
+
+        """
+        return (
+            settings.ACTIVE[settings.ServerKey],
+            settings.ACTIVE[settings.JobKey],
+            settings.ACTIVE[settings.RootKey],
+            settings.ACTIVE[settings.AssetKey],
+        )
 
     def data_type(self):
         return common.FileItem
@@ -223,10 +235,10 @@ class TaskFolderModel(lists.BaseModel):
         """This model is always alphabetical."""
         pass
 
-    @lists.initdata
+    @base.initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
-        reset_monitor()
+        self.reset_monitor()
 
         self.INTERNAL_MODEL_DATA[0] = common.DataDict({
             common.FileItem: common.DataDict(),
@@ -241,39 +253,44 @@ class TaskFolderModel(lists.BaseModel):
         )
         data = self.model_data()
 
-        if not self.parent_path:
+        parent_path = self.parent_path()
+        if not parent_path or not all(parent_path):
             return
-        if not all(self.parent_path):
-            return
+        _parent_path = u'/'.join(parent_path)
 
         # Thumbnail image
         default_thumbnail = images.ImageCache.get_rsc_pixmap(
             u'folder_sm',
             common.SECONDARY_TEXT,
-            self.ROW_SIZE.height())
+            self.row_size().height()
+        )
         default_thumbnail = default_thumbnail.toImage()
 
-        parent_path = u'/'.join(self.parent_path)
-        MONITOR.addPath(parent_path)
+        config = asset_config.get(*parent_path[0:3])
+
+        # Add the parent path
+        self._monitor.addPath(_parent_path)
+
         entries = sorted(
-            ([f for f in _scandir.scandir(parent_path)]), key=lambda x: x.name)
+            ([f for f in _scandir.scandir(_parent_path)]), key=lambda x: x.name)
 
         for entry in entries:
             if entry.name.startswith(u'.'):
                 continue
             if not entry.is_dir():
                 continue
+
             idx = len(data)
             data[idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: entry.name,
                 QtCore.Qt.EditRole: entry.name,
                 QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
                 QtCore.Qt.ToolTipRole: u'',
-                QtCore.Qt.ToolTipRole: defaultpaths.get_description(entry.name),
-                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
+                QtCore.Qt.ToolTipRole: config.get_description(entry.name),
+                QtCore.Qt.SizeHintRole: self.row_size(),
                 #
                 common.FlagsRole: flags,
-                common.ParentPathRole: self.parent_path,
+                common.ParentPathRole: parent_path,
                 #
                 common.FileInfoLoaded: False,
                 common.ThumbnailLoaded: True,
@@ -285,26 +302,28 @@ class TaskFolderModel(lists.BaseModel):
             thread.add_to_queue(weakref.ref(data[idx]))
 
     @QtCore.Slot()
-    def check_task_folder(self):
-        """Verify the current task folder."""
-        if not settings.ACTIVE['task_folder']:
+    def check_task(self):
+        """Slot used to verify the current task folder.
+
+        """
+        v = settings.ACTIVE[settings.TaskKey]
+        if not v:
             self.taskFolderChangeRequested.emit()
             return
 
-        try:
-            task_folder_path = u'/'.join((
-                settings.ACTIVE['server'],
-                settings.ACTIVE['job'],
-                settings.ACTIVE['root'],
-                settings.ACTIVE['asset'],
-                settings.ACTIVE['task_folder'],
-            ))
-            if QtCore.QFileInfo(task_folder_path).exists():
-                return
-        except:
-            pass
+        parent_path = self.parent_path() + (v,)
+        if not all(parent_path):
+            self.taskFolderChangeRequested.emit()
+            return
 
-        self.taskFolderChangeRequested.emit()
+        if not QtCore.QFileInfo(u'/'.join(parent_path)).exists():
+            self.taskFolderChangeRequested.emit()
+
+    def default_row_size(self):
+        return QtCore.QSize(1, common.ROW_HEIGHT() * 0.9)
+
+    def local_settings_key(self):
+        return settings.TaskKey
 
 
 class TaskFolderWidget(QtWidgets.QListView):

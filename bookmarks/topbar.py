@@ -9,10 +9,12 @@ from . import log
 from . import common
 from . import common_ui
 from . import contextmenu
-from . import listtasks
 from . import images
-from . import listdelegate
 from . import settings
+from . import bookmark_db
+
+from .lists import tasks
+from .lists import delegate
 
 
 class QuickSwitchMenu(contextmenu.BaseContextMenu):
@@ -23,20 +25,28 @@ class QuickSwitchMenu(contextmenu.BaseContextMenu):
             QtCore.QModelIndex(), parent=parent)
 
     def add_switch_bookmark_menu(self):
-        stackedwidget = self.parent().parent().parent().stackedwidget
-        self.add_switch_menu(stackedwidget.widget(0), u'Change bookmark')
+        self.add_switch_menu(self.stacked_widget().widget(0), u'Change bookmark')
 
     def add_switch_asset_menu(self):
-        stackedwidget = self.parent().parent().parent().stackedwidget
-        self.add_switch_menu(stackedwidget.widget(1), u'Change asset')
+        self.add_switch_menu(self.stacked_widget().widget(1), u'Change asset')
+        self.add_show_addasset_menu()
+
+    @contextmenu.contextmenu
+    def add_show_addasset_menu(self, menu_set):
+        add_pixmap = images.ImageCache.get_rsc_pixmap(
+            u'add', common.ADD, common.MARGIN())
+
+        widget = self.stacked_widget().widget(0)
+        menu_set[u'add_asset'] = {
+            u'icon': add_pixmap,
+            u'text': u'Add Asset...',
+            u'action': lambda: widget.show_asset_property_widget(update=False)
+        }
+        return menu_set
 
     @contextmenu.contextmenu
     def add_switch_menu(self, menu_set, widget, label):
         """Adds the items needed to quickly change bookmarks or assets."""
-        # if hasattr(widget.model(), 'sourceModel'):
-        #     model = widget.model().sourceModel()
-        # else:
-        #     model = widget.model()
         off_pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.MARGIN())
         on_pixmap = images.ImageCache.get_rsc_pixmap(
@@ -73,14 +83,24 @@ class QuickSwitchMenu(contextmenu.BaseContextMenu):
             }
         return menu_set
 
+    def stacked_widget(self):
+        return self.parent().parent().parent().stackedwidget
+
+    @property
+    def index(self):
+        return self.stacked_widget().currentWidget().model().sourceModel().active_index()
+
+    @index.setter
+    def index(self, v):
+        pass
 
 class BaseControlButton(common_ui.ClickableIconButton):
     """Base class with a few default values."""
 
-    def __init__(self, pixmap, description, parent=None):
+    def __init__(self, pixmap, description, color=(common.TEXT_SELECTED, common.SECONDARY_BACKGROUND), parent=None):
         super(BaseControlButton, self).__init__(
             pixmap,
-            (common.TEXT_SELECTED, common.SECONDARY_BACKGROUND),
+            color,
             common.MARGIN(),
             description=description,
             parent=parent
@@ -256,13 +276,22 @@ class SimpleModeButton(BaseControlButton):
         return val
 
     def showEvent(self, event):
-        if not self.current_widget():
+        widget = self.current_widget()
+        if not widget:
             return
-        cls = self.current_widget().__class__.__name__
-        k = u'widget/{}/sort_with_basename'.format(cls)
-        val = settings.local_settings.value(k)
+
+        val = widget.model().sourceModel().get_local_setting(
+            settings.SortByBaseNameKey,
+            key=widget.__class__.__name__,
+            section=settings.UIStateSection
+        )
         if val is None:
-            settings.local_settings.setValue(k, self.state())
+            widget.model().sourceModel().set_local_setting(
+                settings.SortByBaseNameKey,
+                self.state(),
+                key=widget.__class__.__name__,
+                section=settings.UIStateSection
+            )
         common.SORT_WITH_BASENAME = val
 
     def hideEvent(self, event):
@@ -274,13 +303,18 @@ class SimpleModeButton(BaseControlButton):
             return
         val = self.state()
         common.SORT_WITH_BASENAME = not val
-        self.current_widget().set_buttons_hidden(not val)
-        self.current_widget().model().sourceModel().sort_data()
-        self.current_widget().reset()
 
-        cls = self.current_widget().__class__.__name__
-        k = 'widget/{}/sort_with_basename'.format(cls)
-        settings.local_settings.setValue(k, not val)
+        widget = self.current_widget()
+        widget.set_buttons_hidden(not val)
+        widget.model().sourceModel().sort_data()
+        widget.reset()
+
+        widget.model().sourceModel().set_local_setting(
+            settings.SortByBaseNameKey,
+            not val,
+            key=widget.__class__.__name__,
+            section=settings.UIStateSection
+        )
 
 
 class ToggleFavouriteButton(BaseControlButton):
@@ -322,8 +356,9 @@ class SlackButton(BaseControlButton):
 
     def __init__(self, parent=None):
         super(SlackButton, self).__init__(
-            u'slack',
-            u'Slacker',
+            u'slack_color',
+            u'Slack Massenger',
+            color=(None, None),
             parent=parent
         )
 
@@ -334,10 +369,34 @@ class SlackButton(BaseControlButton):
         index = bookmarks_widget.model().sourceModel().active_index()
         if not index.isValid():
             return
-        self.current_widget().show_slack(index)
+        self.current_widget().show_slack()
 
     def state(self):
         return True
+
+    @QtCore.Slot()
+    def check_token(self):
+        """Checks if the current bookmark has an active slack token set.
+
+        If the value is set we'll show the button, otherwise it will stay hidden.
+
+        """
+        args = [settings.ACTIVE[f] for f in (settings.ServerKey, settings.JobKey, settings.RootKey)]
+        if not all(args):
+            self.setHidden(True)
+            return False
+
+        with bookmark_db.transactions(*args) as db:
+            source = u'/'.join(args)
+            slacktoken = db.value(source, u'slacktoken', table=bookmark_db.BookmarkTable)
+
+        if not slacktoken:
+            self.setHidden(True)
+            return False
+
+        self.setHidden(False)
+        return True
+
 
 
 class GenerateThumbnailsButton(BaseControlButton):
@@ -500,23 +559,23 @@ class PaintedTextButton(QtWidgets.QLabel):
 
         font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
+        # When the width of the button is very small, we'll switch to an icon
+        # representation instead of text:
         if (metrics.width(self.text()) + (common.MARGIN() * 0.5)) < self.rect().width():
-            # text = metrics.elidedText(
-            #     self.text(),
-            #     QtCore.Qt.ElideRight,
-            #     self.rect().width()
-            # )
+            # Draw label
             width = metrics.width(self.text())
-
             x = (self.width() / 2.0) - (width / 2.0)
             y = self.rect().center().y() + (metrics.ascent() * 0.5)
-            path = listdelegate.get_painter_path(x, y, font, self.text())
+            path = delegate.get_painter_path(x, y, font, self.text())
             painter.drawPath(path)
         else:
+            # Draw icon
             pixmap = images.ImageCache.get_rsc_pixmap(
-                self.icon, color, common.MARGIN())
-            # _rect = QtCore.QRect(self.rect())
-            _rect = pixmap.rect()
+                self.icon,
+                color,
+                common.MARGIN()
+            )
+            _rect = QtCore.QRect(0, 0, common.MARGIN(), common.MARGIN())
             _rect.moveCenter(self.rect().center())
             painter.drawPixmap(
                 _rect,
@@ -524,6 +583,7 @@ class PaintedTextButton(QtWidgets.QLabel):
                 pixmap.rect()
             )
 
+        # Draw indicator line below icon or text
         rect.setHeight(common.ROW_SEPARATOR() * 2.0)
         painter.setPen(QtCore.Qt.NoPen)
         rect.setWidth(self.rect().width())
@@ -546,7 +606,7 @@ class BookmarksTabButton(PaintedTextButton):
 
     def __init__(self, parent=None):
         super(BookmarksTabButton, self).__init__(
-            u'Select bookmark...',
+            u'Bookmarks',
             0,
             u'Click to see the list of added bookmarks',
             parent=parent
@@ -554,8 +614,8 @@ class BookmarksTabButton(PaintedTextButton):
 
     @property
     def active_label(self):
-        if settings.ACTIVE['root']:
-            return settings.ACTIVE['root'].split(u'/')[-1]
+        if settings.ACTIVE[settings.RootKey]:
+            return settings.ACTIVE[settings.RootKey].split(u'/')[-1]
         return self.default_label
 
     def contextMenuEvent(self, event):
@@ -572,7 +632,7 @@ class AssetsTabButton(PaintedTextButton):
 
     def __init__(self, parent=None):
         super(AssetsTabButton, self).__init__(
-            u'Select asset...',
+            u'Assets',
             1,
             u'Click to see the list of available assets',
             parent=parent
@@ -582,7 +642,7 @@ class AssetsTabButton(PaintedTextButton):
 
     @property
     def active_label(self):
-        return settings.ACTIVE['asset']
+        return settings.ACTIVE[settings.AssetKey]
 
     def contextMenuEvent(self, event):
         menu = QuickSwitchMenu(parent=self)
@@ -607,10 +667,12 @@ class FilesTabButton(PaintedTextButton):
 
     def __init__(self, parent=None):
         super(FilesTabButton, self).__init__(
-            u'Select task...',
+            u'Tasks',
             2,
             u'Click to see or change the current task folder',
             parent=parent)
+
+
         self.clicked.connect(self.show_view)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
@@ -618,22 +680,21 @@ class FilesTabButton(PaintedTextButton):
         self.show_view()
 
     def view(self):
-        return self.parent().task_folder_view
+        return self.parent().task_view
 
     @QtCore.Slot()
     def adjust_size(self):
         if not self.stacked_widget():
             return
-        index = self.stacked_widget().widget(1).model().sourceModel().active_index()
-        self.setHidden(not index.isValid())
+
+        asset = settings.ACTIVE[settings.AssetKey]
+        _ = self.setHidden(False) if asset else self.setHidden(True)
         super(FilesTabButton, self).adjust_size()
 
     @property
     def active_label(self):
-        v = settings.ACTIVE['task_folder']
-        if v:
-            v += u'  ▼'
-        return v
+        v = settings.ACTIVE[settings.TaskKey]
+        return v + u'  ▼' if v else v
 
     def paintEvent(self, event):
         """Indicating the visibility of the TaskFolderWidget."""
@@ -669,8 +730,6 @@ class FilesTabButton(PaintedTextButton):
         """Shows the ``TaskFolderWidget`` widget for browsing."""
         if not self.view():
             return
-        if self.view().model().rowCount() == 0:
-            return
 
         if not self.view().isHidden():
             self.view().setHidden(True)
@@ -684,10 +743,10 @@ class FilesTabButton(PaintedTextButton):
         self.view().setGeometry(geo)
         self.view().move(0, 0)
         self.view().show()
-        self.view().setFocus(QtCore.Qt.PopupFocusReason)
         self.view().viewport().setFocus(QtCore.Qt.PopupFocusReason)
+        print '!'
 
-        key = settings.ACTIVE['task_folder']
+        key = settings.ACTIVE[settings.TaskKey]
         if not key:
             return
         key = key.lower()
@@ -751,7 +810,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'slack', common.ADD, self.rect().height() - (common.INDICATOR_WIDTH() * 1.5))
-        rect = pixmap.rect()
+        rect = QtCore.QRect(0, 0, common.MARGIN(), common.MARGIN())
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
@@ -801,7 +860,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         if not index.isValid():
             return
 
-        widget = parent.currentWidget().show_slack(index)
+        widget = parent.currentWidget().show_slack()
         widget.message_widget.append_message(message)
 
     def showEvent(self, event):
@@ -844,9 +903,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self.files_button = FilesTabButton(parent=self)
         self.favourites_button = FavouritesTabButton(parent=self)
 
-        self.task_folder_view = listtasks.TaskFolderWidget(
+        self.task_view = tasks.TaskFolderWidget(
             parent=self.parent().fileswidget, altparent=self)
-        self.task_folder_view.setHidden(True)
+        self.task_view.setHidden(True)
 
         self.generate_thumbnails_button = GenerateThumbnailsButton(parent=self)
         self.filter_button = FilterButton(parent=self)
@@ -854,12 +913,12 @@ class ListControlWidget(QtWidgets.QWidget):
         self.archived_button = ToggleArchivedButton(parent=self)
         self.favourite_button = ToggleFavouriteButton(parent=self)
         self.slack_button = SlackButton(parent=self)
+        self.slack_button.setHidden(True)
         self.simple_mode_button = SimpleModeButton(parent=self)
 
         self.layout().addWidget(self.bookmarks_button, 1)
         self.layout().addWidget(self.assets_button, 1)
         self.layout().addWidget(self.files_button, 1)
-        self.layout().addWidget(self.favourites_button, 1)
         self.layout().addStretch()
         self.layout().addWidget(self.simple_mode_button)
         self.layout().addSpacing(common.INDICATOR_WIDTH())
@@ -875,6 +934,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.slack_button)
         #
+        self.layout().addWidget(self.favourites_button, 1)
         self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
 
         self.drop_overlay = SlackDropOverlayWidget(parent=self)
@@ -904,7 +964,7 @@ class ListControlWidget(QtWidgets.QWidget):
         pass
 
     def control_view(self):
-        return self.task_folder_view
+        return self.task_view
 
     def control_button(self):
         return self.findChild(FilesTabButton)

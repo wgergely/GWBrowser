@@ -19,111 +19,111 @@ IMAGESEQ_TO_H264 = '"{BIN}" -y -hwaccel auto -framerate {FRAMERATE} -start_numbe
 
 def get_font_path(name='bmRobotoMedium'):
     """The font used to label the generated files."""
-    font_file = __file__ + os.path.sep + os.path.pardir + os.path.sep + 'rsc' + os.path.sep + 'fonts' + os.path.sep + '{}.ttf'.format(name)
+    font_file = __file__ + os.path.sep + os.path.pardir + os.path.sep + \
+        'rsc' + os.path.sep + 'fonts' + os.path.sep + '{}.ttf'.format(name)
     font_file = os.path.abspath(os.path.normpath(font_file))
-    return font_file.replace(u'\\', u'/').replace(u':', u'\\\\:') # needed for ffmpeg
+    # needed for ffmpeg
+    return font_file.replace(u'\\', u'/').replace(u':', u'\\\\:')
 
-
-def launch_ffmpeg_command(input, preset, server=None, job=None, root=None, asset=None, task_folder=None):
+@common.debug
+@common.error
+def launch_ffmpeg_command(input, preset, server=None, job=None, root=None, asset=None, task=None):
     """Calls FFMpeg to process an input using the given preset.
 
     """
     w = common_ui.MessageBox(u'Converting...', u'Should take a few minutes...')
-    try:
-        FFMPEG_BIN = settings.local_settings.value(u'preferences/ffmpeg_path')
-        if not FFMPEG_BIN:
+
+    FFMPEG_BIN = settings.local_settings.value(
+        settings.SettingsSection,
+        settings.FFMpegKey
+    )
+    if not FFMPEG_BIN:
+        return
+    if not QtCore.QFileInfo(FFMPEG_BIN).exists():
+        return
+
+    server = server if server else settings.ACTIVE[settings.ServerKey]
+    job = job if job else settings.ACTIVE[settings.JobKey]
+    root = root if root else settings.ACTIVE[settings.RootKey]
+    asset = asset if asset else settings.ACTIVE[settings.AssetKey]
+    task = task if task else settings.ACTIVE[settings.TaskKey]
+
+    input = input.replace(u'\\', u'/')
+
+    # We want to get the first item  of any sequence
+    if common.is_collapsed(input):
+        input = common.get_sequence_startpath(input)
+    else:
+        seq = common.get_sequence(input)
+        if not seq:
+            raise RuntimeError(u'{} is not a sequence.'.format(input))
+        _dir = QtCore.QFileInfo(input).dir()
+        if not _dir.exists():
+            raise RuntimeError(u'{} does not exists.'.format(_dir))
+
+        f = []
+        for entry in _scandir.scandir(_dir):
+            _path = entry.path.replace(u'\\', u'/')
+            if not seq.group(1) in _path:
+                continue
+            _seq = common.get_sequence(_path)
+            if not _seq:
+                continue
+            f.append(int(_seq.group(2)))
+        if not f:
             raise RuntimeError(
-                u'The path to FFMpeg has not yet been set.\nYou can set the path in the General > External Applications section.')
-        if not QtCore.QFileInfo(FFMPEG_BIN):
-            raise RuntimeError('FFMpeg was not found!')
+                u'Could not find the first frame of the sequence.')
 
-        server = server if server else settings.ACTIVE['server']
-        job = job if job else settings.ACTIVE['job']
-        root = root if root else settings.ACTIVE['root']
-        asset = asset if asset else settings.ACTIVE['asset']
-        task_folder = task_folder if task_folder else settings.ACTIVE['task_folder']
+    startframe = min(f)
+    endframe = max(f)
 
-        input = input.replace(u'\\', '/').lower()
-
-        # We want to get the first item  of any sequence
-        if common.is_collapsed(input):
-            input = common.get_sequence_startpath(input)
-        else:
-            seq = common.get_sequence(input)
-            if not seq:
-                raise RuntimeError(u'{} is not a sequence.'.format(input))
-            _dir = QtCore.QFileInfo(input).dir().path()
-            if not QtCore.QFileInfo(_dir):
-                raise RuntimeError(u'{} does not exists.'.format(_dir))
-
-            f = []
-            for entry in _scandir.scandir(_dir):
-                _path = entry.path.replace(u'\\', u'/').lower()
-                if not seq.group(1) in _path:
-                    continue
-                _seq = common.get_sequence(_path)
-                if not _seq:
-                    continue
-                f.append(int(_seq.group(2)))
-            if not f:
-                raise RuntimeError(u'Could not find the first frame of the sequence.')
-
-        startframe = min(f)
-        endframe = max(f)
-
-        # Framerate
-        db = bookmark_db.get_db(
-            server,
-            job,
-            root
+    # Framerate
+    with bookmark_db.transactions(server, job, root) as db:
+        framerate = db.value(
+            db.source(),
+            u'framerate',
+            table=bookmark_db.BookmarkTable
         )
-        framerate = db.value(1, 'framerate', table=u'properties')
-        if not framerate:
-            framerate = 24
 
-        input = seq.group(1) + '%0{}d'.format(len(seq.group(2))) + seq.group(3) + '.' + seq.group(4)
-        output = seq.group(1).rstrip(u'.').rstrip(u'_').rstrip() + u'.mp4'
+    if not framerate:
+        framerate = 24
 
-        # Add informative label
-        label = u''
-        if job:
-            label += job
-            label += u'_'
-        if asset:
-            label += asset
-            label += u'_'
-        if task_folder:
-            label += task_folder
-            label += u' \\| '
-        vseq = common.get_sequence(output)
-        if vseq:
-            label +='v' + vseq.group(2) + u' '
-            label += datetime.now().strftime('(%a %d/%m/%Y) \\| ')
-        label += u'{}-{} \\| '.format(startframe, endframe)
+    input = seq.group(1) + u'%0{}d'.format(len(seq.group(2))
+                                           ) + seq.group(3) + u'.' + seq.group(4)
+    output = seq.group(1).rstrip(u'.').rstrip(u'_').rstrip() + u'.mp4'
 
-        w.open()
-        QtWidgets.QApplication.instance().processEvents()
+    # Add informative label
+    label = u''
+    if job:
+        label += job
+        label += u'_'
+    if asset:
+        label += asset
+        label += u'_'
+    if task:
+        label += task
+        label += u' \\| '
+    vseq = common.get_sequence(output)
+    if vseq:
+        label += 'v' + vseq.group(2) + u' '
+        label += datetime.now().strftime('(%a %d/%m/%Y) \\| ')
+    label += u'{}-{} \\| '.format(startframe, endframe)
 
-        cmd = preset.format(
-            BIN=FFMPEG_BIN,
-            FRAMERATE=framerate,
-            STARTFRAME=startframe,
-            INPUT=os.path.normpath(input),
-            OUTPUT=os.path.normpath(output),
-            FONT=get_font_path(),
-            LABEL=label,
-        )
-        subprocess.check_output(cmd, shell=True)
+    w.open()
+    QtWidgets.QApplication.instance().processEvents()
 
-        w.close()
-        log.success('Successfully saved {}'.format(output))
-        common_ui.OkBox(u'Finished converting', 'Saved to {}'.format(output)).open()
-    except Exception as e:
-        w.close()
-        log.error(u'Conversion failed.')
-        common_ui.ErrorBox(u'Conversion failed', unicode(e)).open()
+    cmd = preset.format(
+        BIN=FFMPEG_BIN,
+        FRAMERATE=framerate,
+        STARTFRAME=startframe,
+        INPUT=os.path.normpath(input),
+        OUTPUT=os.path.normpath(output),
+        FONT=get_font_path(),
+        LABEL=label,
+    )
+    subprocess.check_output(cmd, shell=True)
 
-# launch_ffmpeg_command(
-#     ur'\\aka03\pjct01\frills\data\shot\060_0030\captures\latest\060_0030_capture_1056.png',
-#     IMAGESEQ_TO_H264
-# )
+    w.close()
+    log.success(u'Successfully saved {}'.format(output))
+    common_ui.OkBox(u'Finished converting',
+                    'Saved to {}'.format(output)).open()

@@ -1,24 +1,105 @@
 # -*- coding: utf-8 -*-
-"""The widget, model and context menu needed for interacting with bookmarks.
+"""The widget, model and context menu needed for listing bookmarks stored
+in `local_settings`.
 
 """
-import json
-import base64
-import weakref
 import functools
 import _scandir
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from . import log
-from . import common
-from . import bookmark_db
-from .bookmark_editor import bookmark_properties
-from . import threads
-from . import lists
-from . import contextmenu
-from . import settings
-from . import listdelegate
+from .. import log
+from .. import common
+from .. import bookmark_db
+from .. import threads
+from .. import contextmenu
+from .. import settings
+
+from . import base
+from . import delegate
+
+
+BOOKMARK_DESCRIPTION = u'{description}{width}{height}{framerate}{prefix}'
+
+
+def get_description(server, job, root, db=None):
+    """Utility method for contructing a short description for a bookmark item.
+
+    The description includes currently set properties and the description of
+    the bookmark.
+
+    Args:
+        server (unicode):   Server name.
+        job (unicode):   Job name.
+        root (unicode):   Root folder name.
+
+    Returns:
+        unicode:    The description of the bookmark.
+
+    """
+    def _get_data(db):
+        data = {}
+        source = u'{}/{}/{}'.format(server, job, root)
+        for k in bookmark_db.TABLES[bookmark_db.BookmarkTable]:
+            v = db.value(source, k, table=bookmark_db.BookmarkTable)
+            v = v if v else None
+            data[k] = v
+        return data
+
+    if db:
+        v = _get_data(db)
+    else:
+        with bookmark_db.transactions(server, job, root) as db:
+            v = _get_data(db)
+
+    try:
+        separator = u'  |  '
+
+        description = v['description'] + separator if v['description'] else u''
+        width = v['width'] if (v['width'] and v['height']) else u''
+        height = u'x{}px'.format(v['height']) if (v['width'] and v['height']) else u''
+        framerate = u'{}{}fps'.format(separator, v['framerate']) if v['framerate'] else u''
+        prefix = u'{}{}'.format(separator, v['prefix']) if v['prefix'] else u''
+
+        s = BOOKMARK_DESCRIPTION.format(
+            description=description,
+            width=width,
+            height=height,
+            framerate=framerate,
+            prefix=prefix
+        )
+        s = s.replace(separator + separator, separator)
+        s = s.strip(separator).strip() # pylint: disable=E1310
+        return s
+    except:
+        log.error(u'Error constructing description.')
+        return u''
+
+QtCore.Slot(QtCore.QModelIndex)
+def update_description(index, *_args):
+    """Utility slot used to update the description of a bookmark item after
+    the user finishes editing the bookmark properties.
+
+    Args:
+        index (QtCore.QModelIndex):     A bookmark list model index.
+
+    """
+    if not index.isValid():
+        return
+    model = index.model()
+    if hasattr(model, 'mapToSource'):
+        index = model.mapToSource(index)
+
+    idx = index.row()
+    data = index.model().model_data()
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+
+    text = u'{}  |  {}'.format(job, root)
+    description = get_description(server, job, root)
+    data[idx][common.DescriptionRole] = description
+    data[idx][QtCore.Qt.ToolTipRole] = description
+    data[idx][common.TextSegmentRole] = BookmarksModel.get_text_segments(text, description)
+
 
 
 def count_assets(bookmark_path, ASSET_IDENTIFIER):
@@ -54,34 +135,30 @@ class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
         self.add_separator()
         self.add_bookmark_editor_menu()
         self.add_separator()
+        self.add_properties_menu()
+        self.add_separator()
         if index.isValid():
             self.add_mode_toggles_menu()
-            self.add_separator()
         self.add_separator()
-        self.add_row_size_menu()
+        self.add_urls_menu()
         self.add_separator()
-        self.add_set_generate_thumbnails_menu()
         if index.isValid():
+            self.add_notes_menu()
             self.add_copy_menu()
             self.add_reveal_item_menu()
         self.add_separator()
+        self.add_set_generate_thumbnails_menu()
+        self.add_row_size_menu()
         self.add_sort_menu()
-        self.add_separator()
         self.add_display_toggles_menu()
         self.add_separator()
         self.add_refresh_menu()
 
 
-class BookmarksModel(lists.BaseModel):
+class BookmarksModel(base.BaseModel):
     """The model used store the data necessary to display bookmarks.
 
     """
-    DEFAULT_ROW_SIZE = QtCore.QSize(1, common.BOOKMARK_ROW_HEIGHT())
-    val = settings.local_settings.value(u'widget/bookmarksmodel/rowheight')
-    val = val if val else DEFAULT_ROW_SIZE.height()
-    val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
-    ROW_SIZE = QtCore.QSize(1, val)
-
     queue_type = threads.BookmarkInfoQueue
     thumbnail_queue_type = threads.BookmarkThumbnailQueue
 
@@ -89,7 +166,7 @@ class BookmarksModel(lists.BaseModel):
         super(BookmarksModel, self).__init__(
             has_threads=has_threads, parent=parent)
 
-    @lists.initdata
+    @base.initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -111,23 +188,29 @@ class BookmarksModel(lists.BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        task_folder = self.task_folder()
+        task = self.task()
 
         settings.local_settings.sync()
-        favourites = settings.local_settings.favourites()
-        bookmarks = settings.local_settings.bookmarks()
+        favourites = settings.local_settings.get_favourites()
+        bookmarks = settings.local_settings.get_bookmarks()
 
         bookmarks = bookmarks if bookmarks else {}
-
-        _height = self.ROW_SIZE.height() - common.ROW_SEPARATOR()
 
         for k, v in bookmarks.iteritems():
             if not all(v.values()):
                 continue
+            if not len(v.values()) >= 3:
+                raise ValueError(u'Invalid bookmark value.')
+
+            server = v[settings.ServerKey]
+            job =v[settings.JobKey]
+            root = v[settings.RootKey]
 
             file_info = QtCore.QFileInfo(k)
             exists = file_info.exists()
 
+            # We'll mark the item archived if the saved bookmark does not refer
+            # to an existing file
             if exists:
                 flags = dflags()
             else:
@@ -135,37 +218,37 @@ class BookmarksModel(lists.BaseModel):
 
             filepath = file_info.filePath()
 
-            # Active Flag
+            # Item flags. Active and favourite flags will be only set if the
+            # bookmark exist
             if all((
-                v[u'server'] == settings.ACTIVE[u'server'],
-                v[u'job'] == settings.ACTIVE[u'job'],
-                v[u'root'] == settings.ACTIVE[u'root']
-            )):
+                server == settings.ACTIVE[settings.ServerKey],
+                job == settings.ACTIVE[settings.JobKey],
+                root == settings.ACTIVE[settings.RootKey]
+            )) and exists:
                 flags = flags | common.MarkedAsActive
-            # Favourite Flag
-            if filepath in favourites:
+
+            if filepath in favourites and exists:
                 flags = flags | common.MarkedAsFavourite
 
             text = u'{}  |  {}'.format(
-                v[u'job'],
-                v[u'root']
+                job,
+                root
             )
 
-            data = self.INTERNAL_MODEL_DATA[task_folder][common.FileItem]
+            data = self.INTERNAL_MODEL_DATA[task][common.FileItem]
             idx = len(data)
-
             data[idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: text,
                 QtCore.Qt.EditRole: text,
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,
-                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
+                QtCore.Qt.SizeHintRole: self.row_size(),
                 #
-                common.TextSegmentRole: self.get_text_segments(text),
+                common.TextSegmentRole: {},
                 #
                 common.EntryRole: [],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (v[u'server'], v[u'job'], v[u'root']),
+                common.ParentPathRole: (server, job, root),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: None,
@@ -189,84 +272,36 @@ class BookmarksModel(lists.BaseModel):
             if not exists:
                 continue
 
-            db = None
-            n = 0
-            db = bookmark_db.get_db(
-                v[u'server'],
-                v[u'job'],
-                v[u'root'],
-            )
-            with db.transactions():
-                # Item flags
+            with bookmark_db.transactions(server, job, root) as db:
+                # Custom item flags
                 flags = data[idx][common.FlagsRole]
-                v = db.value(data[idx][QtCore.Qt.StatusTipRole], u'flags')
-                flags = flags | v if v is not None else flags
-                data[idx][common.FlagsRole] = flags
+                v = db.value(
+                    data[idx][QtCore.Qt.StatusTipRole],
+                    u'flags'
+                )
+                data[idx][common.FlagsRole] = flags | v if v is not None else flags
 
-                # Todos are a little more convoluted - the todo count refers to
-                # all the current outstanding todos af all assets, including
-                # the bookmark itself
-                n = 0
-                for v in db.values(u'notes').itervalues():
-                    if not v:
-                        continue
-                    if v[u'notes']:
-                        try:
-                            v = base64.b64decode(v[u'notes'])
-                            d = json.loads(v)
-                            n += len([k for k in d if not d[k]
-                                      [u'checked'] and d[k][u'text']])
-                        except (ValueError, TypeError):
-                            log.error(u'Error decoding JSON notes')
-
-                data[idx][common.TodoCountRole] = n
-                self.update_description(db, data[idx])
+                description = get_description(server, job, root, db=db)
+                data[idx][common.DescriptionRole] = description
+                data[idx][QtCore.Qt.ToolTipRole] = description
+                data[idx][common.TextSegmentRole] = self.get_text_segments(text, description)
 
         self.activeChanged.emit(self.active_index())
 
     def __resetdata__(self):
-        self.INTERNAL_MODEL_DATA[self.task_folder()] = common.DataDict({
+        self.INTERNAL_MODEL_DATA[self.task()] = common.DataDict({
             common.FileItem: common.DataDict({}),
             common.SequenceItem: common.DataDict({}),
         })
         self.__initdata__()
         self.endResetModel()
 
-    def update_description(self, db, data):
-        """Updates the bookmark's description.
-
-        """
-        t = u'properties'
-        v = {}
-
-        ASSET_IDENTIFIER = db.value(1, u'identifier', table=t)
-
-        for _k in bookmark_db.BOOKMARK_DB[t]:
-            v[_k] = db.value(1, _k, table=t)
-
-        info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
-            w=u'{}'.format(int(v['width'])) if (
-                v['width'] and v['height']) else u'',
-            h=u'x{}px'.format(int(v['height'])) if (
-                v['width'] and v['height']) else u'',
-            fps=u'  |  {}fps'.format(
-                v['framerate']) if v['framerate'] else u'',
-            pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
-            start=u'  |  {}'.format(
-                int(v['startframe'])) if v['startframe'] else u'',
-            duration=u'-{} ({} frames)'.format(
-                int(v['startframe']) + int(v['duration']),
-                int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
-        )
-
-        data[common.DescriptionRole] = info
-        data[QtCore.Qt.ToolTipRole] = info
-
-    def get_text_segments(self, text):
+    @staticmethod
+    def get_text_segments(text, description):
         """Returns a tuple of text and colour information to be used to mimick
         rich-text like colouring of individual text elements.
 
-        Used by the listdelegate to represent the job name and root folder.
+        Used by the list delegate to paint the job name and root folder.
 
         """
         if not text:
@@ -278,8 +313,10 @@ class BookmarksModel(lists.BaseModel):
 
         d = {}
         v = text.split(u'|')
-        for i, s in enumerate(v):
 
+        s_color = common.FAVOURITE.darker(250)
+
+        for i, s in enumerate(v):
             if i == 0:
                 c = common.FAVOURITE.darker(250)
             else:
@@ -290,16 +327,26 @@ class BookmarksModel(lists.BaseModel):
                 _s = _s.upper().strip()
                 d[len(d)] = (_s, c)
                 if _i < (len(_v) - 1):
-                    d[len(d)] = (u' / ', common.FAVOURITE.darker(250))
+                    d[len(d)] = (u' / ', s_color)
             if i < (len(v) - 1):
-                d[len(d)] = (u'   |    ', common.FAVOURITE.darker(250))
+                d[len(d)] = (u'   |    ', s_color)
+
+        if description:
+            d[len(d)] = (u'   |   ', s_color)
+            d[len(d)] = (description, s_color)
         return d
 
+    def default_row_size(self):
+        return QtCore.QSize(1, common.BOOKMARK_ROW_HEIGHT())
 
-class BookmarksWidget(lists.ThreadedBaseWidget):
+    def local_settings_key(self):
+        return settings.BookmarksKey
+
+
+class BookmarksWidget(base.ThreadedBaseWidget):
     """The view used to display the contents of a ``BookmarksModel`` instance."""
     SourceModel = BookmarksModel
-    Delegate = listdelegate.BookmarksWidgetDelegate
+    Delegate = delegate.BookmarksWidgetDelegate
     ContextMenu = BookmarksWidgetContextMenu
 
     def __init__(self, parent=None):
@@ -310,29 +357,33 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
         self.remove_bookmark_timer = QtCore.QTimer(parent=self)
         self.remove_bookmark_timer.setSingleShot(True)
         self.remove_bookmark_timer.setInterval(10)
-        self.remove_bookmark_timer.timeout.connect(self.remove_queued_bookmarks)
+        self.remove_bookmark_timer.timeout.connect(
+            self.remove_queued_bookmarks)
 
         self.bookmarks_to_remove = []
 
     @QtCore.Slot()
     def remove_queued_bookmarks(self):
-        from .bookmark_editor import bookmark_editor
+        if self.multi_toggle_pos:
+            self.remove_bookmark_timer.start(self.remove_bookmark_timer.interval())
+            return
         for bookmark in [f for f in self.bookmarks_to_remove]:
-            bookmark_editor.remove_bookmark(*bookmark)
-            del self.bookmarks_to_remove[self.bookmarks_to_remove.index(bookmark)]
+            settings.local_settings.remove_bookmark(*bookmark)
+            del self.bookmarks_to_remove[self.bookmarks_to_remove.index(
+                bookmark)]
 
         self.model().sourceModel().__resetdata__()
 
     @QtCore.Slot()
     def show_bookmark_editor(self):
-        from .bookmark_editor import bookmark_editor
-        w = bookmark_editor.BookmarkEditorWidget(parent=self)
+        """Shows the Bookmark Editor widget used to add and remove bookmarks,
+        or to create new jobs.
+
+        """
+        from ..bookmark_editor import bookmark_editor_widget
+        w = bookmark_editor_widget.BookmarkEditorWidget(parent=self)
         w.bookmarksChanged.connect(self.model().sourceModel().__resetdata__)
         w.open()
-
-    def mousePressEvent(self, event):
-        super(BookmarksWidget, self).mousePressEvent(event)
-        self.reset_multitoggle()
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
@@ -340,23 +391,33 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
 
         cursor_position = self.mapFromGlobal(common.cursor.pos())
         index = self.indexAt(cursor_position)
-
         if not index.isValid():
             return
+
         if index.flags() & common.MarkedAsArchived:
             super(BookmarksWidget, self).toggle_item_flag(
-                index, common.MarkedAsArchived, state=False)
+                index,
+                common.MarkedAsArchived,
+                state=False
+            )
+            self.update(index)
+            self.reset_multitoggle()
             return
 
         rect = self.visualRect(index)
-        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = delegate.get_rectangles(
+            rect, self.inline_icons_count())
 
-        if rectangles[listdelegate.AddAssetRect].contains(cursor_position):
+        super(BookmarksWidget, self).mouseReleaseEvent(event)
+
+        if rectangles[delegate.AddAssetRect].contains(cursor_position):
             self.show_add_widget()
-        elif rectangles[listdelegate.BookmarkPropertiesRect].contains(cursor_position):
+            return
+
+        if rectangles[delegate.PropertiesRect].contains(cursor_position):
             self.show_properties_widget()
-        else:
-            super(BookmarksWidget, self).mouseReleaseEvent(event)
+            return
+
 
     def inline_icons_count(self):
         """The number of row-icons an item has."""
@@ -366,77 +427,40 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
 
     @QtCore.Slot()
     def show_properties_widget(self):
-        def update_description(index, res):
-            db = bookmark_db.get_db(
-                index.data(common.ParentPathRole)[0],
-                index.data(common.ParentPathRole)[1],
-                index.data(common.ParentPathRole)[2],
-            )
-            source_index = self.model().mapToSource(index)
-            data = source_index.model().model_data()[source_index.row()]
-            self.model().sourceModel().update_description(db, data)
+        """Shows the property editor widget used to edit bookmark database values.
 
+        """
         if not self.selectionModel().hasSelection():
             return
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
 
-        widget = bookmark_properties.BookmarkPropertiesWidget(
-            index.data(common.ParentPathRole)[0],
-            index.data(common.ParentPathRole)[1],
-            index.data(common.ParentPathRole)[2],
-            parent=self
-        )
+        from ..properties import bookmark_properties_widget
+
+        widget = bookmark_properties_widget.BookmarkPropertiesWidget(
+            *index.data(common.ParentPathRole)[0:3])
+
         widget.finished.connect(functools.partial(update_description, index))
+        widget.finished.connect(self.parent().parent().topbar.slack_button.check_token)
+
         widget.open()
 
     @QtCore.Slot()
     def show_add_widget(self):
-        @QtCore.Slot(unicode)
-        def show_and_select_added_asset(name):
-            """If adding items to the active bookmark, we will go ahead and show
-            the added item.
+        """Shows the `AssetPropertiesWidget` for editing asset properties.
 
-            """
-            view = self.parent().widget(1)
-            if self.selectionModel().currentIndex() != view.model().sourceModel().active_index():
-                return
-
-            view.model().sourceModel().modelDataResetRequested.emit()
-            self.parent().parent().listcontrol.listChanged.emit(1)
-
-            for n in xrange(view.model().rowCount()):
-                index = view.model().index(n, 0)
-                file_info = QtCore.QFileInfo(
-                    index.data(QtCore.Qt.StatusTipRole))
-                if file_info.fileName() == name:
-                    view.selectionModel().setCurrentIndex(
-                        index, QtCore.QItemSelectionModel.ClearAndSelect)
-                    view.scrollTo(
-                        index, QtWidgets.QAbstractItemView.PositionAtCenter)
-                    break
-
-        from . import addasset
-
-        if not self.selectionModel().hasSelection():
-            return
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
-        widget = addasset.AddAssetWidget(
-            index.data(common.ParentPathRole)[0],
-            index.data(common.ParentPathRole)[1],
-            index.data(common.ParentPathRole)[2]
-        )
-        widget.templateCreated.connect(
-            show_and_select_added_asset)
-        widget.open()
+        """
+        if not self.model().sourceModel().rowCount():
+            self.show_bookmark_editor()
+        elif self.selectionModel().hasSelection():
+            self.show_asset_property_widget(update=False)
+        else:
+            self.show_bookmark_editor()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index, reset=False):
-        """Saves the activated index to ``LocalSettings``."""
+        """Saves the activated index to ``Settings``."""
         if not reset:
             if not index.isValid() and not reset:
                 return
@@ -446,18 +470,25 @@ class BookmarksWidget(lists.ThreadedBaseWidget):
         else:
             server, job, root = None, None, None
 
-        settings.set_active(u'server', server)
-        settings.set_active(u'job', job)
-        settings.set_active(u'root', root)
+        settings.set_active(settings.ServerKey, server)
+        settings.set_active(settings.JobKey, job)
+        settings.set_active(settings.RootKey, root)
 
     def toggle_item_flag(self, index, flag, state=None):
         if flag == common.MarkedAsArchived:
             if hasattr(index.model(), 'sourceModel'):
                 index = self.model().mapToSource(index)
-                bookmark_db.remove_db(index)
+
+            idx = index.row()
+            data = index.model().model_data()
+            data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsArchived
+            self.update(index)
 
             self.bookmarks_to_remove.append(index.data(common.ParentPathRole))
             self.remove_bookmark_timer.start()
         else:
             super(BookmarksWidget, self).toggle_item_flag(
                 index, flag, state=state)
+
+    def get_hint_string(self):
+        return u'Right-click -> Bookmark Editor to add a new bookmark'

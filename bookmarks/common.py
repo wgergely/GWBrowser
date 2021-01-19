@@ -6,7 +6,13 @@ File sequences are recognised using regexes defined in this module. See
 :func:`.get_sequence_startpath`,  :func:`.get_ranges` for more information.
 
 """
+import subprocess
+import functools
+import traceback
+import inspect
+import time
 import os
+import sys
 import re
 import zipfile
 import hashlib
@@ -24,7 +30,8 @@ STANDALONE = True  # The current mode of bookmarks
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://github.com/wgergely/bookmarks'
 
-BOOKMARK_INDICATOR = u'.bookmark'
+BOOKMARK_ROOT_DIR = u'.bookmark'
+BOOKMARK_ROOT_KEY = 'BOOKMARKS_ROOT'
 
 SynchronisedMode = 0
 SoloMode = 1
@@ -32,9 +39,9 @@ SoloMode = 1
 selections will be syncronised across DCCs and desktop instances."""
 
 # Flags
-MarkedAsArchived = 0b1000000000
+MarkedAsArchived =  0b1000000000
 MarkedAsFavourite = 0b10000000000
-MarkedAsActive = 0b100000000000
+MarkedAsActive =    0b100000000000
 """Custom Item flags."""
 
 InfoThread = 0
@@ -48,12 +55,130 @@ SEQPROXY = u'[0]'
 """"""
 
 
+def error(func):
+    """Decorator to create a menu set."""
+    @functools.wraps(func)
+    def func_wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            from . import common_ui
+            from . import log
+
+            info = sys.exc_info()
+            if all(info):
+                e = u''.join(traceback.format_exception(*info))
+            else:
+                e = u''
+            if QtWidgets.QApplication.instance():
+                common_ui.ErrorBox(u'An error occured.', e).open()
+            log.error(e)
+            raise
+    return func_wrapper
+
+
+def debug(func):
+    """Decorator to create a menu set."""
+    DEBUG_MESSAGE = u'{trace}(): Executed in {time} secs.'
+    DEBUG_SEPARATOR = ' --> '
+
+    @functools.wraps(func)
+    def func_wrapper(*args, **kwargs):
+        from . import log
+        try:
+            if log.LOG_DEBUG:
+                t = time.time()
+            return func(*args, **kwargs)
+        finally:
+            if args and hasattr(args[0], '__class__'):
+                funcname = '{}.{}'.format(
+                    args[0].__class__,
+                    func.func_name
+                )
+            else:
+                funcname = func.func_name
+
+            if log.LOG_DEBUG:
+                trace = []
+                for frame in reversed(inspect.stack()):
+                    if frame[3] == '<module>':
+                        continue
+                    mod = inspect.getmodule(frame[0]).__name__
+                    _funcname = '{}.{}'.format(mod, frame[3])
+                    trace.append(_funcname)
+                trace.append(funcname)
+
+                log.debug(
+                    DEBUG_MESSAGE.format(
+                        trace=DEBUG_SEPARATOR.join(trace),
+                        time=time.time() - t
+                    )
+                )
+
+    return func_wrapper
+
+
+
+def toggle_on_top(window, v):
+    """Sets the WindowStaysOnTopHint for the window.
+
+    """
+    from . import settings
+    settings.local_settings.setValue(
+        settings.UIStateSection,
+        settings.WindowAlwaysOnTopKey,
+        not v
+    )
+    flags = window.windowFlags()
+    window.hide()
+
+    if flags & QtCore.Qt.WindowStaysOnTopHint:
+        flags = flags & ~QtCore.Qt.WindowStaysOnTopHint
+    else:
+        flags = flags | QtCore.Qt.WindowStaysOnTopHint
+    window.setWindowFlags(flags)
+    window.showNormal()
+    window.activateWindow()
+
+def toggle_frameless(window, v):
+    """Sets the WindowStaysOnTopHint for the window.
+
+    """
+    from . import settings
+    settings.local_settings.setValue(
+        settings.UIStateSection,
+        settings.WindowFramelessKey,
+        not v
+    )
+
+    flags = window.windowFlags()
+    window.hide()
+
+    if flags & QtCore.Qt.FramelessWindowHint:
+        flags = flags & ~QtCore.Qt.FramelessWindowHint
+        o = 0
+    else:
+        flags = flags | QtCore.Qt.FramelessWindowHint
+        o = INDICATOR_WIDTH()
+
+    window._frameless = not v
+    window.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=not v)
+    window.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=not v)
+    window.layout().setContentsMargins(o, o, o, o)
+    window.headerwidget.setHidden(v)
+    window.headerwidget.setDisabled(v)
+    window.setWindowFlags(flags)
+    window.showNormal()
+    window.activateWindow()
+
+
+
 def get_oiio_namefilters():
     """Gets all accepted formats from the oiio build as a namefilter list.
     Use the return value on the QFileDialog.setNameFilters() method.
 
     """
-    extension_list = OpenImageIO.get_string_attribute("extension_list")
+    extension_list = OpenImageIO.get_string_attribute('extension_list')
     namefilters = []
     arr = []
     for exts in extension_list.split(u';'):
@@ -99,10 +224,6 @@ SequenceItem = 1200
 
 SORT_WITH_BASENAME = False
 
-
-ValidFilenameRegex = re.compile(
-    ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
-    flags=re.IGNORECASE | re.UNICODE)
 IsSequenceRegex = re.compile(
     ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
 SequenceStartRegex = re.compile(
@@ -115,11 +236,14 @@ GetSequenceRegex = re.compile(
     ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{1,})$',
     flags=re.IGNORECASE | re.UNICODE)
 
-
 WindowsPath = 0
 UnixPath = WindowsPath + 1
 SlackPath = UnixPath + 1
 MacOSPath = SlackPath + 1
+
+PrimaryFontRole = 0
+SecondaryFontRole = PrimaryFontRole + 1
+MetricsRole = SecondaryFontRole + 1
 
 
 def get_platform():
@@ -146,6 +270,8 @@ UI_SCALE = 1.0
 any UI scaling set in the host DCC. In standalone mode the app factors in the
 current DPI scaling and scales the UI accordingly."""
 
+THUMBNAIL_IMAGE_SIZE = 512.0
+THUMBNAIL_FORMAT = u'png'
 
 cursor = QtGui.QCursor()
 
@@ -188,9 +314,6 @@ def WIDTH(): return int(psize(640.0))
 
 def HEIGHT(): return int(psize(480.0))
 
-
-THUMBNAIL_IMAGE_SIZE = 512.0
-THUMBNAIL_FORMAT = u'png'
 
 
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
@@ -235,29 +358,22 @@ def get_hash(key):
         server (unicode): The name of the server.
 
     Returns:
-        str: Value of the calculated md5 hexadecimal digest.
+        str: Value of the calculated md5 hexadecimal digest as a `str`.
 
     """
-    # Let's check wheter the key has already been saved
-    if key in HASH_DATA:
-        return HASH_DATA[key]
-
-    if isinstance(key, int):
-        return key
     if not isinstance(key, unicode):
         raise TypeError(
             u'Expected <type \'unicode\'>, got {}'.format(type(key)))
 
-    # Path must be lower-case and must not contain backslashes
-    key = key.lower()
+    if key in HASH_DATA:
+        return HASH_DATA[key]
+
+    # Path must not contain backslashes
     if u'\\' in key:
         key = key.replace(u'\\', u'/')
 
-    # The hash key should be server agnostic.
-    # This means, we will check the key against all saved servers and remove
-    # it from the key if found
-    # This will let us keep custom data and thumbnails even if the server
-    # changes.
+    # The hash key is server agnostic. We'll check the key against all saved
+    # servers and remove it if found in the key.
     s = [f for f in SERVERS if f in key]
     if s:
         s = s[0]
@@ -333,179 +449,6 @@ def get_username():
     return n
 
 
-def create_temp_dir():
-    server, job, root = get_favourite_parent_paths()
-    path = u'{}/{}/{}/.bookmark'.format(server, job, root)
-    _dir = QtCore.QDir(path)
-    if _dir.exists():
-        return
-    _dir.mkpath(u'.')
-
-
-def get_favourite_parent_paths():
-    server = QtCore.QStandardPaths.writableLocation(
-        QtCore.QStandardPaths.GenericDataLocation)
-    job = u'{}'.format(PRODUCT)
-    root = u'local'
-    return server, job, root
-
-
-def export_favourites():
-    """Saves all favourites including the descriptions and the thumbnails."""
-    try:
-        import uuid
-        from . import settings
-        from . import images
-        from . import bookmark_db
-
-        res = QtWidgets.QFileDialog.getSaveFileName(
-            caption=u'Select where to save your favourites',
-            filter=u'*.favourites',
-            dir=QtCore.QStandardPaths.writableLocation(
-                QtCore.QStandardPaths.HomeLocation),
-        )
-        destination, _ = res
-        if not destination:
-            return
-
-        favourites = settings.local_settings.favourites()
-        server, job, root = get_favourite_parent_paths()
-        db = bookmark_db.get_db(server, job, root)
-        zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
-
-        # Make sure the temp folder exists
-        QtCore.QFileInfo(zip_path).dir().mkpath(u'.')
-
-        with zipfile.ZipFile(zip_path, 'a') as z:
-            # Adding thumbnail to zip
-            for favourite in favourites:
-                thumbnail_path = images.get_thumbnail_path(
-                    server,
-                    job,
-                    root,
-                    favourite
-                )
-                file_info = QtCore.QFileInfo(thumbnail_path)
-                if not file_info.exists():
-                    continue
-                z.write(file_info.filePath(), file_info.fileName())
-            z.writestr(u'favourites', u'\n'.join(favourites))
-
-        file_info = QtCore.QFileInfo(zip_path)
-        if not file_info.exists():
-            raise RuntimeError(
-                u'Unexpected error occured: could not find the favourites file')
-
-        QtCore.QDir().rename(file_info.filePath(), destination)
-        if not QtCore.QFileInfo(destination).exists():
-            raise RuntimeError(
-                u'Unexpected error occured: could not find the favourites file')
-        reveal(destination)
-
-    except Exception as e:
-        from . import log
-        from . import common_ui
-        common_ui.ErrorBox(
-            u'Could not save the favourites.',
-            u'{}'.format(e)
-        ).open()
-        log.error(u'Exporting favourites failed.')
-        raise
-
-
-def import_favourites(source=None):
-    """Import a previously exported favourites file.
-
-    Args:
-        source (unicode): Path to a file. Defaults to `None`.
-
-    """
-    try:
-        from . import settings
-        from . import images
-
-        if not isinstance(source, unicode):
-            res = QtWidgets.QFileDialog.getOpenFileName(
-                caption=u'Select the favourites file to import',
-                filter=u'*.favourites'
-                # options=QtWidgets.QFileDialog.ShowDirsOnly
-            )
-            source, _ = res
-            if not source:
-                return
-
-        current_favourites = settings.local_settings.favourites()
-        create_temp_dir()
-
-        with zipfile.ZipFile(source) as zip:
-            namelist = zip.namelist()
-            namelist = [f.lower() for f in namelist]
-
-            if u'favourites' not in namelist:
-                from . import log
-                from . import common_ui
-                s = u'The favourites list is missing from the archive.'
-                common_ui.ErrorBox(
-                    u'Invalid ".favourites" file',
-                    s,
-                ).open()
-                log.error(s)
-                raise RuntimeError(s)
-
-            with zip.open(u'favourites') as f:
-                favourites = f.readlines()
-                favourites = [unicode(f).strip().lower() for f in favourites]
-
-            server, job, root = get_favourite_parent_paths()
-
-            for favourite in favourites:
-                thumbnail_path = images.get_thumbnail_path(
-                    server,
-                    job,
-                    root,
-                    favourite
-                )
-                file_info = QtCore.QFileInfo(thumbnail_path)
-                if file_info.fileName().lower() in namelist:
-                    dest = u'{}/{}/{}/.bookmark'.format(server, job, root)
-                    zip.extract(file_info.fileName(), dest)
-
-                if favourite not in current_favourites:
-                    current_favourites.append(favourite)
-
-            current_favourites = sorted(list(set(current_favourites)))
-            settings.local_settings.setValue(u'favourites', current_favourites)
-
-    except Exception as e:
-        from . import log
-        from . import common_ui
-        common_ui.ErrorBox(
-            u'Could not import the favourites.',
-            u'{}'.format(e)
-        ).open()
-        log.error(u'Import favourites failed.')
-        raise
-
-
-def clear_favourites():
-    """Clear the list of saved items."""
-    from . import settings
-    mbox = QtWidgets.QMessageBox()
-    mbox.setWindowTitle(u'Clear favourites')
-    mbox.setText(
-        u'Are you sure you want to remove all of your favourites?'
-    )
-    mbox.setStandardButtons(
-        QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-    mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
-
-    mbox.exec_()
-    if mbox.result() == QtWidgets.QMessageBox.Cancel:
-        return
-
-    settings.local_settings.setValue(u'favourites', [])
-
-
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
@@ -566,7 +509,7 @@ def set_custom_stylesheet(widget):
                 __file__,
                 os.pardir,
                 u'rsc',
-                u'customStylesheet.css'
+                u'stylesheet.css'
             )
         )
     )
@@ -606,24 +549,19 @@ def set_custom_stylesheet(widget):
             BRANCH_CLOSED=images.ImageCache.get_rsc_pixmap(
                 u'branch_closed', None, None, get_path=True),
             BRANCH_OPEN=images.ImageCache.get_rsc_pixmap(
-                u'branch_open', None, None, get_path=True)
+                u'branch_open', None, None, get_path=True),
+            CHECKED=images.ImageCache.get_rsc_pixmap(
+                u'check', None, None, get_path=True),
+            UNCHECKED=images.ImageCache.get_rsc_pixmap(
+                u'close', None, None, get_path=True),
         )
     except KeyError as err:
         from . import log
-        msg = u'Looks like there might be an error in the css file: {}'.format(
+        msg = u'Looks like there might be an error in the stylesheet file: {}'.format(
             err)
         log.error(msg)
         raise KeyError(msg)
     widget.setStyleSheet(qss)
-
-
-def byte_to_string(num, suffix=u'B'):
-    """Converts a numeric byte - value to a human readable string."""
-    for unit in [u'', u'K', u'M', u'G', u'T', u'P', u'E', u'Z']:
-        if abs(num) < 1024.0:
-            return u"%3.1f%s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return u"%.1f%s%s" % (num, u'Yi', suffix)
 
 
 def reveal(path):
@@ -724,61 +662,6 @@ def execute(index, first=False):
 
     url = QtCore.QUrl.fromLocalFile(path)
     QtGui.QDesktopServices.openUrl(url)
-
-
-def get_ranges(arr, padding):
-    """Given an array of numbers the method will return a string representation of
-    the ranges contained in the array.
-
-    Args:
-        arr(list):       An array of numbers.
-        padding(int):    The number of leading zeros before the number.
-
-    Returns:
-        unicode: A string representation of the given array.
-
-    """
-    arr = sorted(list(set(arr)))
-    blocks = {}
-    k = 0
-    for idx, n in enumerate(arr):  # blocks
-        zfill = unicode(n).zfill(padding)
-
-        if k not in blocks:
-            blocks[k] = []
-        blocks[k].append(zfill)
-
-        if idx + 1 != len(arr):
-            if arr[idx + 1] != n + 1:  # break coming up
-                k += 1
-    return u','.join([u'-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
-
-
-def is_valid_filename(text):
-    """This method will check if the given text conforms Browser's enforced
-    filenaming convention.
-
-    The returned SRE.Match object will contain the groups descripbed below.
-
-    .. code-block:: python
-
-       f = u'000_pr_000_layout_gw_v0006.ma'
-       match = get_valid_filename(f)
-       match.groups()
-
-    Args:
-        group1 (SRE_Match object):        "000" - prefix name.
-        group2 (SRE_Match object):        "pr_000" - asset name.
-        group3 (SRE_Match object):        "layout" - mode name.
-        group4 (SRE_Match object):        "gw" - user name.
-        group5 (SRE_Match object):        "0006" - version without the 'v' prefix.
-        group6 (SRE_Match object):        "ma" - file extension without the '.'.
-
-    Returns:
-        SRE_Match: A ``SRE_Match`` object if the filename is valid, otherwise ``None``
-
-    """
-    return ValidFilenameRegex.search(text)
 
 
 def get_sequence(s):
@@ -949,7 +832,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
         int: The width of the drawn text in pixels.
 
     """
-    from . import listdelegate
+    from .lists import delegate
     painter.save()
 
     painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
@@ -985,138 +868,28 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.setBrush(color)
     painter.setPen(QtCore.Qt.NoPen)
 
-    path = listdelegate.get_painter_path(x, y, font, text)
+    path = delegate.get_painter_path(x, y, font, text)
     painter.drawPath(path)
 
     painter.restore()
     return width
 
 
-def walk(path):
-    """This is a custom generator expression using scandir's `walk`.
-    We're using the C module for performance's sake without python-native
-    fallbacks. The method yields each found DirEntry.
-
-    The used _scandir module itself is customized to contain the addittional
-    ``DirEntry.relativepath(unicode: basepath)`` method and ``DirEntry.dirpath``
-    attribute.
-
-    Yields:
-        DirEntry:   A ctype class.
-
-    """
-    try:
-        it = _scandir.scandir(path=path)
-    except OSError:
-        return
-
-    while True:
-        try:
-            try:
-                entry = next(it)
-            except StopIteration:
-                break
-        except OSError:
-            return
-
-        try:
-            is_dir = entry.is_dir()
-        except OSError:
-            is_dir = False
-
-        if not is_dir:
-            yield entry
-
-        try:
-            is_symlink = entry.is_symlink()
-        except OSError:
-            is_symlink = False
-        if not is_symlink:
-            for entry in walk(entry.path):
-                yield entry
-
-
-def rsc_path(f, n):
-    """Helper function to retrieve a resource - file item"""
-    path = u'{}/../rsc/{}.png'.format(f, n)
-    path = os.path.normpath(os.path.abspath(path))
-    return path
-
-
-def create_asset_template(source, dest, overwrite=False):
-    """Responsible for adding the files and folders of the given source to the
-    given zip - file.
-
-    """
-    if not overwrite:
-        if QtCore.QFileInfo(dest).exists():
-            raise RuntimeError('{} exists already'.format(dest))
-
-    with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(source):
-            for d in dirs:
-                arcname = os.path.join(root, d).replace(source, u'.')
-                zipf.write(os.path.join(root, d), arcname=arcname)
-            for f in files:
-                arcname = os.path.join(root, f).replace(source, u'.')
-                zipf.write(os.path.join(root, f), arcname=arcname)
-
-
-def push_to_rv(path):
-    """Uses `rvpush` to view a given footage."""
-    import subprocess
-    from . import log
-    from . import common_ui
-    from . import settings
-
-    def get_preference(k): return settings.local_settings.value(
-        u'preferences/{}'.format(k))
-
-    rv_path = get_preference(u'rv_path')
-    if not rv_path:
-        common_ui.MessageBox(
-            u'Shotgun RV not found.',
-            u'To push footage to RV, set RV\'s path in Preferences.'
-        ).open()
-        log.error(u'RV not set')
-        return
-
-    rv_info = QtCore.QFileInfo(rv_path)
-    if not rv_info.exists():
-        common_ui.ErrorBox(
-            u'Invalid Shotgun RV path set.',
-            u'Make sure the currently set RV path is valid and try again!'
-        ).open()
-        log.error(u'Invalid RV path set')
-        return
+@error
+@debug
+def exec_instance():
+    """Starts a new instance of Bookmarks."""
+    if BOOKMARK_ROOT_KEY not in os.environ:
+        s = u'Bookmarks does not seem to be installed correctly:\n'
+        s += u'"{}" environment variable is not set'.format(BOOKMARK_ROOT_KEY)
+        raise RuntimeError(s)
 
     if get_platform() == u'win':
-        rv_push_path = u'{}/rvpush.exe'.format(rv_info.path())
-        if QtCore.QFileInfo(rv_push_path).exists():
-            cmd = u'"{RV}" -tag {PRODUCT} url \'rvlink:// -reuse 1 -inferSequence -l -play -fps 25 -fullscreen -nofloat -lookback 0 -nomb \"{PATH}\"\''.format(
-                RV=rv_push_path,
-                PRODUCT=PRODUCT,
-                PATH=path
-            )
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            subprocess.Popen(cmd, startupinfo=startupinfo)
-            log.success(u'Footage sent to RV.')
-            log.success(u'Command used:')
-            log.success(cmd)
+        p = os.environ[BOOKMARK_ROOT_KEY] + \
+            os.path.sep + 'bookmarks.exe'
+        subprocess.Popen(p)
     else:
-        common_ui.ErrorBox(
-            u'Pushing to RV not yet implemented on this platform.',
-            u'Sorry about this. Send me an email if you\'d like to see this work soon!'
-        ).open()
-        log.error(u'Function not implemented')
-        return
-
-
-PrimaryFontRole = 0
-SecondaryFontRole = PrimaryFontRole + 1
-MetricsRole = SecondaryFontRole + 1
+        raise NotImplementedError(u'Not yet implemented.')
 
 
 class FontDatabase(QtGui.QFontDatabase):

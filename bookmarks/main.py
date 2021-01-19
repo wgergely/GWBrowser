@@ -4,11 +4,8 @@
 This is where the UI is assembled and signals & slots are connected.
 
 """
-import os
 import gc
-import time
 import functools
-import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from . import log
@@ -19,31 +16,27 @@ from . import images
 from . import settings
 from . import threads
 from . import contextmenu
-from . import lists
-from . import listassets
-from . import listbookmarks
-from . import listfavourites
-from . import listfiles
-from . import listcontrol
+from . import topbar
+from . import shortcuts
+from . import rv
+
+from .lists import base
+from .lists import assets
+from .lists import bookmarks
+from .lists import favourites
+from .lists import files
 
 
 _instance = None
 
+BookmarksWidget = 0
+AssetsWidget = 1
+FilesWidget = 2
+FavouritesWidget = 3
+
 
 def instance():
     return _instance
-
-
-@QtCore.Slot()
-def show_window():
-    """Shows/reveal the main window if it is not visible."""
-    if not _instance:
-        return
-    _instance.showNormal()
-    _instance.activateWindow()
-
-    w = _instance.window()
-    h = w.windowHandle()
 
 
 class StatusBar(QtWidgets.QStatusBar):
@@ -62,7 +55,7 @@ class StatusBar(QtWidgets.QStatusBar):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        font, metrics = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
+        font, _ = common.font_db.secondary_font(common.SMALL_FONT_SIZE())
         common.draw_aliased_text(
             painter,
             font,
@@ -76,7 +69,9 @@ class StatusBar(QtWidgets.QStatusBar):
 
 
 class TrayMenu(contextmenu.BaseContextMenu):
-    """The context-menu associated with the BrowserButton."""
+    """The context-menu associated with the our custom tray menu.
+
+    """
 
     def __init__(self, parent=None):
         super(TrayMenu, self).__init__(
@@ -92,17 +87,8 @@ class TrayMenu(contextmenu.BaseContextMenu):
     @contextmenu.contextmenu
     def add_tray_menu(self, menu_set):
         """Actions associated with the visibility of the widget."""
-        active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
-        on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.MARGIN())
-
-
-        menu_set[u'Restore window...'] = {
-            u'action': show_window
-        }
-        menu_set[u'separator1'] = {}
         menu_set[u'Quit'] = {
-            u'action': self.parent().shutdown.emit
+            u'action': self.parent().shutdown
         }
         return menu_set
 
@@ -134,7 +120,7 @@ class CloseButton(common_ui.ClickableIconButton):
 
 
 class HeaderWidget(QtWidgets.QWidget):
-    """Horizontal widget for controlling the position of the widget active window."""
+    """Horizontal widget for controlling the position of the active window."""
     widgetMoved = QtCore.Signal(QtCore.QPoint)
 
     def __init__(self, parent=None):
@@ -150,9 +136,9 @@ class HeaderWidget(QtWidgets.QWidget):
         self.setFixedHeight(common.MARGIN() +
                             (common.INDICATOR_WIDTH() * 2))
 
-        self._create_UI()
+        self._create_ui()
 
-    def _create_UI(self):
+    def _create_ui(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -251,8 +237,11 @@ class ToggleModeButton(QtWidgets.QWidget):
         self.animation.start()
         self.update()
 
+    @QtCore.Slot()
     def toggle_mode(self):
         """Simply toggles the solo mode."""
+        settings.local_settings.sync()
+        
         if settings.local_settings.current_mode() == common.SynchronisedMode:
             settings.local_settings.set_mode(common.SoloMode)
             self.animation.setCurrentTime(0)
@@ -261,8 +250,11 @@ class ToggleModeButton(QtWidgets.QWidget):
             settings.local_settings.set_mode(common.SynchronisedMode)
             self.animation.setCurrentTime(0)
             self.animation.stop()
+
         self.update()
+        settings.local_settings.sync()
         settings.local_settings.save_mode_lockfile()
+        settings.local_settings.load_and_verify_stored_paths()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -311,11 +303,13 @@ class ToggleModeButton(QtWidgets.QWidget):
             self.update()
 
 
+
 class MainWidget(QtWidgets.QWidget):
     """Our super-duper main widget.
 
     Contains the list control bar with the tab buttons, the stacked widget
-    containing the Bookmark-, Asset- and FileWidgets and the statusbar.
+    containing the Bookmark-, Asset-, File- and FavouriteWidgets and the
+    statusbar.
 
     """
     initialized = QtCore.Signal()
@@ -330,7 +324,6 @@ class MainWidget(QtWidgets.QWidget):
         _instance = self
 
         super(MainWidget, self).__init__(parent=parent)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'icon', None, common.ASSET_ROW_HEIGHT())
@@ -344,7 +337,7 @@ class MainWidget(QtWidgets.QWidget):
         self.headerwidget = None
         self.stackedwidget = None
         self.bookmarkswidget = None
-        self.listcontrol = None
+        self.topbar = None
         self.assetswidget = None
         self.fileswidget = None
         self.favouriteswidget = None
@@ -360,7 +353,9 @@ class MainWidget(QtWidgets.QWidget):
 
         self.init_progress = u'Loading...'
 
-    def _create_UI(self):
+    @common.debug
+    @common.error
+    def _create_ui(self):
         if self._frameless is True:
             o = common.INDICATOR_WIDTH()  # offset around the widget
         else:
@@ -377,11 +372,11 @@ class MainWidget(QtWidgets.QWidget):
         )
 
         self.headerwidget = HeaderWidget(parent=self)
-        self.stackedwidget = lists.StackedWidget(parent=self)
-        self.bookmarkswidget = listbookmarks.BookmarksWidget(parent=self)
-        self.assetswidget = listassets.AssetsWidget(parent=self)
-        self.fileswidget = listfiles.FilesWidget(parent=self)
-        self.favouriteswidget = listfavourites.FavouritesWidget(parent=self)
+        self.stackedwidget = base.StackedWidget(parent=self)
+        self.bookmarkswidget = bookmarks.BookmarksWidget(parent=self)
+        self.assetswidget = assets.AssetsWidget(parent=self)
+        self.fileswidget = files.FilesWidget(parent=self)
+        self.favouriteswidget = favourites.FavouritesWidget(parent=self)
 
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
@@ -389,19 +384,22 @@ class MainWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.favouriteswidget)
 
         # Setting the tab now before we do any more initialisation
-        idx = settings.local_settings.value(u'widget/current_tab')
+        idx = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.CurrentList
+        )
         idx = 0 if idx is None or False else idx
         idx = 0 if idx < 0 else idx
         idx = 3 if idx > 3 else idx
         self.stackedwidget._setCurrentIndex(idx)
 
-        self.listcontrol = listcontrol.ListControlWidget(parent=self)
+        self.topbar = topbar.ListControlWidget(parent=self)
 
         self.layout().addWidget(self.headerwidget)
         self.headerwidget.setHidden(not self._frameless)
         self.headerwidget.setDisabled(not self._frameless)
 
-        self.layout().addWidget(self.listcontrol)
+        self.layout().addWidget(self.topbar)
         self.layout().addWidget(self.stackedwidget)
 
         height = common.MARGIN() + (common.INDICATOR_WIDTH() * 2)
@@ -420,271 +418,77 @@ class MainWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.statusbar, 1)
         row.layout().addWidget(self.solo_button, 0)
 
-    @QtCore.Slot()
-    def initialize(self):
-        """Slot connected to the ``initializer``.
+    def widget(self):
+        return self.stackedwidget.currentWidget()
 
-        To make sure the widget is shown as soon as it is created, we're
-        initiating the ui and the models with a little delay. Settings saved in the
-        local_settings are applied after the ui is initialized and the models
-        finished loading their data.
-
-        """
-        if self._initialized:
-            return
-
-        def emit_saved_states():
-            for flag in (common.MarkedAsActive, common.MarkedAsActive, common.MarkedAsFavourite):
-                b.filterFlagChanged.emit(flag, b.filter_flag(flag))
-                a.filterFlagChanged.emit(flag, a.filter_flag(flag))
-                f.filterFlagChanged.emit(flag, f.filter_flag(flag))
-                ff.filterFlagChanged.emit(flag, ff.filter_flag(flag))
-
-        settings.local_settings.touch_mode_lockfile()
-        settings.local_settings.save_mode_lockfile()
-
-        self.shortcuts = []
-
-        self._create_UI()
-        self._connect_signals()
-        self._add_shortcuts()
-
-        settings.local_settings.load_and_verify_stored_paths()
-
-        # Proxy model
-        b = self.bookmarkswidget.model()
-        a = self.assetswidget.model()
-        f = self.fileswidget.model()
-        ff = self.favouriteswidget.model()
-
-        b.filterTextChanged.emit(b.filter_text())
-        a.filterTextChanged.emit(a.filter_text())
-        f.filterTextChanged.emit(f.filter_text())
-        ff.filterTextChanged.emit(ff.filter_text())
-
-        emit_saved_states()
-
-        b.sourceModel().modelDataResetRequested.emit()
-
-        if settings.local_settings.value(u'firstrun') is None:
-            settings.local_settings.setValue(u'firstrun', False)
-
-        @QtCore.Slot(QtCore.QModelIndex)
-        def update_window_title(index):
-            if not index.isValid():
-                return
-            if not index.data(common.ParentPathRole):
-                return
-            p = list(index.data(common.ParentPathRole))
-            s = u'/'.join(p)
-            self.setWindowTitle(s.upper())
-
-        for n in xrange(3):
-            model = self.stackedwidget.widget(n).model().sourceModel()
-            model.activeChanged.connect(update_window_title)
-            model.modelReset.connect(
-                functools.partial(update_window_title, model.active_index()))
-
-        w_handle = self.window().windowHandle()
-        w_handle.screenChanged.connect(self.screenChanged)
-
-        self._initialized = True
-        self.initialized.emit()
-
-    @QtCore.Slot()
-    def screenChanged(self):
-        screen = self.window().windowHandle().screen()
-        dpi = screen.logicalDotsPerInch()
-        log.success(u'{}'.format(dpi))
-
-    @QtCore.Slot()
-    def terminate(self):
-        """Terminates the main gracefully by stopping the associated
-        threads.
+    @common.error
+    @common.debug
+    def _destroy_ui(self):
+        """Destroys child widgets, all associated timers and helper classes.
 
         """
-        def ui_teardown():
-            settings.local_settings.server_mount_timer.stop()
+        settings.local_settings.server_mount_timer.stop()
 
-            self.listcontrol.bookmarks_button.timer.stop()
-            self.listcontrol.assets_button.timer.stop()
-            self.listcontrol.files_button.timer.stop()
-            self.listcontrol.favourites_button.timer.stop()
+        self.topbar.bookmarks_button.timer.stop()
+        self.topbar.assets_button.timer.stop()
+        self.topbar.files_button.timer.stop()
+        self.topbar.favourites_button.timer.stop()
 
-            self.bookmarkswidget.timer.stop()
-            self.assetswidget.timer.stop()
-            self.fileswidget.timer.stop()
-            self.favouriteswidget.timer.stop()
+        self.bookmarkswidget.timer.stop()
+        self.assetswidget.timer.stop()
+        self.fileswidget.timer.stop()
+        self.favouriteswidget.timer.stop()
 
-            self.hide()
-            self.setUpdatesEnabled(False)
-            self.deleteLater()
+        self.hide()
+        self.setUpdatesEnabled(False)
+        self.deleteLater()
 
-            for widget in (
-                self.assetswidget,
-                self.fileswidget,
-                self.favouriteswidget,
-                self.listcontrol.task_folder_view
-            ):
-                try:
-                    widget.removeEventFilter(self)
-                    widget.hide()
-                    widget.setUpdatesEnabled(False)
-                    widget.blockSignals(True)
-
-                    if hasattr(widget, 'timer'):
-                        widget.timer.stop()
-                    if hasattr(widget, 'request_visible_fileinfo_timer'):
-                        widget.request_visible_fileinfo_timer.stop()
-                    if hasattr(widget, 'request_visible_thumbnail_timer'):
-                        widget.request_visible_thumbnail_timer.stop()
-                    if hasattr(widget, 'queue_model_timer'):
-                        widget.queue_model_timer.stop()
-                    if hasattr(widget.model(), 'sourceModel'):
-                        widget.model().sourceModel().deleteLater()
-                    widget.model().deleteLater()
-                    widget.deleteLater()
-
-                    for child in widget.children():
-                        child.deleteLater()
-                except Exception as err:
-                    log.error(u'Error occured deleteing the ui.')
-
-            for widget in (self.listcontrol, self.headerwidget, self.stackedwidget, self.statusbar):
+        for widget in (
+            self.assetswidget,
+            self.fileswidget,
+            self.favouriteswidget,
+            self.topbar.task_view
+        ):
+            try:
+                widget.removeEventFilter(self)
+                widget.hide()
                 widget.setUpdatesEnabled(False)
                 widget.blockSignals(True)
-                widget.hide()
+
+                if hasattr(widget, 'timer'):
+                    widget.timer.stop()
+                if hasattr(widget, 'request_visible_fileinfo_timer'):
+                    widget.request_visible_fileinfo_timer.stop()
+                if hasattr(widget, 'request_visible_thumbnail_timer'):
+                    widget.request_visible_thumbnail_timer.stop()
+                if hasattr(widget, 'queue_model_timer'):
+                    widget.queue_model_timer.stop()
+                if hasattr(widget.model(), 'sourceModel'):
+                    widget.model().sourceModel().deleteLater()
+                widget.model().deleteLater()
                 widget.deleteLater()
+
                 for child in widget.children():
                     child.deleteLater()
+            except Exception as err:
+                log.error(u'Error occured deleteing the ui.')
 
-            images.ImageCache.INTERNAL_MODEL_DATA = None
+        for widget in (self.topbar, self.headerwidget, self.stackedwidget, self.statusbar):
+            widget.setUpdatesEnabled(False)
+            widget.blockSignals(True)
+            widget.hide()
+            widget.deleteLater()
+            for child in widget.children():
+                child.deleteLater()
 
-            settings.local_settings.deleteLater()
-            settings.local_settings = None
-            gc.collect()
+        images.ImageCache.INTERNAL_MODEL_DATA = None
 
-        def close_database_connections():
-            try:
-                for k in bookmark_db.DB_CONNECTIONS:
-                    bookmark_db.DB_CONNECTIONS[k].connection().close()
-                    bookmark_db.DB_CONNECTIONS[k].deleteLater()
-            except Exception:
-                log.error('Error closing the database')
+        settings.local_settings.deleteLater()
+        settings.local_settings = None
+        gc.collect()
 
-        def quit_threads():
-            _threads = threads.THREADS.values()
-            for thread in _threads:
-                if thread.isRunning():
-                    thread.stopCheckQueue.emit()
-                    thread.resetQueue.emit()
-                    thread.quit()
-                    thread.wait()
-
-            n = 0
-            while any([thread.isRunning() for thread in _threads]):
-                if n >= 20:
-                    for thread in _threads:
-                        thread.terminate()
-                    break
-                n += 1
-                time.sleep(0.3)
-
-        self.statusbar.showMessage(u'Closing down...')
-        quit_threads()
-        close_database_connections()
-        ui_teardown()
-
-        try:
-            self.terminated.emit()
-        except:
-            pass
-
-    def next_tab(self):
-        n = self.stackedwidget.currentIndex()
-        n += 1
-        if n > (self.stackedwidget.count() - 1):
-            self.listcontrol.listChanged.emit(0)
-            return
-        self.listcontrol.listChanged.emit(n)
-
-    def previous_tab(self):
-        n = self.stackedwidget.currentIndex()
-        n -= 1
-        if n < 0:
-            n = self.stackedwidget.count() - 1
-            self.listcontrol.listChanged.emit(n)
-            return
-        self.listcontrol.listChanged.emit(n)
-
-    def add_shortcut(self, keys, targets, repeat=False, context=QtCore.Qt.WidgetWithChildrenShortcut):
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(keys), self)
-        shortcut.setAutoRepeat(repeat)
-        shortcut.setContext(context)
-        for func in targets:
-            shortcut.activated.connect(func)
-        self.shortcuts.append(shortcut)
-
-    def open_new_instance(self):
-        try:
-            if common.get_platform() == u'win':
-                p = os.environ['BOOKMARKS_ROOT'] + \
-                    os.path.sep + 'bookmarks.exe'
-                subprocess.Popen(p)
-        except KeyError:
-            log.error(u'Could not open new instance')
-
-    def _add_shortcuts(self):
-        lc = self.listcontrol
-        self.add_shortcut(
-            u'Ctrl+N', (self.open_new_instance, ))
-        self.add_shortcut(
-            u'Ctrl+1', (lc.bookmarks_button.clicked, lc.bookmarks_button.update))
-        self.add_shortcut(
-            u'Ctrl+2', (lc.assets_button.clicked, lc.assets_button.update))
-        self.add_shortcut(
-            u'Ctrl+3', (lc.files_button.clicked, lc.files_button.update))
-        self.add_shortcut(
-            u'Ctrl+4', (lc.favourites_button.clicked, lc.favourites_button.update))
-        #
-        self.add_shortcut(
-            u'Ctrl+M', (lc.generate_thumbnails_button.action, lc.generate_thumbnails_button.update))
-        self.add_shortcut(
-            u'Ctrl+F', (lc.filter_button.action, lc.filter_button.update))
-        self.add_shortcut(
-            u'Ctrl+G', (lc.collapse_button.action, lc.collapse_button.update))
-        self.add_shortcut(
-            u'Ctrl+Shift+A', (lc.archived_button.action, lc.archived_button.update))
-        self.add_shortcut(
-            u'Ctrl+Shift+F', (lc.favourite_button.action, lc.favourite_button.update))
-        self.add_shortcut(
-            u'Alt+S', (lc.slack_button.action, lc.slack_button.update))
-        self.add_shortcut(
-            u'Ctrl+H', (lc.simple_mode_button.action, lc.simple_mode_button.update))
-        #
-        self.add_shortcut(
-            u'Alt+Right', (self.next_tab, ), repeat=True)
-        self.add_shortcut(
-            u'Alt+Left', (self.previous_tab, ), repeat=True)
-        self.add_shortcut(
-            u'Ctrl+Right', (self.next_tab, ), repeat=True)
-        self.add_shortcut(
-            u'Ctrl+Left', (self.previous_tab, ), repeat=True)
-        #
-        self.add_shortcut(
-            u'Ctrl+P', (self.push_to_rv, ), repeat=False)
-
-    def push_to_rv(self):
-        """Pushes the selected footage to RV."""
-        widget = self.stackedwidget.currentWidget()
-        index = widget.currentIndex()
-        if not index.isValid():
-            return
-        path = common.get_sequence_startpath(
-            index.data(QtCore.Qt.StatusTipRole))
-        common.push_to_rv(path)
-
+    @common.debug
+    @common.error
     def _connect_signals(self):
         """This is where the bulk of the model, view and control widget
         signals and slots are connected.
@@ -694,7 +498,7 @@ class MainWidget(QtWidgets.QWidget):
         a = self.assetswidget
         f = self.fileswidget
         ff = self.favouriteswidget
-        lc = self.listcontrol
+        lc = self.topbar
         l = lc.control_view()
         lb = lc.control_button()
         s = self.stackedwidget
@@ -710,9 +514,7 @@ class MainWidget(QtWidgets.QWidget):
             lambda: lc.listChanged.emit(2))
         lc.favourites_button.clicked.connect(
             lambda: lc.listChanged.emit(3))
-
         #####################################################
-
         # Bookmark -> Asset
         b.model().sourceModel().activeChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
@@ -734,13 +536,11 @@ class MainWidget(QtWidgets.QWidget):
         # Stacked widget navigation
         lc.listChanged.connect(s.setCurrentIndex)
         b.activated.connect(lambda: lc.listChanged.emit(1))
-        # b.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(1))
         a.activated.connect(lambda: lc.listChanged.emit(2))
-        # a.model().sourceModel().activeChanged.connect(lambda: lc.listChanged.emit(2))
 
-        a.model().sourceModel().activeChanged.connect(l.model().check_task_folder)
-        a.activated.connect(l.model().check_task_folder)
-        lc.listChanged.connect(l.model().check_task_folder)
+        a.model().sourceModel().activeChanged.connect(l.model().check_task)
+        a.activated.connect(l.model().check_task)
+        lc.listChanged.connect(l.model().check_task)
 
         # Control bar connections
         lc.taskFolderChanged.connect(f.model().sourceModel().taskFolderChanged)
@@ -748,13 +548,13 @@ class MainWidget(QtWidgets.QWidget):
         f.model().sourceModel().taskFolderChanged.connect(lc.textChanged)
         #####################################################
         b.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
+            lambda: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
         b.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
+            lambda x: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
         a.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
+            lambda: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
         a.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(f.model().sourceModel().task_folder()) if f.model().sourceModel().task_folder() else 'Files')
+            lambda x: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
         #####################################################
         lc.listChanged.connect(lb.update)
         lc.listChanged.connect(lc.update_buttons)
@@ -809,7 +609,7 @@ class MainWidget(QtWidgets.QWidget):
             lambda m: self.statusbar.showMessage(m, 99999))
         ff.model().sourceModel().progressMessage.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
-
+        #############################################################
         # Statusbar
         b.entered.connect(self.entered)
         a.entered.connect(self.entered)
@@ -828,10 +628,99 @@ class MainWidget(QtWidgets.QWidget):
         lc.simple_mode_button.message.connect(self.entered2)
         lc.favourite_button.message.connect(self.entered2)
         lc.slack_button.message.connect(self.entered2)
+        #####################################################
+        b.model().sourceModel().activeChanged.connect(lc.slack_button.check_token)
+        #####################################################
+        f.model().sourceModel().taskFolderChanged.connect(f.model().sourceModel().init_row_size)
+        f.model().sourceModel().taskFolderChanged.connect(f.reset_row_layout)
+
+    @QtCore.Slot()
+    def initialize(self):
+        """Slot connected to the ``initializer``.
+
+        To make sure the widget is shown as soon as it is created, we're
+        initiating the ui and the models with a little delay. Settings saved in the
+        local_settings are applied after the ui is initialized and the models
+        finished loading their data.
+
+        """
+        if self._initialized:
+            return
+
+        def emit_saved_states():
+            for flag in (common.MarkedAsActive, common.MarkedAsActive, common.MarkedAsFavourite):
+                b.filterFlagChanged.emit(flag, b.filter_flag(flag))
+                a.filterFlagChanged.emit(flag, a.filter_flag(flag))
+                f.filterFlagChanged.emit(flag, f.filter_flag(flag))
+                ff.filterFlagChanged.emit(flag, ff.filter_flag(flag))
+
+        settings.local_settings.touch_mode_lockfile()
+        settings.local_settings.save_mode_lockfile()
+
+        self._create_ui()
+        self._connect_signals()
+
+        settings.local_settings.load_and_verify_stored_paths()
+
+        # Proxy model
+        b = self.bookmarkswidget.model()
+        a = self.assetswidget.model()
+        f = self.fileswidget.model()
+        ff = self.favouriteswidget.model()
+
+        b.filterTextChanged.emit(b.filter_text())
+        a.filterTextChanged.emit(a.filter_text())
+        f.filterTextChanged.emit(f.filter_text())
+        ff.filterTextChanged.emit(ff.filter_text())
+
+        emit_saved_states()
+
+        b.sourceModel().modelDataResetRequested.emit()
+
+        @QtCore.Slot(QtCore.QModelIndex)
+        def update_window_title(index):
+            if not index.isValid():
+                return
+            if not index.data(common.ParentPathRole):
+                return
+            p = list(index.data(common.ParentPathRole))
+            s = u'/'.join(p)
+            self.setWindowTitle(s.upper())
+
+        for n in xrange(3):
+            model = self.stackedwidget.widget(n).model().sourceModel()
+            model.activeChanged.connect(update_window_title)
+            model.modelReset.connect(
+                functools.partial(update_window_title, model.active_index()))
+
+        self.init_shortcuts()
+
+        self._initialized = True
+        self.initialized.emit()
+
+    def init_shortcuts(self):
+        connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
+
+        shortcuts.add_shortcuts(
+            self,
+            shortcuts.MainWidgetShortcuts
+        )
+        connect(shortcuts.OpenNewInstance, common.exec_instance)
+        connect(shortcuts.RowIncrease, lambda: self.widget().increase_row_size())
+        connect(shortcuts.RowDecrease, lambda: self.widget().decrease_row_size())
+        connect(shortcuts.RowReset, lambda: self.widget().reset_row_size())
+        connect(shortcuts.ShowBookmarksTab, functools.partial(self.topbar.listChanged.emit, 0))
+        connect(shortcuts.ShowAssetsTab, functools.partial(self.topbar.listChanged.emit, 1))
+        connect(shortcuts.ShowFilesTab, functools.partial(self.topbar.listChanged.emit, 2))
+        connect(shortcuts.ShowFavouritesTab, functools.partial(self.topbar.listChanged.emit, 3))
+        connect(shortcuts.NextTab, self.next_tab)
+        connect(shortcuts.PreviousTab, self.previous_tab)
+        connect(shortcuts.AddItem, lambda: self.widget().show_add_widget())
+        connect(shortcuts.Refresh, lambda: self.widget().model().sourceModel().modelDataResetRequested.emit())
+
+
 
     def paintEvent(self, event):
-        """Drawing a rounded background help to identify that the widget
-        is in standalone mode."""
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -889,23 +778,23 @@ class MainWidget(QtWidgets.QWidget):
         painter.end()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def entered(self, index):
-        """Displays an indexe's status tip in the statusbar."""
+    def entered(self, index, role=QtCore.Qt.StatusTipRole):
+        """Displays an index's StatusTipRole in the status bar.
+
+        """
         if not index.isValid():
             return
-        message = index.data(QtCore.Qt.StatusTipRole)
+        message = index.data(role)
         self.statusbar.showMessage(message, timeout=1500)
 
     @QtCore.Slot(unicode)
     def entered2(self, message):
-        """Displays a custom message in the statusbar"""
+        """Displays a custom message in the statusbar.
+
+        """
         if not message:
             return
         self.statusbar.showMessage(message, timeout=1500)
-
-    def activate_widget(self, idx):
-        """Method to change between views."""
-        self.stackedwidget.setCurrentIndex(idx)
 
     def sizeHint(self):
         """The widget's default size."""
@@ -918,3 +807,51 @@ class MainWidget(QtWidgets.QWidget):
         """
         if not self._initialized:
             self.initializer.start()
+
+    @QtCore.Slot()
+    def terminate(self):
+        """Terminates  gracefully by stopping the associated
+        threads and tearing the UI down.
+
+        """
+        self.statusbar.showMessage(u'Closing down...')
+        threads.quit()
+        bookmark_db.close()
+        self._destroy_ui()
+
+        try:
+            self.terminated.emit()
+        except:
+            pass
+
+    @QtCore.Slot()
+    def next_tab(self):
+        n = self.stackedwidget.currentIndex()
+        n += 1
+        if n > (self.stackedwidget.count() - 1):
+            self.topbar.listChanged.emit(0)
+            return
+        self.topbar.listChanged.emit(n)
+
+    @QtCore.Slot()
+    def previous_tab(self):
+        n = self.stackedwidget.currentIndex()
+        n -= 1
+        if n < 0:
+            n = self.stackedwidget.count() - 1
+            self.topbar.listChanged.emit(n)
+            return
+        self.topbar.listChanged.emit(n)
+
+    @QtCore.Slot()
+    def rv_push(self):
+        """Pushes the selected footage to RV."""
+        if not self.widget().hasSelection():
+            return
+        index = self.widget().currentIndex()
+        if not index.isValid():
+            return
+        path = common.get_sequence_startpath(
+            index.data(QtCore.Qt.StatusTipRole))
+
+        rv.push(path)

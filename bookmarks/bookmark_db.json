@@ -37,7 +37,7 @@
     "shotgun_domain": "TEXT",
     "shotgun_scriptname": "TEXT",
     "shotgun_api_key": "TEXT",
-    "shotgun_id": "INTEGER",
+    "shotgun_id": "INT",
     "shotgun_name": "TEXT",
     "shotgun_type": "TEXT",
     "url1": "TEXT",

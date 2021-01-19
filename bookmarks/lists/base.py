@@ -1,59 +1,62 @@
 # -*- coding: utf-8 -*-
-"""Core model and view widgets.
+"""The module defines the base models and views used to list bookmark, asset and
+file items.
 
-BaseModel is the core container for item data. The all data is stored
-internally in :const:`.BaseModel.INTERNAL_MODEL_DATA` and is populated by
-:func:`.BaseModel.__initdata__`.
+BaseModel:
+    The model is used to wrap data needed to display bookmark, asset and file
+    items. Data is stored internally in :const:`.BaseModel.INTERNAL_MODEL_DATA`
+    and populated by :func:`.BaseModel.__initdata__`. However, the model is
+    always initiated by the `BaseModel.modelDataResetRequested` signal.
 
-Multi-threading:
-    Each BaseModel instance can be initiated with threads, used to load secondary
-    file information, like custom descriptions and thumbnails.
-    See :mod:`.bookmarks.threads` for more information.
+    The model can store multiple sets of data simultaneously. This is because
+    file items are stored as file sequences and individual items in two separate
+    data sets. The file model also keeps this data in separate sets for each
+    subfolder it encounters in an asset's root folder.
 
-Data is filtered with QSortFilterProxyModels but we're not using sorting.
-Sorting is implemented for performance reasons in the BaseModel directly.
+    For a consistent implementation, all subclasses must tbe set to expose the
+    data populated by `__initdata__`. The current data set can be retrieved by
+    `BaseModel.model_data()` and are set by `taskFolderChanged` and
+    `dataTypeChanged` signals. Internally, the data is stored in
+    `BaseModel.INTERNAL_MODEL_DATA[task][data_type]`.
 
-The main tabs derive from the following custom QListViews:
-    :class:`.BaseListWidget`: Defines core list behaviours.
-    :class:`.BaseInlineIconWidget`: Adds the methods needed to respond to custom inline button events.
-    :class:`.ThreadedBaseWidget`: Implements the methods needed to utilse custom worker threads.
+    Each `BaseModel` instance can be initiated with worker threads used to load
+    secondary file information, like custom descriptions and thumbnails. See
+    :mod:`.bookmarks.threads` for more information.
+
+    Data is filtered with QSortFilterProxyModels but we're not using the default
+    sorting mechanisms because of performance considerations. Instead, sorting
+    is implemented in the :class:`.BaseModel` directly.
+
 
 """
 import re
 import weakref
-from functools import wraps, partial
+import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from . import log
-from . import common
-from . import common_ui
-from . import bookmark_db
-from . import contextmenu
-from . import listdelegate
-from . import settings
-from . import images
-from . import alembicpreview
-from . import threads
-from . import filtereditor
+from .. import log
+from .. import common
+from .. import common_ui
+from .. import bookmark_db
+from .. import contextmenu
+from .. import settings
+from .. import images
+from .. import alembicpreview
+from .. import threads
+from .. import filtereditor
 
+from . import delegate
 
-ActiveFlagFilterKey = u'filter_active'
-ArchivedFlagFilterKey = u'filter_archived'
-FavouriteFlagFilterKey = u'filter_favourite'
-TextFilterKey = u'filter_text'
-FileSelectionKey = u'selection_file'
-SequenceSelectionKey = u'selection_seq'
 
 BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 50)
-
 
 
 def validate_index(func):
     """Decorator function to ensure `QModelIndexes` passed to worker threads
     are in a valid state.
     """
-    @wraps(func)
+    @functools.wraps(func)
     def func_wrapper(*args, **kwargs):
         # Checking validity
         if not args[0].isValid():
@@ -81,14 +84,13 @@ def initdata(func):
     signals and sorting resulting data.
 
     """
-    @wraps(func)
+    @functools.wraps(func)
     def func_wrapper(self, *args, **kwargs):
         try:
             self.beginResetModel()
             self.reset_model_loaded()
 
             self._interrupt_requested = False
-            log.debug('__initdata__()', self)
             func(self, *args, **kwargs)
 
             self.blockSignals(True)
@@ -105,7 +107,7 @@ def initdata(func):
 
 def flagsmethod(func):
     """Decorator to make sure the ItemFlag return values are always correct."""
-    @wraps(func)
+    @functools.wraps(func)
     def func_wrapper(self, *args, **kwargs):
         res = func(self, *args, **kwargs)
         if not res:
@@ -118,6 +120,8 @@ class ThumbnailsContextMenu(contextmenu.BaseContextMenu):
     def __init__(self, index, parent=None):
         super(ThumbnailsContextMenu, self).__init__(index, parent=parent)
         self.add_thumbnail_menu()
+        self.add_separator()
+        self.add_sg_thumbnail_menu()
 
 
 class ProgressWidget(QtWidgets.QWidget):
@@ -167,8 +171,7 @@ class ProgressWidget(QtWidgets.QWidget):
 
 
 class FilterOnOverlayWidget(ProgressWidget):
-    """Static overlay widget shown when there's a blocking window placed
-    on top of the main widget.
+    """Adds a bottom and top bar to indicate the list has hidden items.
 
     """
 
@@ -246,22 +249,23 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         raise NotImplementedError(
             'Sorting on the proxy model is not implemented.')
 
+    @common.error
+    @common.debug
     def initialize_filter_values(self):
         """Load the saved widget filters from `local_settings`.
 
         This determines if eg. archived items are visible in the view.
 
         """
-        self._filter_text = self.sourceModel().get_local_setting(TextFilterKey)
+        model = self.sourceModel()
+        self._filter_text = model.get_local_setting(settings.TextFilterKey)
 
-        v = self.sourceModel().get_local_setting(ActiveFlagFilterKey)
+        v = model.get_local_setting(settings.ActiveFlagFilterKey)
         self._filter_flags[common.MarkedAsActive] = v if v is not None else False
-        v = self.sourceModel().get_local_setting(ArchivedFlagFilterKey)
+        v = model.get_local_setting(settings.ArchivedFlagFilterKey)
         self._filter_flags[common.MarkedAsArchived] = v if v is not None else False
-        v = self.sourceModel().get_local_setting(FavouriteFlagFilterKey)
+        v = model.get_local_setting(settings.FavouriteFlagFilterKey)
         self._filter_flags[common.MarkedAsFavourite] = v if v is not None else False
-
-        log.debug('initialize_filter_values()', self)
 
     def filter_text(self):
         """Filters the list of items containing this path segment."""
@@ -273,7 +277,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         v = v if v is not None else u''
         v = unicode(v).strip()
         self._filter_text = v
-        self.sourceModel().save_local_setting(TextFilterKey, v)
+        self.sourceModel().set_local_setting(settings.TextFilterKey, v)
 
     def filter_flag(self, flag):
         """Returns the current flag-filter."""
@@ -286,19 +290,20 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return
         self._filter_flags[flag] = v
         if flag == common.MarkedAsActive:
-            self.sourceModel().save_local_setting(ActiveFlagFilterKey, v)
+            self.sourceModel().set_local_setting(settings.ActiveFlagFilterKey, v)
         if flag == common.MarkedAsArchived:
-            self.sourceModel().save_local_setting(ArchivedFlagFilterKey, v)
+            self.sourceModel().set_local_setting(settings.ArchivedFlagFilterKey, v)
         if flag == common.MarkedAsFavourite:
-            self.sourceModel().save_local_setting(FavouriteFlagFilterKey, v)
+            self.sourceModel().set_local_setting(settings.FavouriteFlagFilterKey, v)
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
         return True
 
     def filterAcceptsRow(self, source_row, parent=None):
-        """The main method responsible for filtering rows in the proxy model.
-        Most filtering happens via the user-inputted filter string."""
+        """Filters rows of the proxy model based on the current flags and
+        filter string.
 
+        """
         data = self.sourceModel().model_data()
         if source_row not in data:
             return False
@@ -315,7 +320,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             d = data[common.DescriptionRole]
             d = d.strip().lower() if d else u''
             f = data[common.FileDetailsRole]
-            f = f.strip().lower() if f else ''
+            f = f.strip().lower() if f else u''
+
             searchable = data[QtCore.Qt.StatusTipRole].lower() + u'\n' + \
                 d.strip().lower() + u'\n' + \
                 f.strip().lower()
@@ -336,11 +342,23 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def filter_includes_row(self, filtertext, searchable):
+        """Checks if the filter string contains any double dashes (--) and if the
+        the filter text is found in the searchable string.
+
+        If both true, the row will be hidden.
+
+        """
         _filtertext = filtertext
-        it = re.finditer(ur'(--[^\"\'\[\]\*\s]+)',
-                         filtertext, flags=re.IGNORECASE | re.MULTILINE)
-        it_quoted = re.finditer(ur'(--".*?")', filtertext,
-                                flags=re.IGNORECASE | re.MULTILINE)
+        it = re.finditer(
+            ur'(--[^\"\'\[\]\*\s]+)',
+            filtertext,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
+        it_quoted = re.finditer(
+            ur'(--".*?")',
+            filtertext,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
 
         for match in it:
             _filtertext = re.sub(match.group(1), u'', _filtertext)
@@ -354,16 +372,21 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def filter_excludes_row(self, filtertext, searchable):
-        it = re.finditer(ur'--([^\"\'\[\]\*\s]+)',
-                         filtertext, flags=re.IGNORECASE | re.MULTILINE)
-        it_quoted = re.finditer(ur'--"(.*?)"', filtertext,
-                                flags=re.IGNORECASE | re.MULTILINE)
+        it = re.finditer(
+            ur'--([^\"\'\[\]\*\s]+)',
+            filtertext,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
+        it_quoted = re.finditer(
+            ur'--"(.*?)"',
+            filtertext,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
 
         for match in it:
             if match.group(1).lower() in searchable:
                 return True
         for match in it_quoted:
-            match.group(1)
             if match.group(1).lower() in searchable:
                 return True
         return False
@@ -391,8 +414,8 @@ class BaseModel(QtCore.QAbstractListModel):
         })
 
     `self.INTERNAL_MODEL_DATA` is exposed to the model via `self.model_data()`.
-    To get the current task folder use `self.task_folder()` and
-    `self.set_task_folder()``.
+    To get the current task folder use `self.task()` and
+    `self.set_task()``.
 
     Data sorting is also handled by the model, see `self.sort_data()`.
 
@@ -421,11 +444,11 @@ class BaseModel(QtCore.QAbstractListModel):
     def __init__(self, has_threads=True, parent=None):
         super(BaseModel, self).__init__(parent=parent)
         self.view = parent
-        self._has_threads = has_threads
 
         self.INTERNAL_MODEL_DATA = common.DataDict()
         """Custom data type for weakref compatibility """
 
+        self._has_threads = has_threads
         self.threads = common.DataDict({
             common.InfoThread: [],  # Threads for getting file-size, description
             common.ThumbnailThread: [],  # Thread for generating thumbnails
@@ -437,10 +460,11 @@ class BaseModel(QtCore.QAbstractListModel):
         }
         self._interrupt_requested = False
         self._generate_thumbnails_enabled = True
-        self._task_folder = None
+        self._task = None
         self._datatype = {}
         self._sortrole = None
         self._sortorder = None
+        self._row_size = None
 
         @QtCore.Slot(bool)
         @QtCore.Slot(int)
@@ -453,102 +477,152 @@ class BaseModel(QtCore.QAbstractListModel):
             lambda: log.debug('sortingChanged -> set_sorting', self))
         self.sortingChanged.connect(set_sorting)
 
-        self.initialize_default_sort_values()
+        self.init_default_sort_values()
         self.init_generate_thumbnails_enabled()
-        self.initialise_threads()
+        self.init_row_size()
+        self.init_threads()
 
-    def supportedDropActions(self):
-        return QtCore.Qt.CopyAction
+    def row_size(self):
+        return self._row_size
 
-    def canDropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
-        if not self.supportedDropActions() & action:
-            return False
-        if row == -1:
-            return False
+    @common.debug
+    @common.error
+    @initdata
+    def __initdata__(self):
+        raise NotImplementedError(
+            u'__initdata__ is abstract and must be overriden')
 
-        if not data.hasUrls():
-            return False
-        else:
-            source = data.urls()[0].toLocalFile()
-            if not images.oiio_get_buf(source):
-                return False
+    @common.debug
+    @common.error
+    def __resetdata__(self):
+        """Resets the internal data."""
+        self.INTERNAL_MODEL_DATA = common.DataDict()
+        self.__initdata__()
 
-        data = self.model_data()
-        if row not in data:
-            return False
-        if data[row][common.FlagsRole] & common.MarkedAsArchived:
-            return False
-        return True
-
-    def dropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
-        source = data.urls()[0].toLocalFile()
-        if not images.oiio_get_buf(source):
-            return False
-        images.set_from_source(
-            self.index(row, 0),
-            source
-        )
-        return True
-
-    def initialize_default_sort_values(self):
+    @common.debug
+    @common.error
+    def init_default_sort_values(self):
         """Loads the saved sorting values from the local preferences.
 
         """
-        log.debug('initialize_default_sort_values()', self)
-
-        cls = self.__class__.__name__
-        k = u'widget/{}/sortrole'.format(cls)
-        val = settings.local_settings.value(k)
+        val = self.get_local_setting(
+            settings.CurrentSortRole,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
         if val not in (common.SortByNameRole, common.SortBySizeRole, common.SortByLastModifiedRole):
             val = common.SortByNameRole
         self._sortrole = val
 
-        k = u'widget/{}/sortorder'.format(cls)
-        val = settings.local_settings.value(k)
-        if val not in (True, False):
-            val = False
-        self._sortorder = val
+        val = self.get_local_setting(
+            settings.CurrentSortOrder,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
+        self._sortorder = val if isinstance(val, bool) else False
 
-        if self._sortrole is None:
-            self._sortrole = common.SortByNameRole
+    def default_row_size(self):
+        return QtCore.QSize(1, common.ROW_HEIGHT())
 
-        if self._sortorder is None:
-            self._sortorder = False
+    @common.debug
+    @common.error
+    def init_row_size(self, *args, **kwargs):
+        val = self.get_local_setting(
+            settings.CurrentRowHeight,
+            section=settings.UIStateSection
+        )
+
+        default_size = self.default_row_size()
+        h = default_size.height()
+        val = h if val is None else val
+        val = h if val < h else val
+        val = int(common.THUMBNAIL_IMAGE_SIZE) if val >= int(common.THUMBNAIL_IMAGE_SIZE) else val
+
+        self._row_size = QtCore.QSize(default_size.width(), val)
+
+    @common.debug
+    @common.error
+    def init_threads(self):
+        """Starts and connects the threads."""
+        if self.queue_type is None:
+            raise RuntimeError(u'`queue_type` cannot be `None`')
+
+        if not self._has_threads:
+            return
+
+        info_worker = threads.InfoWorker(self.queue_type)
+        info_thread = threads.BaseThread(info_worker)
+        info_thread.started.connect(
+            functools.partial(self.thread_started,
+                              info_thread, allow_model=True),
+            QtCore.Qt.DirectConnection
+        )
+        self.threads[common.InfoThread].append(info_thread)
+
+        thumbnails_worker = threads.ThumbnailWorker(self.thumbnail_queue_type)
+        thumbnails_thread = threads.BaseThread(thumbnails_worker)
+        thumbnails_thread.started.connect(
+            functools.partial(self.thread_started,
+                              thumbnails_thread, allow_model=False),
+            QtCore.Qt.DirectConnection
+        )
+        self.threads[common.ThumbnailThread].append(thumbnails_thread)
+
+        info_thread.start()
+        thumbnails_thread.start()
+
+    @common.debug
+    @common.error
+    def init_generate_thumbnails_enabled(self):
+        v = self.get_local_setting(
+            settings.GenerateThumbnails,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
+        v = True if v is None else v
+        self._generate_thumbnails_enabled = v
 
     def sort_role(self):
         """The item role used to sort the model data, eg. `common.SortByNameRole`"""
         return self._sortrole
 
+    @common.debug
+    @common.error
     @QtCore.Slot(int)
     def set_sort_role(self, val):
         """Sets and saves the sort-key."""
-        log.debug('set_sort_role({})'.format(val), self)
-
         if val == self.sort_role():
             return
 
         self._sortrole = val
-        cls = self.__class__.__name__
-        settings.local_settings.setValue(
-            u'widget/{}/sortrole'.format(cls), val)
+        self.set_local_setting(
+            settings.CurrentSortRole,
+            val,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
 
     def sort_order(self):
         """The currently set order of the items eg. 'descending'."""
         return self._sortorder
 
+    @common.debug
+    @common.error
     @QtCore.Slot(int)
     def set_sort_order(self, val):
         """Sets and saves the sort-key."""
-        log.debug('set_sort_order({})'.format(val), self)
-
         if val == self.sort_order():
             return
 
         self._sortorder = val
-        cls = self.__class__.__name__
-        settings.local_settings.setValue(
-            u'widget/{}/sortorder'.format(cls), val)
+        self.set_local_setting(
+            settings.CurrentSortOrder,
+            val,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
 
+    @common.debug
     @QtCore.Slot()
     def sort_data(self):
         """Sorts the internal `INTERNAL_MODEL_DATA` by the current
@@ -557,11 +631,9 @@ class BaseModel(QtCore.QAbstractListModel):
         The data sorting is wrapped in a begin- & endResetModel sequence.
 
         """
-        log.debug(u'sort_data()', self)
-
         self.beginResetModel()
 
-        k = self.task_folder()
+        k = self.task()
         t = self.data_type()
 
         data = self.model_data()
@@ -570,7 +642,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
         sortorder = self.sort_order()
         sortrole = self.sort_role()
-        k = self.task_folder()
+        k = self.task()
         t = self.data_type()
 
         if sortrole not in (
@@ -596,34 +668,19 @@ class BaseModel(QtCore.QAbstractListModel):
 
         self.endResetModel()
 
-    def __resetdata__(self):
-        """Resets the internal data."""
-        log.debug('__resetdata__()', self)
-
-        self.INTERNAL_MODEL_DATA = common.DataDict()
-        self.__initdata__()
-
     @QtCore.Slot()
     def set_interrupt_requested(self):
         self._interrupt_requested = True
 
-    @initdata
-    def __initdata__(self):
-        raise NotImplementedError(
-            u'__initdata__ is abstract and must be overriden')
-
+    @common.debug
     @QtCore.Slot(QtCore.QThread)
     def thread_started(self, thread, allow_model=False):
-        """Slot connected in initialise_threads().
+        """Slot connected in init_threads().
         Signals the model an item has been updated.
 
         """
-        log.debug(u'thread_started()', self)
-
         cnx = QtCore.Qt.QueuedConnection
 
-        # thread.updateRow.connect(
-        #     lambda: log.debug('updateRow -> updateRow', thread))
         thread.updateRow.connect(
             self.updateRow, cnx)
 
@@ -662,6 +719,7 @@ class BaseModel(QtCore.QAbstractListModel):
         """
         self._model_loaded[data_type] = True
 
+    @common.debug
     @QtCore.Slot(int)
     def model_loaded(self, data_type):
         """Called when a thread is done loading a data type.
@@ -671,7 +729,6 @@ class BaseModel(QtCore.QAbstractListModel):
         won't be visible.
 
         """
-        log.debug(u'model_loaded()', self)
         self.set_model_loaded(data_type)
         # The the loaded data is for the current file type we don't have to
         # do anything
@@ -680,54 +737,20 @@ class BaseModel(QtCore.QAbstractListModel):
         if self.sort_order() or self.sort_role() != common.SortByNameRole:
             self.sort_data()
 
-    def initialise_threads(self):
-        """Starts and connects the threads."""
-        if self.queue_type is None:
-            raise RuntimeError(u'`queue_type` cannot be `None`')
-
-        if not self._has_threads:
-            return
-
-        log.debug('initialise_threads()', self)
-
-        info_worker = threads.InfoWorker(self.queue_type)
-        info_thread = threads.BaseThread(info_worker)
-        info_thread.started.connect(
-            partial(self.thread_started, info_thread, allow_model=True),
-            QtCore.Qt.DirectConnection
-        )
-        self.threads[common.InfoThread].append(info_thread)
-
-        thumbnails_worker = threads.ThumbnailWorker(self.thumbnail_queue_type)
-        thumbnails_thread = threads.BaseThread(thumbnails_worker)
-        thumbnails_thread.started.connect(
-            partial(self.thread_started, thumbnails_thread, allow_model=False),
-            QtCore.Qt.DirectConnection
-        )
-        self.threads[common.ThumbnailThread].append(thumbnails_thread)
-
-        info_thread.start()
-        thumbnails_thread.start()
-
-    def init_generate_thumbnails_enabled(self):
-        log.debug('init_generate_thumbnails_enabled()', self)
-
-        cls = self.__class__.__name__
-        k = u'widget/{}/generate_thumbnails'.format(cls)
-        v = settings.local_settings.value(k)
-        v = True if v is None else v
-        self._generate_thumbnails_enabled = v
-
     def generate_thumbnails_enabled(self):
         return self._generate_thumbnails_enabled
 
     @QtCore.Slot(bool)
     def set_generate_thumbnails_enabled(self, val):
-        cls = self.__class__.__name__
-        k = u'widget/{}/generate_thumbnails'.format(cls)
-        settings.local_settings.setValue(k, val)
+        self.set_local_setting(
+            settings.GenerateThumbnails,
+            val,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
         self._generate_thumbnails_enabled = val
 
+    @common.debug
     @QtCore.Slot()
     def reset_worker_queues(self, all=False):
         """Request all queued items to be removed from the thread/worker's
@@ -737,15 +760,13 @@ class BaseModel(QtCore.QAbstractListModel):
         if not self._has_threads:
             return
 
-        log.debug('reset_worker_queues()', self)
-
         for k in self.threads:
             for thread in self.threads[k]:
                 thread.resetQueue.emit()
 
     def model_data(self):
         """A pointer to the model's currently set internal data."""
-        k = self.task_folder()
+        k = self.task()
         t = self.data_type()
 
         if not k in self.INTERNAL_MODEL_DATA:
@@ -762,6 +783,111 @@ class BaseModel(QtCore.QAbstractListModel):
             if index.flags() & common.MarkedAsActive:
                 return index
         return QtCore.QModelIndex()
+
+    def data_type(self):
+        """Current key to the data dictionary."""
+        return common.FileItem
+
+    @QtCore.Slot(int)
+    def set_data_type(self, val):
+        pass
+
+    def task(self):
+        return u'default'
+
+    @common.debug
+    @common.error
+    @QtCore.Slot(unicode)
+    def set_task(self, val):
+        """Settings task folders must be"""
+        pass
+
+    def local_settings_key(self):
+        """Should return a key to be used to associated current filter and item
+        selections when storing them in the the `local_settings`.
+
+        Returns:
+            unicode: A local_settings key value.
+
+        """
+        raise NotImplementedError(u'Abstract class "local_settings_key" has to be implemented in the subclasses.')
+
+    def get_local_setting(self, key_type, key=None, section=settings.ListFilterSection):
+        """Get a value stored in the local_settings.
+
+        Args:
+            key_type (unicode): A filter key type.
+            key (unicode): A key the value is associated with.
+            section (unicode): A settings `section`. Defaults to `settings.ListFilterSection`.
+
+        Returns:
+            The value saved in `local_settings`, or `None` if not found.
+
+        """
+        key = self.local_settings_key() if not key else None
+        if not key:
+            return None
+        k = u'{}/{}'.format(key_type, common.get_hash(key))
+        return settings.local_settings.value(section, k)
+
+    def set_local_setting(self, key_type, v, key=None, section=settings.ListFilterSection):
+        """Set a value to store in `local_settings`.
+
+        Args:
+            key_type (unicode): A filter key type.
+            v (any):    A value to store.
+            key (type): A key the value is associated with.
+            section (type): A settings `section`. Defaults to `settings.ListFilterSection`.
+
+        """
+        key = self.local_settings_key() if not key else None
+        if not key:
+            return None
+
+        k = u'{}/{}'.format(key_type, common.get_hash(key))
+        v = settings.local_settings.setValue(section, k, v)
+
+    def setData(self, index, data, role=QtCore.Qt.DisplayRole):
+        if not index.isValid():
+            return False
+        if index.row() not in self.model_data():
+            return False
+        self.model_data()[index.row()][role] = data
+        self.dataChanged.emit(index, index)
+        return True
+
+    def supportedDropActions(self):
+        return QtCore.Qt.CopyAction
+
+    def canDropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
+        if not self.supportedDropActions() & action:
+            return False
+        if row == -1:
+            return False
+
+        if not data.hasUrls():
+            return False
+        else:
+            source = data.urls()[0].toLocalFile()
+            if not images.oiio_get_buf(source):
+                return False
+
+        data = self.model_data()
+        if row not in data:
+            return False
+        if data[row][common.FlagsRole] & common.MarkedAsArchived:
+            return False
+        return True
+
+    def dropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
+        source = data.urls()[0].toLocalFile()
+        if not images.oiio_get_buf(source):
+            return False
+        images.set_from_source(
+            self.index(row, 0),
+            source
+        )
+        return True
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         """The number of columns of the model."""
@@ -792,97 +918,11 @@ class BaseModel(QtCore.QAbstractListModel):
     def parent(self, child):
         return QtCore.QModelIndex()
 
-    def setData(self, index, data, role=QtCore.Qt.DisplayRole):
-        if not index.isValid():
-            return False
-        if index.row() not in self.model_data():
-            return False
-        self.model_data()[index.row()][role] = data
-        self.dataChanged.emit(index, index)
-        return True
-
-    def data_type(self):
-        """Current key to the data dictionary."""
-        return common.FileItem
-
-    @QtCore.Slot(int)
-    def set_data_type(self, val):
-        """Sets the data type to `FileItem` or `SequenceItem`."""
-        log.debug('set_data_type({})>'.format(val), self)
-
-        self.beginResetModel()
-
-        try:
-            task_folder = self.task_folder()
-            if task_folder not in self._datatype:
-                self._datatype[task_folder] = val
-            if self._datatype[task_folder] == val:
-                return
-
-            if val not in (common.FileItem, common.SequenceItem):
-                s = u'Invalid value {} ({}) provided for `data_type`'.format(
-                    val, type(val))
-                log.error(s)
-                raise ValueError(s)
-
-            cls = self.__class__.__name__
-            key = u'widget/{}/{}/datatype'.format(cls, self.task_folder())
-            settings.local_settings.setValue(key, val)
-            self._datatype[task_folder] = val
-        except Exception as e:
-            s = u'Error setting task folder'
-            log.error(s)
-            common_ui.ErrorBox(
-                u'Error setting task folder',
-                u'{}'.format(e),
-            ).open()
-        finally:
-            self.blockSignals(True)
-            self.sort_data()
-            self.blockSignals(False)
-
-            self.endResetModel()
-
-    def task_folder(self):
-        return u'default'
-
-    @QtCore.Slot(unicode)
-    def set_task_folder(self, val):
-        """Settings task folders must be"""
-        pass
-
-    def settings_key(self):
-        """Make sure this is customized in the subclasses."""
-        return self.task_folder()
-
-    def get_local_setting(self, key_type, key=None):
-        """Returns a key to be used to save a filter value in `local_settings`.
-        """
-        if key is None:
-            key = self.settings_key()
-        if key is None:
-            return None
-
-        k = u'{}/{}'.format(key_type, common.get_hash(key))
-        v = settings.local_settings.value(k)
-        return v
-
-    def save_local_setting(self, key_type, v, key=None):
-        """Returns a key to be used to save a filter value in `local_settings`.
-        """
-        if key is None:
-            key = self.settings_key()
-        if key is None:
-            return
-
-        k = u'{}/{}'.format(key_type, common.get_hash(key))
-        v = settings.local_settings.setValue(k, v)
-
-
 
 class BaseListWidget(QtWidgets.QListView):
-    """Defines the base of the primary list widgets."""
+    """The base class of all subsequent Bookmark, asset andf files list views.
 
+    """
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
     favouritesChanged = QtCore.Signal()
@@ -898,7 +938,6 @@ class BaseListWidget(QtWidgets.QListView):
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
         self.setDragDropOverwriteMode(False)
-        # self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.viewport().setAcceptDrops(True)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
@@ -926,10 +965,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.description_editor_widget = common_ui.DescriptionEditorWidget(
             parent=self)
         self.description_editor_widget.setHidden(True)
-
-        k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
-        self._buttons_hidden = False if settings.local_settings.value(
-            k) is None else settings.local_settings.value(k)
 
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
@@ -965,17 +1000,39 @@ class BaseListWidget(QtWidgets.QListView):
         self.resized.connect(self.progress_widget.setGeometry)
         self.resized.connect(self.filter_editor.setGeometry)
 
+        self.init_buttons_state()
+
+    @common.debug
+    @common.error
+    def init_buttons_state(self):
+        """Restore the previous state of the inline icon buttons.
+
+        """
+        v = self.model().sourceModel().get_local_setting(
+            settings.InlineButtonsHidden,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
+        self._buttons_hidden = False if v is None else v
+
     def buttons_hidden(self):
-        """Returns the visibility of the inline icon buttons."""
+        """Returns the visibility of the inline icon buttons.
+
+        """
         if self.width() < common.WIDTH() * 0.66:
             return True
         return self._buttons_hidden
 
     def set_buttons_hidden(self, val):
-        """Sets the visibility of the inline icon buttons."""
-        cls = self.__class__.__name__
-        k = u'widget/{}/buttons_hidden'.format(cls)
-        settings.local_settings.setValue(k, val)
+        """Sets the visibility of the inline icon buttons.
+
+        """
+        self.model().sourceModel().set_local_setting(
+            settings.InlineButtonsHidden,
+            val,
+            key=self.__class__.__name__,
+            section=settings.UIStateSection
+        )
         self._buttons_hidden = val
 
     def set_model(self, model):
@@ -1049,8 +1106,6 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: log.debug('modelReset -> reselect_previous', model))
         model.modelReset.connect(self.reselect_previous)
 
-        # model.updateRow.connect(
-        #     lambda: log.debug('updateRow -> update_row', model))
         model.updateRow.connect(
             self.update_row, type=QtCore.Qt.QueuedConnection)
 
@@ -1203,8 +1258,16 @@ class BaseListWidget(QtWidgets.QListView):
         if data_type == common.SequenceItem:
             path = common.get_sequence_startpath(path)
 
-        model.save_local_setting(FileSelectionKey, path)
-        model.save_local_setting(SequenceSelectionKey, common.proxy_path(path))
+        model.set_local_setting(
+            settings.FileSelectionKey,
+            path,
+            section=settings.UIStateSection
+        )
+        model.set_local_setting(
+            settings.SequenceSelectionKey,
+            common.proxy_path(path),
+            section=settings.UIStateSection
+        )
 
     @QtCore.Slot()
     def reselect_previous(self):
@@ -1217,15 +1280,22 @@ class BaseListWidget(QtWidgets.QListView):
         data_type = model.data_type()
 
         if data_type == common.FileItem:
-            previous = model.get_local_setting(FileSelectionKey)
+            previous = model.get_local_setting(
+                settings.FileSelectionKey,
+                section=settings.UIStateSection
+            )
         if data_type == common.SequenceItem:
-            previous = model.get_local_setting(SequenceSelectionKey)
+            previous = model.get_local_setting(
+                settings.SequenceSelectionKey,
+                section=settings.UIStateSection
+            )
 
         if previous:
             for n in xrange(proxy.rowCount()):
                 index = proxy.index(n, 0)
                 if data_type == common.SequenceItem:
-                    current = common.proxy_path(index.data(QtCore.Qt.StatusTipRole))
+                    current = common.proxy_path(
+                        index.data(QtCore.Qt.StatusTipRole))
                 else:
                     current = index.data(QtCore.Qt.StatusTipRole)
                 if current == previous:
@@ -1268,28 +1338,17 @@ class BaseListWidget(QtWidgets.QListView):
 
         def save_to_db(k, mode, flag):
             """Save the value to the database."""
-            db = bookmark_db.get_db(
-                index.data(common.ParentPathRole)[0],
-                index.data(common.ParentPathRole)[1],
-                index.data(common.ParentPathRole)[2],
-            )
-            with db.transactions():
+            with bookmark_db.transactions(*index.data(common.ParentPathRole)[0:3]) as db:
                 f = db.value(k, u'flags')
                 f = 0 if f is None else f
                 f = f | flag if mode else f & ~flag
                 db.setValue(k, u'flags', f)
 
         def save_to_local_settings(k, mode, flag):
-            favourites = settings.local_settings.favourites()
-            sfavourites = set(favourites)
             if mode:
-                favourites.append(k.strip().lower())
-            else:
-                if k.lower() in sfavourites:
-                    favourites.remove(k.strip().lower())
-
-            v = sorted(list(set(favourites)))
-            settings.local_settings.setValue(u'favourites', v)
+                settings.local_settings.add_favourites([k.strip(),])
+                return
+            settings.local_settings.remove_favourites([k.strip(),])
 
         def save_active(k, mode, flag):
             pass
@@ -1342,9 +1401,9 @@ class BaseListWidget(QtWidgets.QListView):
                     return False
                 return True
             elif flag == common.MarkedAsFavourite:
-                favourites = settings.local_settings.favourites()
+                favourites = settings.local_settings.get_favourites()
                 sfavourites = set(favourites)
-                if proxy_k.lower() in sfavourites:
+                if proxy_k in sfavourites:
                     return False
                 return True
             return False
@@ -1361,11 +1420,11 @@ class BaseListWidget(QtWidgets.QListView):
             return None
 
         model = self.model().sourceModel()
-        task_folder = model.task_folder()
+        task = model.task()
         data = model.model_data()[source_index.row()]
 
-        FILE_DATA = model.INTERNAL_MODEL_DATA[task_folder][common.FileItem]
-        SEQ_DATA = model.INTERNAL_MODEL_DATA[task_folder][common.SequenceItem]
+        FILE_DATA = model.INTERNAL_MODEL_DATA[task][common.FileItem]
+        SEQ_DATA = model.INTERNAL_MODEL_DATA[task][common.SequenceItem]
 
         applied = data[common.FlagsRole] & flag
         collapsed = common.is_collapsed(data[QtCore.Qt.StatusTipRole])
@@ -1389,7 +1448,7 @@ class BaseListWidget(QtWidgets.QListView):
             k = data[QtCore.Qt.StatusTipRole]
             if not can_toggle_flag(k, mode, data, flag):
                 common_ui.MessageBox(
-                    u'Oops. It looks like this item belongs to a sequence that has a flag set already.',
+                    u'Looks like this item belongs to a sequence that has a flag set already.',
                     u'To modify individual sequence items, remove the flag from the sequence first and try again.'
                 ).open()
                 self.reset_multitoggle()
@@ -1437,9 +1496,14 @@ class BaseListWidget(QtWidgets.QListView):
         # and if that fails too, we will display a general thumbnail.
 
         # Not a readable image file...
-        if not images.oiio_get_buf(source):
+        if images.oiio_get_buf(source):
+            thumb_path = source
+        else:
+            server, job, root = index.data(common.ParentPathRole)[0:3]
             thumb_path = images.get_thumbnail(
-                index.data(common.ParentPathRole),
+                server,
+                job,
+                root,
                 index.data(QtCore.Qt.StatusTipRole),
                 int(common.THUMBNAIL_IMAGE_SIZE),
                 fallback_thumb=u'placeholder',
@@ -1447,30 +1511,6 @@ class BaseListWidget(QtWidgets.QListView):
             )
             if not thumb_path:
                 return
-
-        #     # ...let's look for the thumbnail
-        #     index.data(common.ParentPathRole)[0],
-        #     source = images.get_thumbnail_path(
-        #         index.data(common.ParentPathRole)[1],
-        #         index.data(common.ParentPathRole)[2],
-        #         index.data(QtCore.Qt.StatusTipRole)
-        #     )
-        #     if not images.oiio_get_buf(source):
-        #         # If that fails, we'll display a general placeholder image
-        #         source = images.get_placeholder_path(
-        #             index.data(QtCore.Qt.StatusTipRole))
-        #         buf = images.oiio_get_buf(source, force=True)
-        #         if not buf:
-        #             s = u'{} seems invalid.'.format(source)
-        #             common_ui.ErrorBox(
-        #                 u'Error previewing image.', s).open()
-        #             log.error(s)
-        #             raise RuntimeError(s)
-        #
-        # if not source:
-        #     s = u'Invalid source value'
-        #     log.error(s)
-        #     raise RuntimeError(s)
 
         # Finally, we'll create and show our widget, and destroy it when the
         # selection changes
@@ -1551,6 +1591,323 @@ class BaseListWidget(QtWidgets.QListView):
     def key_tab(self):
         """Custom `tab` key action."""
         self.description_editor_widget.show()
+
+    def action_on_enter_key(self):
+        if not self.selectionModel().hasSelection():
+            return
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        self.activate(index)
+
+    def get_status_string(self):
+        """Returns an informative string to indicate if the list has hidden items.
+
+        """
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        # Model is empty
+        if model.rowCount() == 0:
+            return u'No items to display'
+
+        # All items are visible, we don't have to display anything
+        if proxy.rowCount() == model.rowCount():
+            return u''
+
+        # Let's figure out the reason why the list has hidden items
+        reason = u''
+        if proxy.filter_text():
+            reason = u'a search filter is applied'
+        elif proxy.filter_flag(common.MarkedAsFavourite):
+            reason = u'showing favourites only'
+        elif proxy.filter_flag(common.MarkedAsActive):
+            reason = u'showing active item only'
+        elif not proxy.filter_flag(common.MarkedAsArchived):
+            reason = u'archived items are hidden'
+
+        # Items are hidden...
+        count = model.rowCount() - proxy.rowCount()
+        if count == 1:
+            return u'{} item is hidden ({})'.format(count, reason)
+        return u'{} items are hidden ({})'.format(count, reason)
+
+    def get_hint_string(self):
+        return u'No items to display'
+
+    def paint_hint(self, widget, event):
+        """Paints the hint message.
+
+        """
+        text = self.get_hint_string()
+        self._paint_message(text, color=common.ADD, background=False)
+
+    def paint_status_message(self, widget, event):
+        """Displays a visual hint for the user to indicate if the list
+        has hidden items.
+
+        """
+        text = self.get_status_string()
+        self._paint_message(text, color=common.REMOVE, background=True)
+
+    def _paint_message(self, text, color=common.TEXT, background=False):
+        """Utility method used to paint a message.
+
+        """
+        if not text:
+            return
+
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        _ = painter.setOpacity(0.9) if hover else painter.setOpacity(0.75)
+
+        n = 0
+        rect = QtCore.QRect(
+            0, 0,
+            self.viewport().rect().width(),
+            model.row_size().height()
+        )
+
+        while self.rect().intersects(rect):
+            if n == proxy.rowCount():
+                if n == 0:
+                    rect.moveCenter(self.rect().center())
+                break
+            rect.moveTop(rect.top() + rect.height())
+            n += 1
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        o = common.INDICATOR_WIDTH()
+
+        rect = rect.adjusted(o * 3, o, -o * 3, -o)
+
+        if background:
+            o = common.INDICATOR_WIDTH()
+            painter.setBrush(QtGui.QColor(0, 0, 0, 30))
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.drawRoundedRect(rect, o * 2, o * 2)
+
+        font, metrics = common.font_db.primary_font(
+            font_size=common.SMALL_FONT_SIZE())
+        text = metrics.elidedText(
+            text,
+            QtCore.Qt.ElideRight,
+            rect.width()
+        )
+
+        x = rect.center().x() - (metrics.width(text) / 2.0)
+        y = rect.center().y() + (metrics.ascent() / 2.0)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(color)
+        path = delegate.get_painter_path(x, y, font, text)
+        painter.drawPath(path)
+        painter.end()
+
+    def paint_background_icon(self, widget, event):
+        """Paints a decorative backgorund icon to help distinguish the lists.
+
+        """
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            self._background_icon, BACKGROUND_COLOR, common.ROW_HEIGHT() * 3)
+        rect = pixmap.rect()
+        rect.moveCenter(self.rect().center())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+        painter.end()
+
+    @QtCore.Slot()
+    def repaint_visible_rows(self):
+        def _next(rect):
+            rect.moveTop(rect.top() + rect.height())
+            return self.indexAt(rect.topLeft())
+
+        proxy = self.model()
+        if not proxy.rowCount():
+            return
+
+        viewport_rect = self.viewport().rect()
+        index = self.indexAt(viewport_rect.topLeft())
+        if not index.isValid():
+            return
+
+        index_rect = self.visualRect(index)
+        n = 0
+        while viewport_rect.intersects(index_rect):
+            if n > 99:  # manuel limit on how many items we will repaint
+                break
+            super(BaseListWidget, self).update(index)
+            index = _next(index_rect)
+            if not index.isValid():
+                break
+            n += 1
+
+    @common.debug
+    @common.error
+    @QtCore.Slot()
+    def reset_row_layout(self, *args, **kwargs):
+        """Reinitializes the rows to apply size any row height changes.
+
+        """
+        proxy = self.model()
+        index = self.selectionModel().currentIndex()
+        row = -1
+        if self.selectionModel().hasSelection() and index.isValid():
+            row = index.row()
+
+        self.scheduleDelayedItemsLayout()
+        self.start_queue_timers()
+        self.repaint_visible_rows()
+
+        if row >= 0:
+            index = proxy.index(row, 0)
+            self.selectionModel().setCurrentIndex(
+                index, QtCore.QItemSelectionModel.ClearAndSelect)
+            self.scrollTo(
+                index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
+    def set_row_size(self, v):
+        """Saves the current row size to the local settings."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        model._row_size.setHeight(int(v))
+        model.set_local_setting(
+            settings.CurrentRowHeight,
+            int(v),
+            section=settings.UIStateSection
+        )
+
+    def increase_row_size(self):
+        """Makes the row height bigger."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        v = model.row_size().height() + common.psize(20)
+        if v >= common.THUMBNAIL_IMAGE_SIZE:
+            return
+
+        self.set_row_size(v)
+        self.reset_row_layout()
+
+    def decrease_row_size(self):
+        """Makes the row height smaller."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        v = model.row_size().height() - common.psize(20)
+        if v <= model.default_row_size().height():
+            v = model.default_row_size().height()
+
+        self.set_row_size(v)
+        self.reset_row_layout()
+
+    def reset_row_size(self):
+        """Resets the row size to its original size."""
+        proxy = self.model()
+        model = proxy.sourceModel()
+        self.set_row_size(model.default_row_size().height())
+        self.reset_row_layout()
+
+    def dragEnterEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+        self.repaint(self.rect())
+        if event.source() == self:
+            event.ignore()
+            return
+        if not event.mimeData().hasUrls():
+            event.ignore()
+            return
+        event.accept()
+
+    def dragLeaveEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+        self.repaint(self.rect())
+
+    def dragMoveEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+        pos = common.cursor.pos()
+        pos = self.mapFromGlobal(pos)
+
+        index = self.indexAt(pos)
+        row = index.row()
+
+        if not index.isValid():
+            self._thumbnail_drop = (-1, False)
+            self.repaint(self.rect())
+            event.ignore()
+            return
+
+        proxy = self.model()
+        model = proxy.sourceModel()
+        index = proxy.mapToSource(index)
+
+        if not model.canDropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0):
+            self._thumbnail_drop = (-1, False)
+            self.repaint(self.rect())
+            event.ignore()
+            return
+
+        event.accept()
+        self._thumbnail_drop = (row, True)
+        self.repaint(self.rect())
+
+    def dropEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+
+        pos = common.cursor.pos()
+        pos = self.mapFromGlobal(pos)
+
+        index = self.indexAt(pos)
+        if not index.isValid():
+            event.ignore()
+            return
+        proxy = self.model()
+        model = proxy.sourceModel()
+        index = proxy.mapToSource(index)
+
+        if not model.canDropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0):
+            event.ignore()
+            return
+        model.dropMimeData(
+            event.mimeData(), event.proposedAction(), index.row(), 0)
+
+    def showEvent(self, event):
+        self.scheduleDelayedItemsLayout()
+        self.validate_visible_timer.start()
+
+    def hideEvent(self, event):
+        self.validate_visible_timer.stop()
+
+    def mouseReleaseEvent(self, event):
+        super(BaseListWidget, self).mouseReleaseEvent(event)
+        self.save_selection()
+
+    def eventFilter(self, widget, event):
+        if widget is not self:
+            return False
+        if event.type() == QtCore.QEvent.Paint:
+            self.paint_background_icon(widget, event)
+            if self.model().sourceModel().rowCount() == 0:
+                self.paint_hint(widget, event)
+            else:
+                self.paint_status_message(widget, event)
+            return True
+        return False
+
+    def resizeEvent(self, event):
+        self._layout_timer.start(self._layout_timer.interval())
+        self.resized.emit(self.viewport().geometry())
 
     def keyPressEvent(self, event):
         """Customized key actions.
@@ -1688,27 +2045,8 @@ class BaseListWidget(QtWidgets.QListView):
                         return common.copy_path(path, mode=common.UnixPath, first=True)
                     return common.copy_path(path, mode=mode, first=False)
 
-            if event.key() == QtCore.Qt.Key_Plus:
-                self.save_selection()
-                self.increase_row_size()
-                return
-
-            if event.key() == QtCore.Qt.Key_0:
-                self.save_selection()
-                self.reset_row_size()
-                return
-
-            if event.key() == QtCore.Qt.Key_Minus:
-                self.save_selection()
-                self.decrease_row_size()
-                return
-
-            if event.key() == QtCore.Qt.Key_R:
-                self.model().sourceModel().modelDataResetRequested.emit()
-                return
-
             if event.key() == QtCore.Qt.Key_T:
-                self.show_todos(index)
+                self.show_todos()
                 return
 
             if event.key() == QtCore.Qt.Key_O:
@@ -1793,8 +2131,9 @@ class BaseListWidget(QtWidgets.QListView):
         if index.isValid():
             rect = self.visualRect(index)
             gpos = self.viewport().mapToGlobal(event.pos())
-            rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
-            if rectangles[listdelegate.ThumbnailRect].contains(event.pos()):
+            rectangles = delegate.get_rectangles(
+                rect, self.inline_icons_count())
+            if rectangles[delegate.ThumbnailRect].contains(event.pos()):
                 widget = self.ThumbnailContextMenu(index, parent=self)
             else:
                 widget = self.ContextMenu(index, parent=self)
@@ -1804,19 +2143,10 @@ class BaseListWidget(QtWidgets.QListView):
             )
         else:
             widget = self.ContextMenu(index, parent=self)
-            widget.move(common.cursor.pos())
 
-        widget.move(widget.x() + common.INDICATOR_WIDTH(), widget.y())
+        widget.move(common.cursor.pos())
         common.move_widget_to_available_geo(widget)
         widget.exec_()
-
-    def action_on_enter_key(self):
-        if not self.selectionModel().hasSelection():
-            return
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-        self.activate(index)
 
     def mousePressEvent(self, event):
         """Deselecting item when the index is invalid."""
@@ -1851,19 +2181,18 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         rect = self.visualRect(index)
-        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
         description_rectangle = self.itemDelegate().get_description_rect(rectangles, index)
 
         if description_rectangle.contains(cursor_position):
             self.description_editor_widget.show()
             return
 
-        if rectangles[listdelegate.ThumbnailRect].contains(cursor_position):
+        if rectangles[delegate.ThumbnailRect].contains(cursor_position):
             images.pick(index)
             return
 
-        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(
-            index, rectangles)
+        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index)
         if not self.buttons_hidden() and clickable_rectangles:
             root_dir = []
             for item in clickable_rectangles:
@@ -1886,7 +2215,7 @@ class BaseListWidget(QtWidgets.QListView):
                     common.reveal(path)
                     return
 
-        if rectangles[listdelegate.DataRect].contains(cursor_position):
+        if rectangles[delegate.DataRect].contains(cursor_position):
             if not self.selectionModel().hasSelection():
                 return
             index = self.selectionModel().currentIndex()
@@ -1895,270 +2224,103 @@ class BaseListWidget(QtWidgets.QListView):
             self.activate(index)
             return
 
-    def _get_status_string(self):
-        proxy = self.model()
-        model = proxy.sourceModel()
+    @QtCore.Slot(unicode)
+    def reveal_list_item(self, list_idx, display_name):
+        """Slot used to reveal a newly added item in a list.
 
-        # Model is empty
-        if not model.rowCount():
-            return u'No items to display'
-
-        # All items are visible
-        if proxy.rowCount() == model.rowCount():
-            return u''
-
-        # Because...
-        reason = u''
-        if proxy.filter_text():
-            reason = u'a search filter is applied'
-        elif proxy.filter_flag(common.MarkedAsFavourite):
-            reason = u'showing favourites only'
-        elif proxy.filter_flag(common.MarkedAsActive):
-            reason = u'showing active item only'
-        elif not proxy.filter_flag(common.MarkedAsArchived):
-            reason = u'archived items are hidden'
-
-        # Items are hidden...
-        count = model.rowCount() - proxy.rowCount()
-        if count == 1:
-            return u'{} item is hidden ({})'.format(count, reason)
-        return u'{} items are hidden ({})'.format(count, reason)
-
-    def paint_status_message(self, widget, event):
-        proxy = self.model()
-        model = proxy.sourceModel()
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
-        n = 0
-        rect = QtCore.QRect(
-            0, 0,
-            self.viewport().rect().width(),
-            model.ROW_SIZE.height()
-        )
-
-        while self.rect().intersects(rect):
-            if n == proxy.rowCount():
-                if n == 0:
-                    rect.moveCenter(self.rect().center())
-                break
-            rect.moveTop(rect.top() + rect.height())
-            n += 1
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = common.INDICATOR_WIDTH()
-
-        text = self._get_status_string()
-        if not text:
+        """
+        if not self.parent():
+            return
+        if not hasattr(self.parent(), 'widget'):
             return
 
-        rect = rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o))
-        painter.setOpacity(0.3)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(BACKGROUND_COLOR)
-        painter.drawRoundedRect(rect, o, o)
+        widget = self.parent().widget(list_idx)
 
-        font, metrics = common.font_db.primary_font(font_size=common.SMALL_FONT_SIZE())
-        text = metrics.elidedText(
-            text,
-            QtCore.Qt.ElideRight,
-            rect.width()
-        )
+        self.parent().parent().topbar.listChanged.emit(list_idx)
+        widget.model().sourceModel().modelDataResetRequested.emit()
 
-        x = rect.center().x() - (metrics.width(text) / 2.0)
-        y = rect.center().y() + (metrics.ascent() / 2.0)
-
-        painter.setOpacity(1.0)
-        painter.setBrush(common.REMOVE)
-        path = listdelegate.get_painter_path(x, y, font, text)
-        painter.drawPath(path)
-        painter.end()
-
-    def paint_background_icon(self, widget, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            self._background_icon, BACKGROUND_COLOR, common.ROW_HEIGHT() * 3)
-        rect = pixmap.rect()
-        rect.moveCenter(self.rect().center())
-        painter.drawPixmap(rect, pixmap, pixmap.rect())
-        painter.end()
-
-    def eventFilter(self, widget, event):
-        if widget is not self:
-            return False
-        if event.type() == QtCore.QEvent.Paint:
-            self.paint_background_icon(widget, event)
-            self.paint_status_message(widget, event)
-            return True
-        return False
-
-    def resizeEvent(self, event):
-        self._layout_timer.start(self._layout_timer.interval())
-        self.resized.emit(self.viewport().geometry())
+        for n in xrange(widget.model().rowCount()):
+            index = widget.model().index(n, 0)
+            if index.data(QtCore.Qt.DisplayRole).lower() == display_name.lower():
+                widget.selectionModel().setCurrentIndex(
+                    index,
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                return
 
     @QtCore.Slot()
-    def repaint_visible_rows(self):
-        def _next(rect):
-            rect.moveTop(rect.top() + rect.height())
-            return self.indexAt(rect.topLeft())
+    def show_asset_property_widget(self, update=False):
+        """Shows the `AssetPropertiesWidget`.
 
-        proxy = self.model()
-        if not proxy.rowCount():
-            return
+        The widget can take an option `update` parameter used to indicate that
+        we want to update an existing asset. If `update` is `False`, the editor
+        will be used to create a new asset.
 
-        viewport_rect = self.viewport().rect()
-        index = self.indexAt(viewport_rect.topLeft())
-        if not index.isValid():
-            return
+        """
+        @QtCore.Slot(QtCore.QModelIndex)
+        @QtCore.Slot(unicode)
+        def _update_description(index, description):
+            """Slot used to update an item description.
 
-        index_rect = self.visualRect(index)
-        n = 0
-        while viewport_rect.intersects(index_rect):
-            if n > 99:  # manuel limit on how many items we will repaint
-                break
-            super(BaseListWidget, self).update(index)
-            index = _next(index_rect)
+            """
+            if self != self.parent().widget(1):
+                return
             if not index.isValid():
-                break
-            n += 1
+                return
 
-    def _reset_rows(self):
-        """Reinitializes the rows to apply size-change."""
-        proxy = self.model()
+            source_index = self.model().mapToSource(index)
+            idx = source_index.row()
+            data = self.model().sourceModel().model_data()
+            data[idx][common.DescriptionRole] = description
+            self.update(index)
+
+        if not self.selectionModel().hasSelection():
+            return
         index = self.selectionModel().currentIndex()
-        row = -1
-        if self.selectionModel().hasSelection() and index.isValid():
-            row = index.row()
-
-        self.scheduleDelayedItemsLayout()
-        self.start_queue_timers()
-        self.repaint_visible_rows()
-
-        if row >= 0:
-            index = proxy.index(row, 0)
-            self.selectionModel().setCurrentIndex(
-                index, QtCore.QItemSelectionModel.ClearAndSelect)
-            self.scrollTo(
-                index, QtWidgets.QAbstractItemView.PositionAtCenter)
-
-    def _save_row_size(self, v):
-        """Saves the current row size to the local settings."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-        model.ROW_SIZE.setHeight(int(v))
-
-        cls = self.model().sourceModel().__class__.__name__
-        k = u'widget/{}/rowheight'.format(cls).lower()
-        settings.local_settings.setValue(k, int(v))
-
-    def increase_row_size(self):
-        """Makes the row height bigger."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-
-        v = model.ROW_SIZE.height() + common.psize(20)
-        if v > common.ROW_HEIGHT() * 10:
-            return
-
-        self._save_row_size(v)
-        self._reset_rows()
-
-    def decrease_row_size(self):
-        """Makes the row height smaller."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-
-        v = model.ROW_SIZE.height() - common.psize(20)
-        if v <= common.ROW_HEIGHT():
-            v = common.ROW_HEIGHT()
-
-        self._save_row_size(v)
-        self._reset_rows()
-
-    def reset_row_size(self):
-        """Resets the row size to its original size."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-        v = model.DEFAULT_ROW_SIZE.height()
-        self._save_row_size(v)
-        self._reset_rows()
-
-    def dragEnterEvent(self, event):
-        self._thumbnail_drop = (-1, False)
-        self.repaint(self.rect())
-        if event.source() == self:
-            event.ignore()
-            return
-        if not event.mimeData().hasUrls():
-            event.ignore()
-            return
-        event.accept()
-
-    def dragLeaveEvent(self, event):
-        self._thumbnail_drop = (-1, False)
-        self.repaint(self.rect())
-
-    def dragMoveEvent(self, event):
-        self._thumbnail_drop = (-1, False)
-        pos = common.cursor.pos()
-        pos = self.mapFromGlobal(pos)
-
-        index = self.indexAt(pos)
-        row = index.row()
-
         if not index.isValid():
-            self._thumbnail_drop = (-1, False)
-            self.repaint(self.rect())
-            event.ignore()
             return
 
-        proxy = self.model()
-        model = proxy.sourceModel()
-        index = proxy.mapToSource(index)
+        if update and len(index.data(common.ParentPathRole)) >= 3:
+            asset = index.data(common.ParentPathRole)[3]
+        else:
+            asset = None
 
-        if not model.canDropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0):
-            self._thumbnail_drop = (-1, False)
-            self.repaint(self.rect())
-            event.ignore()
-            return
+        from ..properties import asset_properties_widget
+        widget = asset_properties_widget.AssetPropertiesWidget(
+            *index.data(common.ParentPathRole)[0:3],
+            asset=asset
+        )
+        widget.assetCreated.connect(
+            functools.partial(self.reveal_list_item, 1))
+        widget.descriptionUpdated.connect(
+            functools.partial(_update_description, index))
+        widget.open()
 
-        event.accept()
-        self._thumbnail_drop = (row, True)
-        self.repaint(self.rect())
+    @QtCore.Slot()
+    def show_file_property_widget(self, server, job, root, asset, extension=None):
+        """Slot used to open the file property editor.
 
-    def dropEvent(self, event):
-        self._thumbnail_drop = (-1, False)
+        The widget is used to create new files using name templates.
+        If the optional `extension` is passed, the editor will save files of
+        the specified extension.
 
-        pos = common.cursor.pos()
-        pos = self.mapFromGlobal(pos)
-
-        index = self.indexAt(pos)
-        if not index.isValid():
-            event.ignore()
-            return
-        proxy = self.model()
-        model = proxy.sourceModel()
-        index = proxy.mapToSource(index)
-
-        if not model.canDropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0):
-            event.ignore()
-            return
-        model.dropMimeData(
-            event.mimeData(), event.proposedAction(), index.row(), 0)
-
-    def showEvent(self, event):
-        self.scheduleDelayedItemsLayout()
-        self.validate_visible_timer.start()
-
-    def hideEvent(self, event):
-        self.validate_visible_timer.stop()
-
-    def mouseReleaseEvent(self, event):
-        super(BaseListWidget, self).mouseReleaseEvent(event)
-        self.save_selection()
+        """
+        try:
+            from ..properties import file_properties_widget
+            editor = file_properties_widget.FilePropertiesWidget(
+                server,
+                job,
+                root,
+                asset=asset,
+                extension=extension
+            )
+            editor.open()
+            return editor
+        except:
+            log.error(u'Error occured opening the File Property editor.')
+            common_ui.ErrorBox(
+                u'Error occured opening the editor.', u'').open()
+            return None
 
 
 class BaseInlineIconWidget(BaseListWidget):
@@ -2208,17 +2370,17 @@ class BaseInlineIconWidget(BaseListWidget):
         self.reset_multitoggle()
 
         rect = self.visualRect(index)
-        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
 
-        if rectangles[listdelegate.FavouriteRect].contains(cursor_position):
+        if rectangles[delegate.FavouriteRect].contains(cursor_position):
             self.multi_toggle_pos = QtCore.QPoint(0, cursor_position.y())
             self.multi_toggle_state = not index.flags() & common.MarkedAsFavourite
-            self.multi_toggle_idx = listdelegate.FavouriteRect
+            self.multi_toggle_idx = delegate.FavouriteRect
 
-        if rectangles[listdelegate.ArchiveRect].contains(cursor_position):
+        if rectangles[delegate.ArchiveRect].contains(cursor_position):
             self.multi_toggle_pos = cursor_position
             self.multi_toggle_state = not index.flags() & common.MarkedAsArchived
-            self.multi_toggle_idx = listdelegate.ArchiveRect
+            self.multi_toggle_idx = delegate.ArchiveRect
 
         super(BaseInlineIconWidget, self).mousePressEvent(event)
 
@@ -2235,7 +2397,7 @@ class BaseInlineIconWidget(BaseListWidget):
         resets the associated variables.
 
         The inlince icon buttons are also triggered here. We're using the
-        listdelegate's ``get_rectangles`` function to determine which icon was
+        delegate's ``get_rectangles`` function to determine which icon was
         clicked.
 
         """
@@ -2262,12 +2424,12 @@ class BaseInlineIconWidget(BaseListWidget):
 
         # Responding the click-events based on the position:
         rect = self.visualRect(index)
-        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
         cursor_position = self.mapFromGlobal(common.cursor.pos())
 
         self.reset_multitoggle()
 
-        if rectangles[listdelegate.FavouriteRect].contains(cursor_position):
+        if rectangles[delegate.FavouriteRect].contains(cursor_position):
             self.toggle_item_flag(
                 index,
                 common.MarkedAsFavourite
@@ -2275,7 +2437,7 @@ class BaseInlineIconWidget(BaseListWidget):
             self.update(index)
             self.model().invalidateFilter()
 
-        if rectangles[listdelegate.ArchiveRect].contains(cursor_position):
+        if rectangles[delegate.ArchiveRect].contains(cursor_position):
             self.toggle_item_flag(
                 index,
                 common.MarkedAsArchived
@@ -2283,11 +2445,11 @@ class BaseInlineIconWidget(BaseListWidget):
             self.update(index)
             self.model().invalidateFilter()
 
-        if rectangles[listdelegate.RevealRect].contains(cursor_position):
+        if rectangles[delegate.RevealRect].contains(cursor_position):
             common.reveal(index.data(QtCore.Qt.StatusTipRole))
 
-        if rectangles[listdelegate.TodoRect].contains(cursor_position):
-            self.show_todos(index)
+        if rectangles[delegate.TodoRect].contains(cursor_position):
+            self.show_todos()
 
         super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
@@ -2307,15 +2469,16 @@ class BaseInlineIconWidget(BaseListWidget):
             app.restoreOverrideCursor()
             return
 
-        rectangles = listdelegate.get_rectangles(self.visualRect(index), self.inline_icons_count())
+        rectangles = delegate.get_rectangles(
+            self.visualRect(index), self.inline_icons_count())
         for k in (
-            listdelegate.BookmarkPropertiesRect,
-            listdelegate.AddAssetRect,
-            listdelegate.DataRect,
-            listdelegate.TodoRect,
-            listdelegate.RevealRect,
-            listdelegate.ArchiveRect,
-            listdelegate.FavouriteRect
+            delegate.PropertiesRect,
+            delegate.AddAssetRect,
+            delegate.DataRect,
+            delegate.TodoRect,
+            delegate.RevealRect,
+            delegate.ArchiveRect,
+            delegate.FavouriteRect
         ):
             if rectangles[k].contains(cursor_position):
                 self.update(index)
@@ -2337,7 +2500,6 @@ class BaseInlineIconWidget(BaseListWidget):
             return
 
         try:
-
             initial_index = self.indexAt(self.multi_toggle_pos)
             idx = index.row()
 
@@ -2351,7 +2513,7 @@ class BaseInlineIconWidget(BaseListWidget):
             archived = index.flags() & common.MarkedAsArchived
 
             if idx not in self.multi_toggle_items:
-                if self.multi_toggle_idx == listdelegate.FavouriteRect:
+                if self.multi_toggle_idx == delegate.FavouriteRect:
                     self.multi_toggle_items[idx] = favourite
                     self.toggle_item_flag(
                         index,
@@ -2359,7 +2521,7 @@ class BaseInlineIconWidget(BaseListWidget):
                         state=self.multi_toggle_state
                     )
 
-                if self.multi_toggle_idx == listdelegate.ArchiveRect:
+                if self.multi_toggle_idx == delegate.ArchiveRect:
                     self.multi_toggle_items[idx] = archived
                     self.toggle_item_flag(
                         index,
@@ -2371,13 +2533,13 @@ class BaseInlineIconWidget(BaseListWidget):
             if index == initial_index:
                 return
 
-            if self.multi_toggle_idx == listdelegate.FavouriteRect:
+            if self.multi_toggle_idx == delegate.FavouriteRect:
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsFavourite,
                     state=self.multi_toggle_items.pop(idx)
                 )
-            elif self.multi_toggle_idx == listdelegate.FavouriteRect:
+            elif self.multi_toggle_idx == delegate.FavouriteRect:
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsArchived,
@@ -2388,16 +2550,21 @@ class BaseInlineIconWidget(BaseListWidget):
         finally:
             self.update(index)
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def show_todos(self, index):
-        """Shows the ``TodoEditorWidget`` for the current item."""
+    @common.debug
+    @common.error
+    @QtCore.Slot()
+    def show_todos(self):
+        if not self.selectionModel().hasSelection():
+            return
+        index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
 
-        from . import notes
+        from .. import notes
 
-        # Let's check if other editors are open and close them if so
-        editors = [f for f in self.children() if isinstance(f, notes.TodoEditorWidget)]
+        # Let's check if any other editors are open and close them if so
+        editors = [f for f in self.children() if isinstance(
+            f, notes.TodoEditorWidget)]
         if editors:
             for editor in editors:
                 editor.done(QtWidgets.QDialog.Rejected)
@@ -2409,55 +2576,55 @@ class BaseInlineIconWidget(BaseListWidget):
         widget.finished.connect(widget.deleteLater)
         widget.open()
 
+    @common.debug
+    @common.error
     @QtCore.Slot()
     def show_preferences(self):
-        from . import preferences
-        widget = preferences.PreferencesWidget()
+        from ..properties import preference_properties_widget
+        widget = preference_properties_widget.PreferencesWidget()
         widget.show()
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def show_slack(self, index):
-        if not index.isValid():
-            return None
+    @common.debug
+    @common.error
+    @QtCore.Slot()
+    def show_slack(self):
+        """Opens the Slack widget used to send messages using SlackAPI.
+
+        """
+        server = settings.ACTIVE[settings.ServerKey]
+        job = settings.ACTIVE[settings.JobKey]
+        root = settings.ACTIVE[settings.RootKey]
+
+        args = (server, job, root)
+        if not all(args):
+            return
+
         try:
-            from . import slack
-        except ImportError as err:
-            common_ui.ErrorBox(
-                u'Could not import SlackClient',
-                u'The Slack API python module was not loaded:\n{}'.format(err),
-            ).open()
-            log.error(u'Slack import error.')
+            from .. import slack
+        except ImportError as e:
             raise
 
-        db = bookmark_db.get_db(
-            index.data(common.ParentPathRole)[0],
-            index.data(common.ParentPathRole)[1],
-            index.data(common.ParentPathRole)[2],
-        )
-        token = db.value(1, u'slacktoken', table=u'properties')
+        with bookmark_db.transactions(*args) as db:
+            token = db.value(
+                u'/'.join(args),
+                u'slacktoken',
+                table=bookmark_db.BookmarkTable
+            )
 
-        if slack.instance is not None:
-            source_model = slack.instance.message_widget.users_widget.model().sourceModel()
-            if source_model.client.token == token:
-                slack.instance.setGeometry(self.viewport().geometry())
-                slack.instance.open()
-                return slack.instance
+        if not token:
+            return
 
-        slack.instance = slack.SlackWidget(token, parent=self)
-        source_model = slack.instance.message_widget.users_widget.model().sourceModel()
-        self.resized.connect(slack.instance.setGeometry)
-        slack.instance.setGeometry(self.viewport().geometry())
-
-        try:
-            source_model.client.verify_token()
+        # Let's check what token the current slack widget was initiated with
+        if slack.instance is not None and slack.instance.token == token:
             slack.instance.open()
-            return slack.instance
-        except:
-            log.error(u'Invalid token')
-            raise
+            slack.instance.raise_()
+            return
+
+        slack.instance = slack.SlackWidget(token)
+        slack.instance.open()
 
     @QtCore.Slot()
-    def start_queue_timers(self):
+    def start_queue_timers(self, *args, **kwargs):
         pass
 
     @QtCore.Slot()
@@ -2471,7 +2638,7 @@ class BaseInlineIconWidget(BaseListWidget):
     def clickableRectangleEvent(self, event):
         """Used to handle a mouse press/release on a clickable element. The
         clickable rectangles define interactive regions on the list widget, and
-        are set by the listdelegate.
+        are set by the delegate.
 
         For instance, the files widget has a few addittional clickable inline icons
         that control filtering we set the action for here.
@@ -2495,9 +2662,8 @@ class BaseInlineIconWidget(BaseListWidget):
         control_modifier = modifiers & QtCore.Qt.ControlModifier
 
         rect = self.visualRect(index)
-        rectangles = listdelegate.get_rectangles(rect, self.inline_icons_count())
-        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(
-            index, rectangles)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index)
         if not clickable_rectangles:
             return
 
@@ -2514,9 +2680,9 @@ class BaseInlineIconWidget(BaseListWidget):
                 filter_text = self.model().filter_text()
                 filter_text = filter_text.lower() if filter_text else u''
 
-                # Shift modifier will add a "positive" filter and hide all items
-                # that does not contain the given text.
                 if shift_modifier:
+                    # Shift modifier will add a "positive" filter and hide all items
+                    # that does not contain the given text.
                     folder_filter = u'"/' + text + u'/"'
 
                     if folder_filter in filter_text:
@@ -2527,11 +2693,9 @@ class BaseInlineIconWidget(BaseListWidget):
                     self.model().set_filter_text(filter_text)
                     self.model().filterTextChanged.emit(filter_text)
                     self.repaint(self.rect())
-                    return
-
-                # The alt or control modifiers will add a "negative filter"
-                # and hide the selected subfolder from the view
-                if alt_modifier or control_modifier:
+                elif alt_modifier or control_modifier:
+                    # The alt or control modifiers will add a "negative filter"
+                    # and hide the selected subfolder from the view
                     folder_filter = u'--"/' + text + u'/"'
                     _folder_filter = u'"/' + text + u'/"'
 
@@ -2542,7 +2706,7 @@ class BaseInlineIconWidget(BaseListWidget):
                         if folder_filter not in filter_text:
                             folder_filter = filter_text + u' ' + folder_filter
 
-                    self.model().set_filter_text(filter_text)
+                    self.model().set_filter_text(folder_filter)
                     self.model().filterTextChanged.emit(folder_filter)
                     self.repaint(self.rect())
                     return
@@ -2572,8 +2736,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         self.connect_thread_signals()
 
+    @common.error
+    @common.debug
     def connect_thread_signals(self):
-        # Connect signals
         proxy = self.model()
         model = proxy.sourceModel()
         cnx_type = QtCore.Qt.AutoConnection
@@ -2588,7 +2753,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.queue_visible_timer.timeout.connect(
             lambda: log.debug('timeout -> queue_visible_indexes', self.queue_visible_timer))
         self.queue_visible_timer.timeout.connect(
-            partial(
+            functools.partial(
                 self.queue_visible_indexes,
                 common.FileInfoLoaded,
                 common.InfoThread
@@ -2598,7 +2763,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.queue_visible_timer.timeout.connect(
             lambda: log.debug('timeout -> queue_visible_indexes', self.queue_visible_timer))
         self.queue_visible_timer.timeout.connect(
-            partial(
+            functools.partial(
                 self.queue_visible_indexes,
                 common.ThumbnailLoaded,
                 common.ThumbnailThread
@@ -2607,7 +2772,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         )
 
         model.modelReset.connect(
-            partial(
+            functools.partial(
                 self.queue_visible_indexes,
                 common.FileInfoLoaded,
                 common.InfoThread
@@ -2615,7 +2780,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             cnx_type
         )
         model.modelReset.connect(
-            partial(
+            functools.partial(
                 self.queue_visible_indexes,
                 common.ThumbnailLoaded,
                 common.ThumbnailThread
@@ -2681,34 +2846,36 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         model.modelReset.connect(
             lambda: self.verticalScrollBar().valueChanged.emit(self.verticalScrollBar().value()))
 
+    @common.debug
+    @common.error
     @QtCore.Slot()
-    def start_queue_timers(self):
+    def start_queue_timers(self, *args, **kwargs):
         """Start the timers used to load an item's secondary data.
 
         """
-        log.debug('start_queue_timers()', self)
         if not self.queue_visible_timer.isActive():
             self.queue_visible_timer.start(
                 self.queue_visible_timer.interval())
 
+    @common.debug
     @QtCore.Slot()
     def stop_queue_timers(self):
         """Stop the timers used to load an item's secondary data.
 
         """
-        log.debug('stop_queue_timers()', self)
         self.queue_visible_timer.stop()
 
+    @common.debug
     @QtCore.Slot()
     def queue_model_data(self):
         """Queues the model data for the BackgroundInfoThread to process."""
-        log.debug('queue_model_data()', self)
-
         model = self.model().sourceModel()
         if model._model_loaded[model.data_type()]:
             return
         model.queueModel.emit(repr(model))
 
+    @common.debug
+    @common.error
     @QtCore.Slot(int)
     @QtCore.Slot(int)
     def queue_visible_indexes(self, DataRole, thread_type):
@@ -2730,11 +2897,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             raise TypeError(u'Invalid `thread_type`, expected <type \'int\', got {}'.format(
                 type(thread_type)))
 
-        log.debug('queue_visible_indexes() - Begin', self)
-
         proxy = self.model()
         if not proxy.rowCount():
-            log.debug('queue_visible_indexes() - No proxy rows', self)
             return
 
         model = proxy.sourceModel()
@@ -2764,8 +2928,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             is_archived = index.flags() & common.MarkedAsArchived
             if show_archived is False and is_archived:
                 proxy.invalidateFilter()
-                log.debug('queue_visible_indexes() - invalidateFilter()', self)
-                return  # abort
+                return
 
             # Nothing else to do if the threads are not enabled
             if not thread_count:
@@ -2795,8 +2958,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         for ref in reversed(l):
             model.threads[thread_type][n % thread_count].add_to_queue(ref)
-
-        log.debug('queue_visible_indexes() - done', self)
 
     def wheelEvent(self, event):
         super(ThreadedBaseWidget, self).wheelEvent(event)
@@ -2837,13 +2998,17 @@ class StackedWidget(QtWidgets.QStackedWidget):
             idx = 1
 
         if idx <= 3:
-            k = u'widget/current_tab'
-            settings.local_settings.setValue(k, idx)
+            settings.local_settings.setValue(
+                settings.UIStateSection,
+                settings.CurrentList,
+                idx
+            )
 
-        super(StackedWidget, self).setCurrentIndex(idx)
+        self._setCurrentIndex(idx)
 
     def _setCurrentIndex(self, idx):
         super(StackedWidget, self).setCurrentIndex(idx)
+        self.currentWidget().setFocus()
 
     def showEvent(self, event):
         if self.currentWidget():

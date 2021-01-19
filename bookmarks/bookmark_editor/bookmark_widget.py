@@ -1,6 +1,8 @@
-"""Widget used to view the list of jobs on a server.
+# -*- coding: utf-8 -*-
+"""Sub-editor widget used by the Bookmark Editor to add and toggle bookmarks.
 
 """
+import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 
 import _scandir
@@ -11,60 +13,9 @@ from .. import settings
 from .. import images
 from .. import contextmenu
 from .. import common_ui
+from .. import shortcuts
 
-from . import bookmark_properties
-from . import job
-
-
-class ProgressOverlayWidget(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        super(ProgressOverlayWidget, self).__init__(parent=parent)
-        self._message = u''
-
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding,
-        )
-
-    @QtCore.Slot(unicode)
-    def set_message(self, message):
-        if message == self._message:
-            return
-
-        self._message = message
-        self.update()
-        QtWidgets.QApplication.instance().processEvents(
-            flags=QtCore.QEventLoop.AllEvents)
-
-    def paintEvent(self, event):
-        if not self._message and not self.parent().parent().count():
-            message = u'No bookmarks'
-        elif not self._message:
-            return
-        elif self._message:
-            message = self._message
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setPen(common.TEXT)
-
-        o = common.MARGIN()
-        rect = self.rect().adjusted(o, o, -o, -o)
-        text = QtGui.QFontMetrics(self.font()).elidedText(
-            message,
-            QtCore.Qt.ElideMiddle,
-            rect.width(),
-        )
-
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignCenter,
-            text,
-        )
-        painter.end()
+from . import list_widget
 
 
 class BookmarkContextMenu(contextmenu.BaseContextMenu):
@@ -87,7 +38,7 @@ class BookmarkContextMenu(contextmenu.BaseContextMenu):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
 
-        menu_set[u'Add bookmark'] = {
+        menu_set[u'Add Bookmark...'] = {
             u'action': self.parent().add,
             u'icon': pixmap
         }
@@ -130,7 +81,7 @@ class BookmarkContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
 
-class BookmarkListWidget(QtWidgets.QListWidget):
+class BookmarkListWidget(list_widget.ListWidget):
     """Simple list widget used to add and remove servers to/from the local
     settings.
 
@@ -139,46 +90,45 @@ class BookmarkListWidget(QtWidgets.QListWidget):
     bookmarkAdded = QtCore.Signal(unicode, unicode, unicode)
     bookmarkRemoved = QtCore.Signal(unicode, unicode, unicode)
 
-    progressUpdate = QtCore.Signal(unicode)
-    resized = QtCore.Signal(QtCore.QSize)
-
     def __init__(self, parent=None):
-        super(BookmarkListWidget, self).__init__(parent=parent)
-        self._server = None
-        self._job = None
-        self._interrupt_requested = False
+        super(BookmarkListWidget, self).__init__(
+            default_message=u'No bookmarks found.',
+            parent=parent
+        )
 
-        common.set_custom_stylesheet(self)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectItems)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self._interrupt_requested = False
 
         self.setWindowTitle(u'Bookmark Editor')
         self.setObjectName(u'BookmarkEditor')
 
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
         self.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
         )
-
-        self.overlay = ProgressOverlayWidget(parent=self.viewport())
-        self.overlay.show()
+        self.setMinimumWidth(common.WIDTH() * 0.33)
 
         self._connect_signals()
+        self.init_shortcuts()
+
+    def init_shortcuts(self):
+        shortcuts.add_shortcuts(self, shortcuts.BookmarkEditorShortcuts)
+        connect = functools.partial(shortcuts.connect, shortcuts.BookmarkEditorShortcuts)
+        connect(shortcuts.AddItem, self.add)
 
     def _connect_signals(self):
-        self.resized.connect(self.overlay.resize)
-        self.progressUpdate.connect(self.overlay.set_message)
+        super(BookmarkListWidget, self)._connect_signals()
         self.itemClicked.connect(self.toggle_checkbox)
         self.itemActivated.connect(self.toggle_checkbox)
-
-    def resizeEvent(self, event):
-        self.resized.emit(event.size())
 
     @QtCore.Slot(QtWidgets.QListWidgetItem)
     def toggle_checkbox(self, item):
         settings.local_settings.sync()
-        bookmarks = settings.local_settings.bookmarks()
+        bookmarks = settings.local_settings.get_bookmarks()
 
         if item.checkState() == QtCore.Qt.Checked:
             item.setCheckState(QtCore.Qt.Unchecked)
@@ -189,26 +139,33 @@ class BookmarkListWidget(QtWidgets.QListWidget):
         elif item.checkState() == QtCore.Qt.Unchecked:
             item.setCheckState(QtCore.Qt.Checked)
             bookmarks[item.data(QtCore.Qt.UserRole)] = {
-                u'server': self._server,
-                u'job': self._job,
-                u'root': item.data(QtCore.Qt.DisplayRole)
+                settings.ServerKey: self._server,
+                settings.JobKey: self._job,
+                settings.RootKey: item.data(QtCore.Qt.DisplayRole)
             }
             self.bookmarkAdded.emit(
                 self._server, self._job, item.data(QtCore.Qt.DisplayRole))
 
-        self.verify_item(item)
+        self.set_item_state(item)
 
     @QtCore.Slot()
     def edit_properties(self, item):
-        widget = bookmark_properties.BookmarkPropertiesWidget(
+        """Open the bookmark properties editor.
+
+        """
+        from ..properties import bookmark_properties_widget
+        widget = bookmark_properties_widget.BookmarkPropertiesWidget(
             self._server,
             self._job,
-            item.data(QtCore.Qt.DisplayRole)
+            item.data(QtCore.Qt.DisplayRole),
+            parent=self
         )
         widget.open()
 
+    @common.debug
+    @common.error
     @QtCore.Slot()
-    def add(self):
+    def add(self, *args, **kwargs):
         if not self._server or not self._job:
             return
 
@@ -220,7 +177,7 @@ class BookmarkListWidget(QtWidgets.QListWidget):
         )
         if not path:
             return
-        if not QtCore.QDir(path).mkdir(common.BOOKMARK_INDICATOR):
+        if not QtCore.QDir(path).mkdir(common.BOOKMARK_ROOT_DIR):
             log.error(u'Failed to create bookmark.')
 
         name = path.split(self._job)[-1].strip(u'/').strip(u'\\')
@@ -237,7 +194,7 @@ class BookmarkListWidget(QtWidgets.QListWidget):
         item = QtWidgets.QListWidgetItem()
         item.setFlags(
             QtCore.Qt.ItemIsEnabled |
-            # QtCore.Qt.ItemIsSelectable |
+            QtCore.Qt.ItemIsSelectable |
             QtCore.Qt.ItemIsUserCheckable
         )
         item.setCheckState(QtCore.Qt.Unchecked)
@@ -249,7 +206,7 @@ class BookmarkListWidget(QtWidgets.QListWidget):
         )
         item.setSizeHint(size)
         self.insertItem(self.count(), item)
-        self.verify_item(item)
+        self.set_item_state(item)
         self.setCurrentItem(item)
 
     def contextMenuEvent(self, event):
@@ -280,8 +237,7 @@ class BookmarkListWidget(QtWidgets.QListWidget):
 
     @QtCore.Slot()
     def init_data(self):
-        """Best course of action might be to cache the results to a config file
-        and let the user search for bookmarks.
+        """Loads a list of bookmarks found in the current job.
 
         """
         self.clear()
@@ -311,14 +267,23 @@ class BookmarkListWidget(QtWidgets.QListWidget):
             )
             item.setSizeHint(size)
             self.insertItem(self.count(), item)
-            self.verify_item(item)
+            self.set_item_state(item)
 
         self.loaded.emit()
 
-    def verify_item(self, item):
-        bookmarks = settings.local_settings.bookmarks()
+    @QtCore.Slot(QtWidgets.QListWidgetItem)
+    def set_item_state(self, item):
+        """Checks if the item is part of the current bookmark set and set the
+        `checkState` and icon accordingly.
 
-        pixmap = job.get_job_thumbnail(self._server + u'/' + self._job)
+        Args:
+            item(QtWidgets.QListWidgetItem):    The item to check.
+
+        """
+        bookmarks = settings.local_settings.get_bookmarks()
+
+        from . import job_widget
+        pixmap = job_widget.get_job_thumbnail(self._server + u'/' + self._job)
 
         if item.data(QtCore.Qt.UserRole) in [f for f in bookmarks]:
             item.setCheckState(QtCore.Qt.Checked)
@@ -362,7 +327,7 @@ class BookmarkListWidget(QtWidgets.QListWidget):
         try:
             it = _scandir.scandir(path)
         except:
-            return
+            return arr
 
         if emit_progress:
             self.progressUpdate.emit(
@@ -375,7 +340,7 @@ class BookmarkListWidget(QtWidgets.QListWidget):
             if [f for f in arr if f in path]:
                 continue
 
-            if entry.name == common.BOOKMARK_INDICATOR:
+            if entry.name == common.BOOKMARK_ROOT_DIR:
                 arr.append(u'/'.join(path.split(u'/')[:-1]))
 
             self.find_bookmark_dirs(path, count, limit, arr)

@@ -26,7 +26,7 @@ class BaseCase(unittest.TestCase):
         common.PRODUCT = u'bookmarks_unittest'
 
         settings.local_settings.deleteLater()
-        settings.local_settings = settings.LocalSettings()
+        settings.local_settings = settings.Settings()
         settings.local_settings.setValue(u'servers', None)
 
         # Add mock server dir
@@ -283,69 +283,13 @@ class TestBookmarksWidget(BaseCase):
         settings.local_settings.setValue(u'servers', None)
         settings.local_settings.sync()
 
-    def test_open_addbookmark(self):
-        import bookmarks.addbookmark as addbookmark
-        w = addbookmark.ManageBookmarks()
-
-    def test_addbookmark_add_bookmark(self):
-        import bookmarks.addbookmark as addbookmark
-        import bookmarks.common as common
-
-        w = addbookmark.ManageBookmarks()
-
-        val = u'INVALID_SERVER'
-        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(val)
-        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
-        v = common.SERVERS
-        self.assertEqual(v, [])
-
-        val = self.server
-        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
-        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
-        v = common.SERVERS
-        self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
-
-        val = self.server.replace(u'/', u'\\')
-        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
-        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
-        v = common.SERVERS
-        self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
-
-    def test_read_jobs(self):
-        import bookmarks.addbookmark as addbookmark
-        import bookmarks.common as common
-
-        w = addbookmark.ManageBookmarks()
-
-        val = self.server
-        w.scrollarea.widget().server_editor.add_server_lineeditor.setText(self.server)
-        w.scrollarea.widget().server_editor.add_server_button.clicked.emit()
-        v = common.SERVERS
-        self.assertEqual(v, [val.replace(u'\\', u'/').lower(), ])
-
-        # idx = w.scrollarea.widget().job_combobox.findText(self.job.upper())
-        # self.assertNotEqual(idx, -1)
-
 
 class TestGui(BaseCase):
 
-    def test_addasset(self):
-        import bookmarks.addasset as addasset
-        w = addasset.AddAssetWidget(
-            self.server,
-            self.job,
-            self.bookmarks[0],
-        )
-        w.open()
-
-    def test_addfile(self):
-        import bookmarks.addfile as addfile
-        w = addfile.AddFileWidget(u'ma')
-        w.open()
 
     def test_assetwidget(self):
-        import bookmarks.listassets as listassets
-        widget = listassets.AssetsWidget()
+        import bookmarks.lists.assets as assets
+        widget = assets.AssetsWidget()
         widget.model().sourceModel().parent_path = (
             self.server, self.job, self.bookmarks[1 ],)
         widget.model().sourceModel().modelDataResetRequested.emit()
@@ -359,7 +303,7 @@ class TestGui(BaseCase):
 
     def test_bookmark_properties_widget(self):
         from PySide2 import QtCore
-        import bookmarks.bookmark_properties as bookmark_properties
+        import bookmarks.properties as bookmark_properties
         w = bookmark_properties.BookmarkPropertiesWidget(
             server=self.server,
             job=self.job,
@@ -371,14 +315,14 @@ class TestGui(BaseCase):
         import bookmarks.lists as lists
 
     def test_bookmarks_widget(self):
-        import bookmarks.listbookmarks as listbookmarks
-        widget = listbookmarks.BookmarksWidget()
+        import bookmarks.lists.bookmarks as bookmarks
+        widget = bookmarks.BookmarksWidget()
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.show()
 
     def test_taskfolders_widget(self):
-        import bookmarks.listtasks as listtasks
-        widget = listtasks.TaskFolderWidget()
+        import bookmarks.lists.tasks as tasks
+        widget = tasks.TaskFolderWidget()
         widget.model().modelDataResetRequested.emit()
         widget.show()
 
@@ -388,8 +332,8 @@ class TestGui(BaseCase):
         widget.show()
 
     def test_favourites_widget(self):
-        import bookmarks.listfavourites as listfavourites
-        widget = listfavourites.FavouritesWidget()
+        import bookmarks.lists.favourites as favourites
+        widget = favourites.FavouritesWidget()
         widget.show()
 
     def test_preferences_widget(self):
@@ -415,8 +359,8 @@ class TestGui(BaseCase):
             standalone.StandaloneMainWidget()
 
     def test_files_widget(self):
-        import bookmarks.listfiles as listfiles
-        widget = listfiles.FilesWidget()
+        import bookmarks.lists.files as files
+        widget = files.FilesWidget()
         widget.model().sourceModel().parent_path = (
             self.server, self.job, self.bookmarks[0], u'asset_a')
         widget.model().sourceModel().modelDataResetRequested.emit()
@@ -445,14 +389,14 @@ class TestVersionControl(BaseCase):
             raise
 
 
-class TestLocalSettings(unittest.TestCase):
+class TestSettings(unittest.TestCase):
     local_settings = None
 
     @classmethod
     def setUpClass(cls):
         import bookmarks.settings as settings
-        settings.LocalSettings.filename = 'unittestconfig.ini'
-        cls.local_settings = settings.LocalSettings()
+        settings.Settings.filename = 'unittestconfig.ini'
+        cls.local_settings = settings.Settings()
         cls.local_settings.sync()
 
     @classmethod
@@ -773,7 +717,7 @@ if __name__ == '__main__':
         loader.loadTestsFromTestCase(TestScandir),
         loader.loadTestsFromTestCase(TestImages),
         loader.loadTestsFromTestCase(TestSQLite),
-        loader.loadTestsFromTestCase(TestLocalSettings),
+        loader.loadTestsFromTestCase(TestSettings),
         loader.loadTestsFromTestCase(TestAddFileWidget),
         loader.loadTestsFromTestCase(TestBookmarksWidget),
         loader.loadTestsFromTestCase(TestGui),

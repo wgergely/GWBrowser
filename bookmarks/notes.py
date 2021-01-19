@@ -225,9 +225,8 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     """
 
-    def __init__(self, text, read_only=False, checked=False, parent=None):
+    def __init__(self, text, read_only=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
-        self.setDisabled(checked)
         self.document().setDocumentMargin(common.MARGIN())
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -349,27 +348,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             return True
         return False
 
-    # def insertFromMimeData(self, mimedata):
-    #     """We can insert media using our image-cache - eg any image-content from
-    #     the clipboard we will save into our cache folder.
-    #
-    #     """
-    #     def href(url): return u'<a href="{url}">{name}</a>'.format(
-    #         style=u'align:left;',
-    #         url=url.toLocalFile(),
-    #         name=QtCore.QFileInfo(url.toLocalFile()).fileName())
-    #
-    #     # We save our image into the cache for safe-keeping
-    #     if mimedata.hasUrls():
-    #         self.insertHtml(u'{}<br>'.format(href(url)))
-    #
-    #     elif mimedata.hasHtml():
-    #         html = mimedata.html()
-    #         self.insertHtml(u'{}<br>'.format(html))
-    #     elif mimedata.hasText():
-    #         text = mimedata.text()
-    #         self.insertHtml(u'{}<br>'.format(text))
-
     def open_url(self, url):
         """We're handling the clicking of anchors here manually."""
         if not url.isValid():
@@ -387,7 +365,7 @@ class RemoveNoteButton(common_ui.ClickableIconButton):
         super(RemoveNoteButton, self).__init__(
             u'remove',
             (common.REMOVE, common.REMOVE),
-            common.MARGIN() * 0.66,
+            common.MARGIN(),
             description=u'Click to remove this note',
             parent=parent
         )
@@ -423,24 +401,15 @@ class DragIndicatorButton(QtWidgets.QLabel):
     in the target drop widet.
     """
 
-    def __init__(self, checked=False, parent=None):
+    def __init__(self, parent=None):
         super(DragIndicatorButton, self).__init__(parent=parent)
         self.dragStartPosition = None
 
-        self.setDisabled(checked)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-
-    def setDisabled(self, b):
-        """Custom disabled function."""
-        if b:
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT_SELECTED, common.MARGIN() * 0.66)
-        else:
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT, common.MARGIN() * 0.66)
-
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'drag_indicator', common.SECONDARY_TEXT, common.MARGIN())
         self.setPixmap(pixmap)
 
     def mousePressEvent(self, event):
@@ -453,13 +422,11 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """The drag operation is initiated here."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        app = QtWidgets.QApplication.instance()
         left_button = event.buttons() & QtCore.Qt.LeftButton
         if not left_button:
             return
 
         parent_widget = self.parent()
-        editor = parent_widget.findChild(TodoItemEditor)
         drag = QtGui.QDrag(parent_widget)
 
         # Setting Mime Data
@@ -475,7 +442,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         drag.setPixmap(pixmap)
         drag.setHotSpot(
             QtCore.QPoint(
-                pixmap.width() - ((common.MARGIN() * 0.66) * 2),
+                pixmap.width() - ((common.MARGIN()) * 2),
                 pixmap.height() / 2.0
             )
         )
@@ -506,68 +473,6 @@ class DragIndicatorButton(QtWidgets.QLabel):
         overlay_widget.deleteLater()
         parent_widget.parent().separator.setHidden(True)
 
-
-class CheckBoxButton(QtWidgets.QLabel):
-    """Custom checkbox used to enable/disable todo items."""
-
-    clicked = QtCore.Signal(bool)
-
-    def __init__(self, checked=False, parent=None):
-        super(CheckBoxButton, self).__init__(parent=parent)
-        self._checked = checked
-        self._checked_pixmap = None
-        self._unchecked_pixmap = None
-        self._entered = False
-
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.set_pixmap(self._checked)
-
-        self._connect_signals()
-
-    def enterEvent(self, event):
-        self._entered = True
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self._entered = False
-        self.repaint()
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        if not self._entered and self.checked:
-            painter.setOpacity(0.3)
-
-        rect = self.pixmap().rect()
-        rect.moveCenter(self.rect().center())
-
-        painter.drawPixmap(rect, self.pixmap(), self.pixmap().rect())
-        painter.end()
-
-    @property
-    def checked(self):
-        return self._checked
-
-    def _connect_signals(self):
-        self.clicked.connect(self.set_pixmap)
-
-    def set_pixmap(self, checked):
-        if checked:
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.BACKGROUND, common.MARGIN())
-            self.setPixmap(pixmap)
-        else:
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.ADD, common.MARGIN())
-            self.setPixmap(pixmap)
-
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self._checked = not self._checked
-        self.clicked.emit(self._checked)
 
 
 class Separator(QtWidgets.QLabel):
@@ -666,7 +571,7 @@ class TodoEditors(QtWidgets.QWidget):
         # Drag from another todo list
         if event.source() not in self.items:
             text = event.source().findChild(TodoItemEditor).document().toHtml()
-            self.parent().parent().parent().add_item(idx=0, text=text, checked=False)
+            self.parent().parent().parent().add_item(idx=0, text=text)
             self.separator.setHidden(True)
             return
 
@@ -740,7 +645,7 @@ class TodoEditors(QtWidgets.QWidget):
 
 
 class TodoItemWidget(QtWidgets.QWidget):
-    """The item-wrapper widget holding the checkbox, drag indicator and editor widgets."""
+    """The item-wrapper widget for the drag indicator and editor widgets."""
 
     def __init__(self, parent=None):
         super(TodoItemWidget, self).__init__(parent=parent)
@@ -797,6 +702,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         self.init_lock()
 
+
     def _create_UI(self):
         """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
@@ -828,13 +734,13 @@ class TodoEditorWidget(QtWidgets.QDialog):
             description=u'Click to add a new Todo item...',
             parent=self
         )
+        self.add_button.clicked.connect(lambda: self.add_item(idx=0))
 
         # Name label
         text = u'Notes and Tasks'
-        label = common_ui.PaintedLabel(text, color=common.SEPARATOR,
+        label = common_ui.PaintedLabel(text, color=common.SECONDARY_TEXT,
                                        size=common.LARGE_FONT_SIZE(), parent=self)
-        row.layout().addWidget(label, 1)
-        row.layout().addStretch(1)
+        label.setFixedHeight(height)
 
         self.refresh_button = common_ui.ClickableIconButton(
             u'refresh',
@@ -844,7 +750,6 @@ class TodoEditorWidget(QtWidgets.QDialog):
             parent=self
         )
         self.refresh_button.clicked.connect(self.refresh)
-        row.layout().addWidget(self.refresh_button, 0)
 
         self.remove_button = common_ui.ClickableIconButton(
             u'close',
@@ -854,19 +759,21 @@ class TodoEditorWidget(QtWidgets.QDialog):
             parent=self
         )
         self.remove_button.clicked.connect(self.close)
+
+        row.layout().addWidget(label)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.refresh_button, 0)
         row.layout().addWidget(self.remove_button, 0)
 
         row = common_ui.add_row(None, height=height, parent=self)
-        text = u'Add new note'
-        label = common_ui.PaintedLabel(text, color=common.SECONDARY_TEXT,
-                                       size=common.SMALL_FONT_SIZE(), parent=self)
+
+        text = u'Add Note'
+        self.add_label = common_ui.PaintedLabel(text, color=common.SECONDARY_TEXT, parent=row)
 
         row.layout().addWidget(self.add_button, 0)
-        row.layout().addWidget(label, 0)
-
+        row.layout().addWidget(self.add_label, 0)
         row.layout().addStretch(1)
 
-        self.add_button.clicked.connect(lambda: self.add_item(idx=0))
 
         self.todoeditors_widget = TodoEditors(parent=self)
         self.setMinimumHeight(common.ROW_HEIGHT() * 3.0)
@@ -898,38 +805,23 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if not self.index.data(common.FileInfoLoaded):
             return
 
-        db = bookmark_db.get_db(
-            self.index.data(common.ParentPathRole)[0],
-            self.index.data(common.ParentPathRole)[1],
-            self.index.data(common.ParentPathRole)[2]
-        )
         if self.index.data(common.TypeRole) == common.FileItem:
-            k = self.index.data(QtCore.Qt.StatusTipRole)
+            source = self.index.data(QtCore.Qt.StatusTipRole)
         elif self.index.data(common.TypeRole) == common.SequenceItem:
-            k = common.proxy_path(self.index)
+            source = common.proxy_path(self.index)
 
-        v = db.value(k, u'notes')
-        if not v:
-            return
-
-        try:
-            v = base64.b64decode(v)
-            d = json.loads(v)
-        except:
-            log.error(u'Error decoding notes from JSON')
-            return
-
+        with bookmark_db.transactions(*self.index.data(common.ParentPathRole)[0:3]) as db:
+            v = db.value(source, u'notes')
         if not v:
             return
 
         self.clear()
 
-        keys = sorted(d.keys())
+        keys = sorted(v.keys())
         try:
             for k in keys:
                 self.add_item(
-                    text=d[k][u'text'],
-                    checked=d[k][u'checked']
+                    text=v[k][u'text']
                 )
         except:
             log.error(u'Error adding notes')
@@ -1011,22 +903,24 @@ class TodoEditorWidget(QtWidgets.QDialog):
                 editor, ymargin=editor.height())
 
     def key_return(self,):
-        """Control enter toggles the state of the checkbox."""
         for item in self.todoeditors_widget.items:
             editor = item.findChild(TodoItemEditor)
-            checkbox = item.findChild(CheckBoxButton)
-            if editor.hasFocus():
-                if not editor.document().toPlainText():
-                    idx = self.todoeditors_widget.items.index(editor.parent())
-                    row = self.todoeditors_widget.items.pop(idx)
-                    self.todoedfitors_widget.layout().removeWidget(row)
-                    row.deleteLater()
-                checkbox.clicked.emit(not checkbox.checked)
-                break
+
+            if not editor.hasFocus():
+                continue
+
+            if editor.document().toPlainText():
+                continue
+
+            idx = self.todoeditors_widget.items.index(editor.parent())
+            row = self.todoeditors_widget.items.pop(idx)
+            self.todoedfitors_widget.layout().removeWidget(row)
+            row.deleteLater()
+
+            break
 
     def keyPressEvent(self, event):
         """Custom keypresses."""
-        no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         control_modifier = event.modifiers() == QtCore.Qt.ControlModifier
         shift_modifier = event.modifiers() == QtCore.Qt.ShiftModifier
 
@@ -1052,38 +946,26 @@ class TodoEditorWidget(QtWidgets.QDialog):
             elif event.key() == QtCore.Qt.Key_Return:
                 self.key_return()
 
-    def add_item(self, idx=None, text=None, checked=False):
-        """Creates a new widget containing the checkbox, editor and drag widgets.
+    def add_item(self, idx=None, text=None):
+        """Creates a new widget containing the editor and drag widgets.
 
         The method is responsible for adding the item the EditorsWidget layout
         and the EditorsWidget.items property.
 
         """
-        def toggle_editor(b, widget=None):
-            widget.setDisabled(not b)
-            widget.adjust_height()
-
         item = TodoItemWidget(parent=self)
 
         editor = TodoItemEditor(
-            text, read_only=self.read_only, checked=not checked, parent=item)
+            text, read_only=self.read_only, parent=item)
         editor.setFocusPolicy(QtCore.Qt.StrongFocus)
         item.layout().addWidget(editor, 1)
 
-        checkbox = CheckBoxButton(checked=not checked, parent=item)
-        checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
-        drag = DragIndicatorButton(checked=False, parent=item)
+        drag = DragIndicatorButton(parent=item)
         drag.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        checkbox.clicked.connect(
-            functools.partial(toggle_editor, widget=editor))
-
-        if not self.read_only:
-            item.layout().addWidget(checkbox)
-            item.layout().addWidget(drag)
-        else:
-            checkbox.hide()
-            drag.hide()
+        item.layout().addWidget(drag)
+        if self.read_only:
+            drag.setDisabled(True)
 
         if not self.read_only:
             remove = RemoveNoteButton(parent=item)
@@ -1097,7 +979,6 @@ class TodoEditorWidget(QtWidgets.QDialog):
             self.todoeditors_widget.layout().insertWidget(idx, item, 0)
             self.todoeditors_widget.items.insert(idx, item)
 
-        checkbox.clicked.emit(checkbox._checked)
         editor.setFocus()
         item.editor = editor
         return item
@@ -1112,39 +993,23 @@ class TodoEditorWidget(QtWidgets.QDialog):
         for n in xrange(len(self.todoeditors_widget.items)):
             item = self.todoeditors_widget.items[n]
             editor = item.findChild(TodoItemEditor)
-            checkbox = item.findChild(CheckBoxButton)
             if not editor.document().toPlainText():
                 continue
             data[n] = {
-                u'checked': not checkbox.checked,
                 u'text': editor.document().toHtml(),
             }
 
         if self.index.data(common.TypeRole) == common.FileItem:
-            k = self.index.data(QtCore.Qt.StatusTipRole)
+            source = self.index.data(QtCore.Qt.StatusTipRole)
         elif self.index.data(common.TypeRole) == common.SequenceItem:
-            k = common.proxy_path(self.index)
+            source = common.proxy_path(self.index)
 
-        db = bookmark_db.get_db(
-            self.index.data(common.ParentPathRole)[0],
-            self.index.data(common.ParentPathRole)[1],
-            self.index.data(common.ParentPathRole)[2]
-        )
+        with bookmark_db.transactions(*self.index.data(common.ParentPathRole)[0:3]) as db:
+            db.setValue(source, u'notes', data)
 
-        try:
-            v = json.dumps(data, ensure_ascii=False, encoding='utf-8')
-            v = base64.b64encode(v.encode('utf-8'))
-        except:
-            s = u'Error saving notes.'
-            log.error(s)
-            common_ui.ErrorBox(u'Error saving notes.', s).open()
-            raise
-
-        db.setValue(k, u'notes', v)
-        todo_count = len([k for k in data if not data[k][u'checked']])
         self.index.model().setData(
             self.index,
-            todo_count,
+            len(data),
             role=common.TodoCountRole
         )
 
@@ -1170,6 +1035,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if not is_open:
             self.read_only = False
             self.add_button.show()
+            self.add_label.show()
             self.refresh_button.hide()
             self.save_timer.start()
             self.refresh_timer.stop()
@@ -1180,6 +1046,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         if stamp == self.lockstamp:
             self.read_only = False
+            self.add_label.show()
             self.add_button.show()
             self.refresh_button.hide()
             self.save_timer.start()
@@ -1190,8 +1057,9 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         if stamp != self.lockstamp:
             self.read_only = True
-            self.refresh_button.show()
             self.add_button.hide()
+            self.add_label.hide()
+            self.refresh_button.show()
             self.save_timer.stop()
             self.refresh_timer.start()
 

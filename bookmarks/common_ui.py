@@ -8,13 +8,13 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from . import common
 from . import images
 from . import bookmark_db
-from . import listdelegate
+from .lists import delegate
 
 
 _message_box_instance = None
 
 
-def get_group(parent=None, vertical=True, margin=common.INDICATOR_WIDTH()):
+def get_group(parent=None, vertical=True, margin=common.MARGIN()):
     """Utility method for creating a group widget.
 
     Returns:
@@ -36,16 +36,17 @@ def get_group(parent=None, vertical=True, margin=common.INDICATOR_WIDTH()):
     )
 
     grp.layout().setContentsMargins(margin, margin, margin, margin)
-    grp.layout().setSpacing(margin)
+    grp.layout().setSpacing(margin * 0.5)
     parent.layout().addWidget(grp, 1)
+
     return grp
 
 
-def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGHT(), cls=None, vertical=False):
+def add_row(label, color=common.SECONDARY_TEXT, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGHT(), cls=None, vertical=False):
     """Utility method for creating a row widget.
 
     Returns:
-        QWidget: row widget.
+        QWidget:    The newly created row.
 
     """
     if cls:
@@ -60,7 +61,7 @@ def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGH
 
     w.layout().setContentsMargins(0, 0, 0, 0)
     w.layout().setSpacing(common.INDICATOR_WIDTH())
-    w.layout().setAlignment(QtCore.Qt.AlignCenter)
+    w.layout().setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
 
     w.setSizePolicy(
         QtWidgets.QSizePolicy.Expanding,
@@ -73,13 +74,15 @@ def add_row(label, parent=None, padding=common.MARGIN(), height=common.ROW_HEIGH
     w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
     if label:
-        l = PaintedLabel(label, size=common.SMALL_FONT_SIZE(),
-                         color=common.SECONDARY_TEXT, parent=parent)
-        l.setFixedWidth(common.MARGIN() * 6.6667)
+        l = PaintedLabel(
+            label,
+            size=common.SMALL_FONT_SIZE(),
+            color=color,
+            parent=parent
+        )
+        l.setFixedWidth(common.MARGIN() * 8.6667)
         l.setDisabled(True)
-        if padding:
-            w.layout().addSpacing(padding)
-        w.layout().addWidget(l, 0)
+        w.layout().addWidget(l, 1)
 
     if parent:
         parent.layout().addWidget(w, 1)
@@ -118,7 +121,37 @@ def add_line_edit(label, parent=None):
     return w
 
 
-def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
+class Label(QtWidgets.QLabel):
+    def __init__(self, text, color=common.SECONDARY_TEXT, parent=None):
+        super(Label, self).__init__(text, parent=parent)
+        self.color = color
+        self._color = QtGui.QColor(color)
+        self._color.setAlpha(230)
+        self.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignJustify)
+        self.setWordWrap(True)
+        self.setTextFormat(QtCore.Qt.RichText)
+        self.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+        self.setOpenExternalLinks(True)
+
+    def _set_stylesheet(self, isEnabled):
+        if not isEnabled:
+            self.setStyleSheet('color: rgba({}); font-size: {}px;'.format(
+            common.rgb(self._color) ,common.SMALL_FONT_SIZE()))
+        else:
+            self.setStyleSheet('color: rgba({}); font-size: {}px;'.format(
+            common.rgb(self.color), common.SMALL_FONT_SIZE()))
+        self.update()
+
+    def enterEvent(self, event):
+        self._set_stylesheet(True)
+
+    def leaveEvent(self, event):
+        self._set_stylesheet(False)
+
+    def showEvent(self, event):
+        self._set_stylesheet(False)
+
+def add_description(text, label=u' ', color=common.SECONDARY_TEXT, padding=common.MARGIN(), parent=None):
     """Utility method for adding a description field.
 
     Returns:
@@ -126,17 +159,11 @@ def add_description(text, label=u' ', padding=common.MARGIN(), parent=None):
 
     """
     row = add_row(label, padding=padding, height=None, parent=parent)
-    label = QtWidgets.QLabel(text, parent=parent)
-    label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-    label.setStyleSheet(
-        u'color: rgba({}); font-size: {}px'.format(
-            common.rgb(common.SECONDARY_TEXT),
-            common.SMALL_FONT_SIZE()
-        )
-    )
-    label.setWordWrap(True)
+    row.layout().setSpacing(0)
+
+    label = Label(text, color=color, parent=parent)
     row.layout().addWidget(label, 1)
-    parent.layout().addWidget(row)
+    parent.layout().addWidget(row, 1)
     return row
 
 
@@ -165,46 +192,54 @@ class PaintedButton(QtWidgets.QPushButton):
         """Paint event for smooth font display."""
         painter = QtGui.QPainter()
         painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         option = QtWidgets.QStyleOption()
         option.initFrom(self)
+
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         pressed = option.state & QtWidgets.QStyle.State_Sunken
         focus = option.state & QtWidgets.QStyle.State_HasFocus
+        disabled = not self.isEnabled()
 
-        color = common.TEXT if self.isEnabled() else common.SECONDARY_TEXT
-        color = common.TEXT_SELECTED if hover else color
+        o = 1.0 if hover else 0.8
+        o = 0.3 if disabled else o
+        painter.setOpacity(o)
 
-        bg_color = common.SECONDARY_TEXT if self.isEnabled(
-        ) else common.SECONDARY_BACKGROUND.darker(110)
-        bg_color = common.TEXT if hover else bg_color
-        bg_color = common.SEPARATOR if pressed else bg_color
-
-        if focus:
-            pen = QtGui.QPen(common.FAVOURITE)
-        else:
-            pen = QtGui.QPen(bg_color)
-            pen.setWidthF(common.ROW_SEPARATOR())
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(bg_color)
+        painter.setBrush(common.SECONDARY_BACKGROUND)
+        _color = QtGui.QColor(common.SEPARATOR)
+        _color.setAlpha(150)
+        pen = QtGui.QPen(_color)
+        pen.setWidthF(common.ROW_SEPARATOR())
         painter.setPen(pen)
+
+
         o = common.ROW_SEPARATOR()
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-        o = common.INDICATOR_WIDTH() * 0.7
+
+        o = common.INDICATOR_WIDTH() * 1.5
         painter.drawRoundedRect(rect, o, o)
+
+
+        if focus:
+            painter.setBrush(QtCore.Qt.NoBrush)
+            pen = QtGui.QPen(common.FAVOURITE)
+            pen.setWidthF(common.ROW_SEPARATOR())
+            painter.setPen(pen)
+            painter.drawRoundedRect(rect, o, o)
 
         rect = QtCore.QRect(self.rect())
         center = rect.center()
         rect.setWidth(rect.width() - (common.INDICATOR_WIDTH() * 2))
         rect.moveCenter(center)
+
         common.draw_aliased_text(
             painter,
             common.font_db.primary_font(common.MEDIUM_FONT_SIZE())[0],
             rect,
             self.text(),
             QtCore.Qt.AlignCenter,
-            color
+            common.TEXT
         )
 
         painter.end()
@@ -218,7 +253,6 @@ class PaintedLabel(QtWidgets.QLabel):
         self._size = size
         self._color = color
         self._text = text
-
         self.update_size()
 
     def update_size(self):
@@ -272,12 +306,13 @@ class ClickableIconButton(QtWidgets.QLabel):
         self._pixmap = pixmap
         self._size = size
 
-        on, off = colors
-        self._on_color = on
-        self._off_color = off
+        self._on_color = colors[0]
+        self._off_color = colors[1]
 
         self.setStatusTip(description)
         self.setToolTip(description)
+        self.setWhatsThis(description)
+
         self.setFixedSize(QtCore.QSize(size, size))
         self.setAlignment(QtCore.Qt.AlignCenter)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
@@ -332,7 +367,9 @@ class ClickableIconButton(QtWidgets.QLabel):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        if hover:
+        if not self.state():
+            painter.setOpacity(0.5)
+        elif hover:
             painter.setOpacity(1.0)
         else:
             painter.setOpacity(0.80)
@@ -581,20 +618,12 @@ class DescriptionEditorWidget(LineEdit):
         else:
             k = p
 
-        db = bookmark_db.get_db(
-            index.data(common.ParentPathRole)[0],
-            index.data(common.ParentPathRole)[1],
-            index.data(common.ParentPathRole)[2]
-        )
-
-        # We'll encode the value so we can store it safely in the database
-        v = base64.b64encode(self.text())
-        db.setValue(k, u'description', v)
+        with bookmark_db.transactions(*index.data(common.ParentPathRole)[0:3]) as db:
+            db.setValue(k, u'description', self.text())
 
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
 
-        # But there's no need to encode for storying it in the model
         data[common.DescriptionRole] = self.text()
         self.parent().update(source_index)
         self.hide()
@@ -607,21 +636,21 @@ class DescriptionEditorWidget(LineEdit):
             return
 
         rect = self.parent().visualRect(index)
-        rectangles = listdelegate.get_rectangles(
+        rectangles = delegate.get_rectangles(
             rect, self.parent().inline_icons_count())
         description_rect = self.parent().itemDelegate(
         ).get_description_rect(rectangles, index)
 
         # Won't be showing the editor if there's no appropiate description area
-        # provided by the listdelegate (eg. the bookmark items don't have this)
+        # provided by the delegate (eg. the bookmark items don't have this)
         if not description_rect:
             self.hide()
 
-        # Let's set the size based on the size provided by the listdelegate but
+        # Let's set the size based on the size provided by the delegate but
         # center it instead
         o = common.INDICATOR_WIDTH() * 2.0
         rect = description_rect.marginsAdded(QtCore.QMargins(0, o, 0, o))
-        rect.moveCenter(rectangles[listdelegate.DataRect].center())
+        rect.moveCenter(rectangles[delegate.DataRect].center())
         self.setGeometry(rect)
 
         # Set the text and select it

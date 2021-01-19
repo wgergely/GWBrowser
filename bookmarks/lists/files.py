@@ -5,15 +5,17 @@
 import _scandir
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from . import contextmenu
-from . import lists
-from . import log
-from . import common
-from . import threads
-from . import settings
-from . import listdelegate
-from . import defaultpaths
-from . import images
+from .. import contextmenu
+from .. import log
+from .. import common
+from .. import threads
+from .. import settings
+from .. import images
+from ..properties import asset_config
+
+from . import base
+from . import delegate
+
 
 
 FILTER_EXTENSIONS = False
@@ -26,12 +28,8 @@ class FilesWidgetContextMenu(contextmenu.BaseContextMenu):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_window_menu()
         self.add_separator()
-        self.add_task_folder_toggles_menu()
-        self.add_separator()
         self.add_add_file_menu()
-        self.add_separator()
-        self.add_collapse_sequence_menu()
-        self.add_separator()
+        self.add_task_toggles_menu()
         self.add_services_menu()
         #
         self.add_separator()
@@ -39,86 +37,82 @@ class FilesWidgetContextMenu(contextmenu.BaseContextMenu):
             self.add_mode_toggles_menu()
             self.add_separator()
         self.add_separator()
-        self.add_row_size_menu()
-        self.add_separator()
-        self.add_set_generate_thumbnails_menu()
+        self.add_urls_menu()
         self.add_separator()
         if index.isValid():
+            self.add_notes_menu()
             self.add_copy_menu()
             self.add_reveal_item_menu()
         self.add_separator()
+        self.add_collapse_sequence_menu()
+        self.add_set_generate_thumbnails_menu()
+        self.add_row_size_menu()
         self.add_sort_menu()
         self.add_separator()
-        self.add_display_toggles_menu()
         self.add_separator()
         self.add_refresh_menu()
 
 
-class FilesModel(lists.BaseModel):
-    """The model used store individual and file sequences found in `parent_path`.
+class FilesModel(base.BaseModel):
+    """Model used to list files in an asset.
 
-    File data is saved ``self.INTERNAL_MODEL_DATA`` using the **task folder**,
-    and **data_type** keys.
+    The root of the asset folder is never read, instead, each asset is expected
+    to contain a series of subfolders - referred to here as `task folders`.
+
+    The model will load files from one task folder at any given time. The
+    current task folder can be retrieved using `self.task()`. Switching
+    the task folders is done via the `taskFolderChanged.emit('my_task')`
+    signal.
+
+    Files & Sequences
+    -----------------
+    The model will load the found files into two separate data sets, one
+    listing files individually, the other collects files into file sequences
+    if they have an incremental number element.
+
+    Switching between the `FileItems` and `SequenceItems` is done by emitting
+    the `dataTypeChanged.emit(FileItem)` signal.
+
+    File Format Filtering
+    ---------------------
+
+    If the current task folder has a curresponding configuration in the current
+    bookmark's asset config, we can determine which file formats should be
+    allowed to display in the folder.
+    See the `asset_config.py` module for details.
 
     .. code-block:: python
 
-        data = self.model_data() # the currently exposed dataset
-        data == self.INTERNAL_MODEL_DATA[self.task_folder()][self.data_type()]
+        data = self.model_data() # the current data set
+        data == self.INTERNAL_MODEL_DATA[self.task()][self.data_type()]
 
     """
-    DEFAULT_ROW_SIZE = QtCore.QSize(1, common.ROW_HEIGHT())
-    val = settings.local_settings.value(u'widget/FilesModel/rowheight')
-    val = val if val else DEFAULT_ROW_SIZE.height()
-    val = DEFAULT_ROW_SIZE.height() if val < DEFAULT_ROW_SIZE.height() else val
-    ROW_SIZE = QtCore.QSize(1, val)
-
     queue_type = threads.FileInfoQueue
     thumbnail_queue_type = threads.FileThumbnailQueue
 
-    @property
-    def parent_path(self):
-        return (
-            settings.ACTIVE['server'],
-            settings.ACTIVE['job'],
-            settings.ACTIVE['root'],
-            settings.ACTIVE['asset'],
-        )
-
-    def _entry_iterator(self, path):
-        for entry in _scandir.scandir(path):
-            if entry.is_dir():
-                for _entry in self._entry_iterator(entry.path):
-                    yield _entry
-            else:
-                yield entry
-
-    @lists.initdata
+    @base.initdata
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and
         sequence definitions by running a file-iterator stemming from
-        ``self.parent_path``.
+        ``self.parent_path()``.
 
-        Getting all additional information, like description, item flags,
-        thumbnails are costly and therefore are populated by thread-workers.
+        Additional information, like description, item flags, thumbnails are
+        fetched by addittional thread workers.
 
         The method will iterate through all files in every subfolder and will
-        automatically save individual ``FileItems`` and collapsed
-        ``SequenceItems``.
-
-        Switching between the two datasets is done via emitting the
-        ``dataTypeChanged`` signal.
+        automatically populate both individual ``FileItems`` and collapsed
+        ``SequenceItems`` data sets. Switching between the two datasets is done
+        by emitting the ``dataTypeChanged`` signal with the data type.
 
         Note:
-            Experiencing serious performance issues with the built-in
-            QDirIterator on Mac OS X samba shares and the performance isn't
-            great on windows either. Querrying the filesystem using the method
-            is magnitudes slower than using the same methods on windows.
-
-            A workaround I found was to use Python 3+'s ``scandir`` module. Both
-            on Windows and Mac OS X the performance seems to be good.
+            Experiencing performance issues with the built-in `QDirIterator` on
+            Mac OS X Samba shares and the performance isn't great on Windows
+            either. The implemented workaround is to use Python 3+'s ``scandir``
+            module. Both on Windows and Mac OS X the performance seems to be
+            great.
 
         Internally, the actual files are returned by `self._entry_iterator()`,
-        this is where scandir is evoked.
+        the method where scandir is evoked.
 
         """
         def dflags():
@@ -128,10 +122,10 @@ class FilesModel(lists.BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        task_folder = self.task_folder()
-        if not task_folder:
+        task = self.task()
+        if not task:
             return
-        task_folder = task_folder.lower()
+
 
         SEQUENCE_DATA = common.DataDict()
         MODEL_DATA = common.DataDict({
@@ -139,38 +133,49 @@ class FilesModel(lists.BaseModel):
             common.SequenceItem: common.DataDict(),
         })
 
-        favourites = settings.local_settings.favourites()
+        favourites = settings.local_settings.get_favourites()
         sfavourites = set(favourites)
 
-        server, job, root, asset = self.parent_path
-        task_folder_extensions = defaultpaths.get_task_folder_extensions(
-            task_folder)
-        parent_path = u'/'.join(self.parent_path).lower() + \
-            u'/' + task_folder
+        parent_path = self.parent_path()
+        _parent_path = u'/'.join(parent_path + (task,))
+        if not QtCore.QFileInfo(_parent_path).exists():
+            return
+
+        # Let' get the asset config instance to check what extensions are
+        # currently allowed to be displayed in the task folder
+        config = asset_config.get(*parent_path[0:3])
+        is_valid_task = config.check_task(task)
+        if is_valid_task:
+            valid_extensions = config.get_task_extensions(task)
+        else:
+            valid_extensions = None
+        disable_filter = self.disable_filter()
 
         nth = 987
         c = 0
-
-        if not QtCore.QFileInfo(parent_path).exists():
-            return
-
-        for entry in self._entry_iterator(parent_path):
+        for entry in self._entry_iterator(_parent_path):
             if self._interrupt_requested:
                 break
 
             # skipping directories
             if entry.is_dir():
                 continue
-            filename = entry.name.lower()
+            filename = entry.name
 
+            # Skipping common hidden files
             if filename[0] == u'.':
                 continue
             if u'thumbs.db' in filename:
                 continue
 
-            filepath = entry.path.lower().replace(u'\\', u'/')
+            filepath = entry.path.replace(u'\\', u'/')
             ext = filename.split(u'.')[-1]
-            if FILTER_EXTENSIONS and task_folder_extensions and ext not in task_folder_extensions:
+
+            # File format filter
+            # We'll check against the current file extension against the allowed
+            # extensions. If the task folder is not defined in the asset config,
+            # we'll allow all extensions
+            if not disable_filter and is_valid_task and ext not in valid_extensions:
                 continue
 
             # Progress bar
@@ -181,7 +186,7 @@ class FilesModel(lists.BaseModel):
                 QtWidgets.QApplication.instance().processEvents()
 
             # Getting the fileroot
-            fileroot = filepath.replace(parent_path, u'')
+            fileroot = filepath.replace(_parent_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
 
             try:
@@ -195,26 +200,20 @@ class FilesModel(lists.BaseModel):
             if seq:
                 seqpath = seq.group(1) + common.SEQPROXY + \
                     seq.group(3) + u'.' + seq.group(4)
-                seqpath = seqpath.lower()
-                if seqpath in sfavourites:
-                    flags = flags | common.MarkedAsFavourite
-            else:
-                if filepath in sfavourites:
-                    flags = flags | common.MarkedAsFavourite
+            if (seq and (seqpath in sfavourites or filepath in sfavourites)) or (filepath in sfavourites):
+                flags = flags | common.MarkedAsFavourite
 
-            parent_path_role = (server, job, root, asset,
-                                task_folder, fileroot)
+            parent_path_role = parent_path + (task, fileroot)
 
             # Let's limit the maximum number of items we load
             idx = len(MODEL_DATA[common.FileItem])
             if idx >= common.MAXITEMS:
                 break
-
             MODEL_DATA[common.FileItem][idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
-                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
+                QtCore.Qt.SizeHintRole: self.row_size(),
                 #
                 common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
@@ -255,7 +254,7 @@ class FilesModel(lists.BaseModel):
                         QtCore.Qt.DisplayRole: seqname,
                         QtCore.Qt.EditRole: seqname,
                         QtCore.Qt.StatusTipRole: seqpath,
-                        QtCore.Qt.SizeHintRole: self.ROW_SIZE,
+                        QtCore.Qt.SizeHintRole: self.row_size(),
                         common.EntryRole: [],
                         common.FlagsRole: flags,
                         common.ParentPathRole: parent_path_role,
@@ -300,7 +299,7 @@ class FilesModel(lists.BaseModel):
                 v[common.SortByLastModifiedRole] = 0
 
                 flags = dflags()
-                if filepath.lower() in sfavourites:
+                if filepath in sfavourites:
                     flags = flags | common.MarkedAsFavourite
 
                 v[common.FlagsRole] = flags
@@ -311,53 +310,132 @@ class FilesModel(lists.BaseModel):
             MODEL_DATA[common.SequenceItem][idx] = v
             MODEL_DATA[common.SequenceItem][idx][common.IdRole] = idx
 
-        self.INTERNAL_MODEL_DATA[task_folder] = MODEL_DATA
+        self.INTERNAL_MODEL_DATA[task] = MODEL_DATA
 
-    def task_folder(self):
-        """Current key to the data dictionary."""
-        return settings.ACTIVE[u'task_folder']
+    def disable_filter(self):
+        """Overrides the asset config and disables file filters."""
+        return False
 
-    @QtCore.Slot(unicode)
-    def set_task_folder(self, val):
-        """Slot used to save task folder to the model instance and the local
-        settings.
+    def parent_path(self):
+        """The model's parent folder path segments.
 
-        Each subfolder inside the root folder, defined by``parent_path``,
-        corresponds to a `key`. We use these keys to save model data associated
-        with these folders.
-
-        It's important to make sure the key we're about to set corresponds to an
-        existing folder. We will use a reasonable default if the folder does not
-        exist.
+        Returns:
+            tuple: A tuple of path segments.
 
         """
-        log.debug('set_task_folder({})'.format(val), self)
-        settings.set_active(u'task_folder', val)
+        return (
+            settings.ACTIVE[settings.ServerKey],
+            settings.ACTIVE[settings.JobKey],
+            settings.ACTIVE[settings.RootKey],
+            settings.ACTIVE[settings.AssetKey]
+        )
+
+    def _entry_iterator(self, path):
+        """Recursive iterator for retrieving files from all subfolders.
+
+        """
+        for entry in _scandir.scandir(path):
+            if entry.is_dir():
+                for _entry in self._entry_iterator(entry.path):
+                    yield _entry
+            else:
+                yield entry
+
+    def task(self):
+        """Current key to the data dictionary."""
+        return settings.ACTIVE[settings.TaskKey]
+
+    @QtCore.Slot(unicode)
+    def set_task(self, val):
+        """Slot used to set the model's task folder.
+
+        The current task folder is saved in the `local_settings` for future
+        retrieval.
+
+        """
+        log.debug('set_task({})'.format(val), self)
+        settings.set_active(settings.TaskKey, val)
         if not self.model_data():
             self.__initdata__()
         else:
             self.sort_data()
 
+    @common.debug
+    @common.error
     def data_type(self):
         """Current key to the data dictionary."""
-        task_folder = self.task_folder()
-        if task_folder not in self._datatype:
-            cls = self.__class__.__name__
-            key = u'widget/{}/{}/datatype'.format(cls, task_folder)
-            val = settings.local_settings.value(key)
-            val = val if val else common.SequenceItem
-            self._datatype[task_folder] = val
-        return self._datatype[task_folder]
+        task = self.task()
+        if task not in self._datatype:
+            key = u'{}/{}'.format(
+                self.__class__.__name__,
+                task
+            )
+            val = self.get_local_setting(
+                settings.CurrentDataType,
+                key=key,
+                section=settings.UIStateSection
+            )
+            val = common.SequenceItem if val not in (common.FileItem, common.SequenceItem) else val
+            self._datatype[task] = val
+        return self._datatype[task]
 
-    def settings_key(self):
-        """The key used to store and save item widget and item states in `local_settings`."""
-        ks = []
-        for k in (u'job', u'root', u'asset', u'task_folder'):
-            v = settings.ACTIVE[k]
-            if not v:
-                return None
-            ks.append(v)
-        return u'/'.join(ks)
+    @common.debug
+    @common.error
+    @QtCore.Slot(int)
+    def set_data_type(self, val):
+        """Sets the data type to `FileItem` or `SequenceItem`.
+
+        """
+        if val not in (common.FileItem, common.SequenceItem):
+            raise TypeError('Wrong data type.')
+
+        self.beginResetModel()
+
+        try:
+            task = self.task()
+            if task not in self._datatype:
+                self._datatype[task] = val
+            if self._datatype[task] == val:
+                return
+
+            if val not in (common.FileItem, common.SequenceItem):
+                s = u'Invalid value {} ({}) provided for `data_type`'.format(
+                    val, type(val))
+                log.error(s)
+                raise ValueError(s)
+
+            key = u'{}/{}'.format(
+                self.__class__.__name__,
+                self.task()
+            )
+            self.set_local_setting(
+                settings.CurrentDataType,
+                val,
+                key=key,
+                section=settings.UIStateSection
+            )
+            self._datatype[task] = val
+        finally:
+            self.blockSignals(True)
+            self.sort_data()
+            self.blockSignals(False)
+            self.endResetModel()
+
+    def local_settings_key(self):
+        if settings.ACTIVE[settings.TaskKey] is None:
+            return None
+
+        keys = (
+            settings.JobKey,
+            settings.RootKey,
+            settings.AssetKey,
+            settings.TaskKey,
+        )
+        v = [settings.ACTIVE[k] for k in keys]
+        if not all(v):
+            return None
+
+        return u'/'.join(v)
 
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are
@@ -486,12 +564,12 @@ class DragPixmap(QtWidgets.QWidget):
         painter.end()
 
 
-class FilesWidget(lists.ThreadedBaseWidget):
+class FilesWidget(base.ThreadedBaseWidget):
     """The view used to display the contents of a ``FilesModel`` instance.
 
     """
     SourceModel = FilesModel
-    Delegate = listdelegate.FilesWidgetDelegate
+    Delegate = delegate.FilesWidgetDelegate
     ContextMenu = FilesWidgetContextMenu
 
     newFileAdded = QtCore.Signal(unicode)
@@ -516,12 +594,12 @@ class FilesWidget(lists.ThreadedBaseWidget):
         if not QtCore.QFileInfo(file_path).exists():
             return
 
-        server = settings.ACTIVE['server'].lower()
-        job = settings.ACTIVE['job'].lower()
-        root = settings.ACTIVE['root'].lower()
-        asset = settings.ACTIVE['asset'].lower()
+        server = settings.ACTIVE[settings.ServerKey]
+        job = settings.ACTIVE[settings.JobKey]
+        root = settings.ACTIVE[settings.RootKey]
+        asset = settings.ACTIVE[settings.AssetKey]
 
-        path = file_path.replace(u'\\', u'/').lower()
+        path = file_path.replace(u'\\', u'/')
         if path.startswith(server):
             path = path[len(server):].lstrip(u'/')
         else:
@@ -539,19 +617,19 @@ class FilesWidget(lists.ThreadedBaseWidget):
         else:
             return
 
-        task_folder = path.split(u'/')[0]
+        task = path.split(u'/')[0]
 
-        if task_folder != settings.ACTIVE[u'task_folder'].lower():
-            self.model().sourceModel().taskFolderChanged.emit(task_folder)
+        if task != settings.ACTIVE[settings.TaskKey]:
+            self.model().sourceModel().taskFolderChanged.emit(task)
         self.model().sourceModel().modelDataResetRequested.emit()
 
         if self.model().sourceModel().data_type() == common.SequenceItem:
-            file_path = common.proxy_path(file_path).lower()
+            file_path = common.proxy_path(file_path)
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
             _file_path = index.data(QtCore.Qt.StatusTipRole)
             if self.model().sourceModel().data_type() == common.SequenceItem:
-                _file_path = common.proxy_path(_file_path).lower()
+                _file_path = common.proxy_path(_file_path)
 
             if _file_path == file_path:
                 self.scrollTo(
@@ -578,8 +656,8 @@ class FilesWidget(lists.ThreadedBaseWidget):
 
         # Task folders
         model.taskFolderChanged.connect(
-            lambda: log.debug('taskFolderChanged -> set_task_folder', model))
-        model.taskFolderChanged.connect(model.set_task_folder)
+            lambda: log.debug('taskFolderChanged -> set_task', model))
+        model.taskFolderChanged.connect(model.set_task)
 
         model.taskFolderChanged.connect(
             lambda: log.debug('taskFolderChanged -> proxy.invalidate', model))
@@ -606,7 +684,7 @@ class FilesWidget(lists.ThreadedBaseWidget):
         filepath = parent_role[5] + u'/' + \
             common.get_sequence_startpath(file_info.fileName())
 
-        settings.set_active('file', filepath)
+        settings.set_active(settings.FileKey, filepath)
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
@@ -683,7 +761,7 @@ class FilesWidget(lists.ThreadedBaseWidget):
             drag.setPixmap(pixmap)
 
         try:
-            lc = self.parent().parent().listcontrol
+            lc = self.parent().parent().topbar
             lc.drop_overlay.show()
         except:
             log.error(u'Could not show drag overlay')
@@ -696,3 +774,20 @@ class FilesWidget(lists.ThreadedBaseWidget):
             log.error('')
 
         self.drag_source_index = QtCore.QModelIndex()
+
+    @QtCore.Slot()
+    def show_add_widget(self):
+        model = self.model().sourceModel()
+        editor = self.show_file_property_widget(
+            *model.parent_path()[0:4],
+            extension=None
+        )
+        if not model.task():
+            return
+        editor.add_task(model.task())
+
+    def get_hint_string(self):
+        model = self.model().sourceModel()
+        if not model.task():
+            return u'No task folder selected. Click the File tab to select one.'
+        return u'{} is empty. Right-Click -> Add File to create a new file, or select another task folder.'.format(model.task().upper())

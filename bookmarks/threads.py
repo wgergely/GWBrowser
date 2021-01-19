@@ -6,13 +6,13 @@ Each thread is assigned a single Worker - usually responsible for taking
 a *weakref.ref* from the thread's queue.
 
 """
-import base64
-import json
+import time
 import functools
 import weakref
 import collections
 import uuid
 
+import _scandir
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from . import log
@@ -47,6 +47,74 @@ QUEUES = {
     TaskFolderInfoQueue: collections.deque([], common.MAXITEMS),
 }
 """Global thread queues."""
+
+
+
+def byte_to_string(num, suffix=u'B'):
+    """Converts a numeric byte value to a human readable string.
+
+    Args:
+        num (int):          The number of bytes.
+        suffix (unicode):   A custom suffix.
+
+    Returns:
+        unicode:            Human readable byte value.
+        
+    """
+    for unit in [u'', u'K', u'M', u'G', u'T', u'P', u'E', u'Z']:
+        if abs(num) < 1024.0:
+            return u"%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return u"%.1f%s%s" % (num, u'Yi', suffix)
+
+
+
+def get_ranges(arr, padding):
+    """Given an array of numbers the method will return a string representation of
+    the ranges contained in the array.
+
+    Args:
+        arr(list):       An array of numbers.
+        padding(int):    The number of leading zeros before the number.
+
+    Returns:
+        unicode: A string representation of the given array.
+
+    """
+    arr = sorted(list(set(arr)))
+    blocks = {}
+    k = 0
+    for idx, n in enumerate(arr):  # blocks
+        zfill = unicode(n).zfill(padding)
+
+        if k not in blocks:
+            blocks[k] = []
+        blocks[k].append(zfill)
+
+        if idx + 1 != len(arr):
+            if arr[idx + 1] != n + 1:  # break coming up
+                k += 1
+    return u','.join([u'-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
+
+
+
+def quit():
+    _threads = THREADS.values()
+    for thread in _threads:
+        if thread.isRunning():
+            thread.stopCheckQueue.emit()
+            thread.resetQueue.emit()
+            thread.quit()
+            thread.wait()
+
+    n = 0
+    while any([thread.isRunning() for thread in _threads]):
+        if n >= 20:
+            for thread in _threads:
+                thread.terminate()
+            break
+        n += 1
+        time.sleep(0.3)
 
 
 class ModelLoadedDummy(object):
@@ -356,7 +424,7 @@ class BaseWorker(QtCore.QObject):
 
         q = QUEUES[self.queue_type]
 
-        k = model.task_folder()
+        k = model.task()
         if k not in model.INTERNAL_MODEL_DATA:
             return
 
@@ -423,15 +491,19 @@ class InfoWorker(BaseWorker):
             bool: `True` if all went well, `False` otherwise.
 
         """
-        def is_valid(): return False if not ref() or self.interrupt or ref()[
-            common.FileInfoLoaded] else True
+        def is_valid():
+            return (
+                False if not ref() or
+                self.interrupt or
+                ref()[common.FileInfoLoaded] else
+                True
+            )
 
         if not is_valid():
             return False
 
         try:
             pp = ref()[common.ParentPathRole]
-            db = bookmark_db.get_db(pp[0], pp[1], pp[2])
 
             if not is_valid():
                 return False
@@ -450,26 +522,16 @@ class InfoWorker(BaseWorker):
                 k = ref()[QtCore.Qt.StatusTipRole]
 
             # Issues SQLite "BEGIN"
-            with db.transactions():
+            with bookmark_db.transactions(pp[0], pp[1], pp[2]) as db:
                 # Description
                 v = db.value(k, u'description')
                 if v:
                     if not is_valid():
                         return False
-                    v = base64.b64decode(v)
                     ref()[common.DescriptionRole] = v
 
                 v = db.value(k, u'notes')
-                count = 0
-                if v:
-                    try:
-                        v = base64.b64decode(v)
-                        v = json.loads(v)
-                        count = [k for k in v if v[k][u'text']
-                                 and not v[k][u'checked']]
-                        count = len(count)
-                    except:
-                        log.error(u'Could not read notes')
+                count = len(v) if isinstance(v, dict) else 0
 
                 if not is_valid():
                     return False
@@ -502,7 +564,7 @@ class InfoWorker(BaseWorker):
                 frs = ref()[common.FramesRole]
                 intframes = [int(f) for f in frs]
                 padding = len(frs[0])
-                rangestring = common.get_ranges(intframes, padding)
+                rangestring = get_ranges(intframes, padding)
 
                 if not is_valid():
                     return False
@@ -575,7 +637,7 @@ class InfoWorker(BaseWorker):
                         mtime.toString(u'yyyy') + u' ' + \
                         mtime.toString(u'hh') + u':' + \
                         mtime.toString(u'mm') + u';' + \
-                        common.byte_to_string(ref()[common.SortBySizeRole])
+                        byte_to_string(ref()[common.SortBySizeRole])
                     if not is_valid():
                         return False
                     ref()[common.FileDetailsRole] = info_string
@@ -598,14 +660,14 @@ class InfoWorker(BaseWorker):
                         mtime.toString(u'yyyy') + u' ' + \
                         mtime.toString(u'hh') + u':' + \
                         mtime.toString(u'mm') + u';' + \
-                        common.byte_to_string(ref()[common.SortBySizeRole])
+                        byte_to_string(ref()[common.SortBySizeRole])
                     if not is_valid():
                         return False
                     ref()[common.FileDetailsRole] = info_string
                 if not is_valid():
                     return False
 
-            # Finally, set flag to mark this loaded
+            # Finally, set flag to mark this item loaded
             if not is_valid():
                 return False
             return True
@@ -624,7 +686,7 @@ class ThumbnailWorker(BaseWorker):
     """Thread worker responsible for creating and loading thumbnails.
 
     The resulting image data is saved in the `ImageCache` and used by the item
-    listdelegates to paint thumbnails.
+    delegates to paint thumbnails.
 
     """
     @process
@@ -709,8 +771,10 @@ class ThumbnailWorker(BaseWorker):
 
             # We should never get here ideally, but if we do we'll mark the item
             # with a bespoke 'failed' thumbnail
+            fpath = u'{}/../rsc/{}/{}.{}'.format(
+                __file__, images.GuiResource, u'failed', common.THUMBNAIL_FORMAT)
             res = images.ImageCache.oiio_make_thumbnail(
-                common.rsc_path(__file__, u'failed'),
+                fpath,
                 destination,
                 common.THUMBNAIL_IMAGE_SIZE
             )
@@ -741,11 +805,9 @@ class TaskFolderWorker(BaseWorker):
             return False
 
         count = 0
-        for entry in common.walk(ref()[QtCore.Qt.StatusTipRole]):
+        for _ in self._entry_iterator(ref()[QtCore.Qt.StatusTipRole]):
             if not is_valid():
                 return False
-            if entry.name.startswith(u'.'):
-                continue
             count += 1
             if count > 999:
                 break
@@ -753,3 +815,44 @@ class TaskFolderWorker(BaseWorker):
             return False
         ref()[common.TodoCountRole] = count
         return True
+
+    @classmethod
+    def _entry_iterator(cls, path):
+        """Used to iterate over all files in a given folder.
+
+        Yields:
+            DirEntry:   A DirEntry instance.
+
+        """
+        try:
+            it = _scandir.scandir(path)
+        except:
+            return
+
+        while True:
+            try:
+                try:
+                    entry = next(it)
+                except StopIteration:
+                    break
+            except OSError:
+                return
+
+            try:
+                is_dir = entry.is_dir()
+            except OSError:
+                is_dir = False
+
+            if entry.name.startswith(u'.'):
+                continue
+
+            if not is_dir:
+                yield entry
+
+            try:
+                is_symlink = entry.is_symlink()
+            except OSError:
+                is_symlink = False
+            if not is_symlink:
+                for entry in cls._entry_iterator(entry.path):
+                    yield entry

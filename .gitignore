@@ -13,3 +13,4 @@ eggs/
 .eggs/
 lib/
 MANIFEST
+debug.log

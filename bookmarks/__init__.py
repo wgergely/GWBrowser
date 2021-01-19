@@ -7,11 +7,10 @@ import importlib
 import traceback
 import platform
 
-name = u'bookmarks'
 author = 'Gergely Wootsch'
 website = 'https://gergely-wootsch.com'
 email = 'hello@gergely-wootsch.com'
-__version__ = u'0.3.16'
+__version__ = u'0.4.0'
 
 def get_info():
     return (
@@ -32,7 +31,7 @@ def get_info():
 
 
 def exec_():
-    """Start Bookmarks as a standalone PySide2 application.
+    """Starts Bookmarks as a standalone PySide2 application.
 
     .. code-block:: python
 
@@ -48,22 +47,19 @@ def exec_():
     from . import settings
     from . import common
 
-    if not settings.local_settings:
-        settings.local_settings = settings.LocalSettings()
-    ui_scale = settings.local_settings.value(u'preferences/ui_scale')
-    ui_scale = ui_scale if ui_scale else common.UI_SCALE
+    # Load and apply Global UI Scale
+    v = settings.local_settings.value(settings.SettingsSection, settings.UIScaleKey)
+    v = 1.0 if not isinstance(v, float) else v
+    common.UI_SCALE = v
 
-    common.UI_SCALE = float(ui_scale)
+    # Indicate we're running Bookmarks in standalone mode
     common.STANDALONE = True
 
     from . import standalone
     if QtWidgets.QApplication.instance():
-        app = QtWidgets.QApplication.instance()
-    else:
-        app = standalone.StandaloneApp([])
+        standalone.show()
+        return
 
-    from . import main
-    standalone.StandaloneMainWidget()
-    main.show_window()
-
+    app = standalone.StandaloneApp([])
+    standalone.show()
     app.exec_()

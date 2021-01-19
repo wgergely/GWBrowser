@@ -197,11 +197,11 @@ class AlembicModel(QtCore.QAbstractItemModel):
 
         if role == QtCore.Qt.DecorationRole:
             if u'.childBnds' in node.name:
-                return images.ImageCache.get_rsc_pixmap(u'abc', None, common.MARGIN())
+                return images.ImageCache.get_rsc_pixmap('abc', None, common.MARGIN(), resource=images.FormatResource)
             if u'.geom' in node.name:
-                return images.ImageCache.get_rsc_pixmap(u'mesh', None, common.MARGIN())
+                return images.ImageCache.get_rsc_pixmap('mesh', None, common.MARGIN())
             if u'.xform' in node.name:
-                return images.ImageCache.get_rsc_pixmap(u'loc', None, common.MARGIN())
+                return images.ImageCache.get_rsc_pixmap('loc', None, common.MARGIN())
 
         if role == QtCore.Qt.SizeHintRole:
             return QtCore.QSize(0, common.ROW_HEIGHT())

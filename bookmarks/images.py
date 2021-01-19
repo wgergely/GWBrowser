@@ -22,9 +22,8 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from . import log
 from . import common
-from . import defaultpaths
 
-
+pixel_ratio = None
 oiio_cache = OpenImageIO.ImageCache(shared=True)
 oiio_cache.attribute(u'max_memory_MB', 4096.0)
 oiio_cache.attribute(u'max_open_files', 0)
@@ -42,10 +41,30 @@ _library_widget = None
 _filedialog_widget = None
 _viewer_widget = None
 
+accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4')
+
+
+GuiResource = u'gui'
+ThumbnailResource = u'thumbnails'
+FormatResource = u'formats'
+
+
+__RESOURCES = {
+    GuiResource: [],
+    ThumbnailResource: [],
+    FormatResource: [],
+}
+
+
+for _source, k in ((os.path.normpath(os.path.abspath(u'{}/../rsc/{}'.format(__file__, f))), f) for f in (GuiResource, ThumbnailResource, FormatResource)):
+    for _entry in _scandir.scandir(_source):
+        __RESOURCES[k].append(_entry.name.split(u'.')[0])
+
 
 
 def _check_for_thumbnail(source):
-    """Utility method for checking for the existance of a `thumbnail.ext` file.
+    """Utility method for checking for the existance of a `thumbnail.ext` file
+    in a source folder.
 
     Args:
         source (unicode):   Path to folder.
@@ -63,7 +82,7 @@ def _check_for_thumbnail(source):
     return None
 
 
-def get_thumbnail(parent_paths, source, size, fallback_thumb='placeholder', get_path=False):
+def get_thumbnail(server, job, root, source, size, fallback_thumb='placeholder', get_path=False):
     """Loads a thumbnail for a bookmark, asset or file item.
 
     The method defines logic for finding fallback images when loading
@@ -84,13 +103,10 @@ def get_thumbnail(parent_paths, source, size, fallback_thumb='placeholder', get_
         QPixmap:                 A thumbnail pixmap or `None`.
         QColor:                  A background color to use for the pixmap or `None`.
 
+
     """
-    thumbnail_path = get_thumbnail_path(
-        parent_paths[0],
-        parent_paths[1],
-        parent_paths[2],
-        source
-    )
+    args = (server, job, root)
+    thumbnail_path = get_thumbnail_path(server, job, root, source)
 
     pixmap = ImageCache.get_pixmap(thumbnail_path, size)
     if pixmap:
@@ -104,13 +120,7 @@ def get_thumbnail(parent_paths, source, size, fallback_thumb='placeholder', get_
 
     # If this item is an un-collapsed sequence item, the sequence
     # might have a thumbnail:
-    thumbnail_path = get_thumbnail_path(
-        parent_paths[0],
-        parent_paths[1],
-        parent_paths[2],
-        source,
-        proxy=True
-    )
+    thumbnail_path = get_thumbnail_path(server, job, root, source, proxy=True)
     pixmap = ImageCache.get_pixmap(thumbnail_path, size)
     if pixmap:
         if get_path:
@@ -121,15 +131,15 @@ def get_thumbnail(parent_paths, source, size, fallback_thumb='placeholder', get_
         return pixmap, None
 
     # If the item refers to a folder, eg. an asset or a bookmark we'll check for a
-    # 'thumbnail.ext' file in the folder's root and if this fails, we will check the
+    # 'thumbnail.{ext}' file in the folder's root and if this fails, we will check the
     # job folder. If both fails will we proceed to load a placeholder
     # thumbnail.
     if QtCore.QFileInfo(source).isDir():
         _hash = common.get_hash(source)
 
-        thumb_path = _check_for_thumbnail(u'/'.join(parent_paths[0:3]))
+        thumb_path = _check_for_thumbnail(u'/'.join(args[0:3]))
         if not thumb_path:
-            thumb_path = _check_for_thumbnail(u'/'.join(parent_paths[0:2]))
+            thumb_path = _check_for_thumbnail(u'/'.join(args[0:2]))
 
         if thumb_path:
             pixmap = ImageCache.get_pixmap(
@@ -317,14 +327,14 @@ def get_thumbnail_path(server, job, root, file_path, proxy=False):
     if common.is_collapsed(file_path) or proxy:
         file_path = common.proxy_path(file_path)
     name = common.get_hash(file_path) + u'.' + common.THUMBNAIL_FORMAT
-    return (server + u'/' + job + u'/' + root + u'/.bookmark/' + name).lower()
+    return server + u'/' + job + u'/' + root + u'/.bookmark/' + name
 
 
 def get_placeholder_path(file_path, fallback=u'placeholder'):
-    """Returns an image path to use a general thumbnail for the item.
+    """Returns an image path used to represent an item.
 
-    When an item has no generated or user-set thumbnail, we'll try and find
-    a general one based on the file's type.
+    In absense of a custom user-set thumbnail, we'll try and find one based on
+    the file's format extension.
 
     Args:
         file_path (unicode): Path to a file or folder.
@@ -337,30 +347,32 @@ def get_placeholder_path(file_path, fallback=u'placeholder'):
         raise TypeError(
             u'Invalid type. Expected <type \'unicode\', got {}'.format(type(file_path)))
 
+    path = lambda r, n: u'{}/../rsc/{}/{}.{}'.format(__file__, r, n, common.THUMBNAIL_FORMAT)
+
     file_info = QtCore.QFileInfo(file_path)
     suffix = file_info.suffix().lower()
-    if suffix:
-        for ext in defaultpaths.get_extensions(
-            defaultpaths.SceneFilter |
-            defaultpaths.ExportFilter |
-            defaultpaths.MiscFilter |
-            defaultpaths.AdobeFilter
-        ):
-            if ext.lower() == suffix:
-                return common.rsc_path(__file__, ext)
-    return common.rsc_path(__file__, fallback)
 
+    if suffix in __RESOURCES[FormatResource]:
+        path = path(FormatResource, suffix)
+    else:
+        if fallback in __RESOURCES[FormatResource]:
+            path = path(FormatResource, fallback)
+        elif fallback in __RESOURCES[ThumbnailResource]:
+            path = path(ThumbnailResource, fallback)
+        elif fallback in __RESOURCES[GuiResource]:
+            path = path(GuiResource, fallback)
+        else:
+            path = path(ThumbnailResource, u'placeholder')
+
+    return os.path.normpath(os.path.abspath(path))
 
 
 def invalidate(func):
-    """Decorator.
-    """
     @functools.wraps(func)
     def func_wrapper(source, **kwargs):
         result = func(source, **kwargs)
         oiio_cache.invalidate(source, force=True)
         return result
-
     return func_wrapper
 
 
@@ -407,6 +419,17 @@ def oiio_get_buf(source, hash=None, force=False):
 
     ImageCache.setValue(hash, buf, BufferType)
     return buf
+
+
+def oiio_get_extensions():
+    """Returns a list of extensions accepted by OpenImageIO.
+
+    """
+    v = OpenImageIO.get_string_attribute('extension_list')
+    extensions = []
+    for e in [f.split(':')[1] for f in v.split(';')]:
+        extensions += e.split(',')
+    return sorted(extensions)
 
 
 def oiio_get_qimage(path, buf=None, force=True):
@@ -734,6 +757,10 @@ class ImageCache(QtCore.QObject):
         if hash is None:
             hash = common.get_hash(source)
 
+        global pixel_ratio
+        if not pixel_ratio:
+            pixel_ratio = QtWidgets.QApplication.instance().primaryScreen().devicePixelRatio()
+
         # Check the cache and return the previously stored value
         if not force and cls.contains(hash, ImageType):
             data = cls.value(hash, ImageType, size=size)
@@ -746,11 +773,12 @@ class ImageCache(QtCore.QObject):
             return None
 
         image = QtGui.QImage(source)
+        image.setDevicePixelRatio(pixel_ratio)
         if image.isNull():
             return None
 
         # Let's resize...
-        image = cls.resize_image(image, size)
+        image = cls.resize_image(image, size * pixel_ratio)
         if image.isNull():
             return None
 
@@ -785,37 +813,44 @@ class ImageCache(QtCore.QObject):
         return image.smoothScaled(int(w), int(h))
 
     @classmethod
-    def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):
+    def get_rsc_pixmap(cls, name, color, size, opacity=1.0, resource=GuiResource, get_path=False):
         """Loads an image resource and returns it as a sized (and recolored) QPixmap.
 
         Args:
-            name (str): Name of the resource without the extension.
-            color (QColor): The colour of the icon.
-            size (int): The size of pixmap.
+            name (str):         Name of the resource without the extension.
+            color (QColor):     The colour of the icon.
+            size (int):         The size of pixmap.
+            opacity (float):    Sets the opacity of the returned pixmap.
+            get_path (bool):    Returns the path to the image instead of a pixmap.
 
         Returns:
-            QPixmap: The loaded image
+            QPixmap: The loaded image.
 
         """
-        source = u'{}/../rsc/{}.png'.format(__file__, name)
+        source = u'{}/../rsc/{}/{}.png'.format(__file__, resource, name)
         file_info = QtCore.QFileInfo(source)
 
         if get_path:
             return file_info.absoluteFilePath()
 
+        if not file_info.exists():
+            return QtGui.QPixmap()
+
         k = u'rsc:{name}:{size}:{color}'.format(
-            name=name.lower(),
+            name=name,
             size=int(size),
-            color=u'null' if not color else color.name().lower()
+            color=u'null' if not color else color.name()
         )
 
         if k in cls.RESOURCE_DATA:
             return cls.RESOURCE_DATA[k]
 
-        if not file_info.exists():
-            return QtGui.QPixmap()
+        global pixel_ratio
+        if not pixel_ratio:
+            pixel_ratio = QtWidgets.QApplication.instance().primaryScreen().devicePixelRatio()
 
         image = QtGui.QImage()
+        image.setDevicePixelRatio(pixel_ratio)
         image.load(file_info.filePath())
         if image.isNull():
             return QtGui.QPixmap()
@@ -831,11 +866,13 @@ class ImageCache(QtCore.QObject):
             painter.drawRect(image.rect())
             painter.end()
 
-        image = cls.resize_image(image, size)
+        image = cls.resize_image(image, size * pixel_ratio)
+        image.setDevicePixelRatio(pixel_ratio)
 
         # Setting transparency
         if opacity < 1.0:
             _image = QtGui.QImage(image)
+            _image.setDevicePixelRatio(pixel_ratio)
             _image.fill(QtCore.Qt.transparent)
 
             painter = QtGui.QPainter()
@@ -847,6 +884,7 @@ class ImageCache(QtCore.QObject):
 
         # Finally, we'll convert the image to a pixmap
         pixmap = QtGui.QPixmap()
+        pixmap.setDevicePixelRatio(pixel_ratio)
         pixmap.convertFromImage(image, flags=QtCore.Qt.ColorOnly)
         cls.RESOURCE_DATA[k] = pixmap
         return cls.RESOURCE_DATA[k]
@@ -923,7 +961,6 @@ class ImageCache(QtCore.QObject):
             return False
         source_spec = buf.spec()
         if source_spec.get_int_attribute(u'oiio:Movie') == 1:
-            accepted_codecs = (u'h.264', u'h264', u'mpeg-4', u'mpeg4')
             codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
             # [BUG] Not all codec formats are supported by ffmpeg. There does
             # not seem to be (?) error handling and an unsupported codec will
@@ -938,7 +975,6 @@ class ImageCache(QtCore.QObject):
         destination_spec = get_scaled_spec(source_spec)
         buf = shuffle_channels(buf, source_spec)
         buf = flatten(buf, source_spec)
-        # buf = convert_color(buf, source_spec)
         buf = resize(buf, source_spec)
 
         if buf.nchannels > 3:
@@ -961,9 +997,12 @@ class ImageCache(QtCore.QObject):
         _spec = OpenImageIO.ImageSpec()
         _spec.from_xml(spec.to_xml())  # this doesn't copy the extra attributes
         for i in spec.extra_attribs:
-            if i.name.lower() == u'iccprofile':
-                continue
+            # There's a strange bug I'm seeing with OIIO where python hits a
+            # buffer overrun, integer value is bigger than sys.maxsize, or
+            #something like that.
             try:
+                if i.name.lower() == u'iccprofile':
+                    continue
                 _spec[i.name] = i.value
             except:
                 continue
@@ -1147,7 +1186,7 @@ class ScreenCapture(QtWidgets.QDialog):
         """Paint the capture window."""
         # Convert click and current mouse positions to local space.
         if not self._mouse_pos:
-            mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+            mouse_pos = self.mapFromGlobal(common.cursor.pos())
         else:
             mouse_pos = self.mapFromGlobal(self._mouse_pos)
 
@@ -1345,7 +1384,7 @@ class Viewer(QtWidgets.QGraphicsView):
 
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
-        if ext.lower() in defaultpaths.get_extensions(defaultpaths.OpenImageIOFilter):
+        if ext.lower() in oiio_get_extensions():
             font, metrics = common.font_db.secondary_font(
                 common.SMALL_FONT_SIZE())
 
@@ -1756,14 +1795,11 @@ class ThumbnailLibraryWidget(QtWidgets.QDialog):
 
     def _add_thumbnails(self):
         row = 0
-        path = u'{}/../rsc'.format(__file__)
+        path = u'{}/../rsc/{}'.format(__file__, ThumbnailResource)
         path = os.path.normpath(os.path.abspath(path))
 
         idx = 0
         for entry in _scandir.scandir(path):
-            if not entry.name.startswith(u'thumb_'):
-                continue
-
             label = ThumbnailLibraryItem(
                 entry.path.replace(u'\\', u'/'),
                 parent=self

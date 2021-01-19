@@ -55,7 +55,7 @@ def success(message):
     if not LOG_SUCCESS:
         return
 
-    message = u'{color}{ts} [Ok]:  {default}{message}'.format(
+    message = u'{color}{ts} [Ok]:  {default}{message}{default}'.format(
         ts=time.strftime(u'%H:%M:%S'),
         color=OKGREEN[1],
         default=ENDC[1],
@@ -73,7 +73,7 @@ def debug(message, cls=None):
     if not LOG_DEBUG:
         return
 
-    message = u'{color}{ts} [Debug]:{default}    {cls}{message}'.format(
+    message = u'{color}{ts} [Debug]:{default}    {cls}{message}{default}'.format(
         ts=time.strftime(u'%H:%M:%S'),
         color=OKBLUE[1],
         default=ENDC[1],
@@ -98,7 +98,7 @@ def error(message):
     if tb:
         tb = u'\n\033[91m'.join(tb.strip(u'\n').split(u'\n'))
 
-    message = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}\n'.format(
+    message = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}{default}\n'.format(
         ts=time.strftime(u'%H:%M:%S'),
         fail=FAIL[1],
         underline=UNDERLINE[1],

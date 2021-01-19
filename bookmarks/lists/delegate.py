@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
-"""The listdelegate used to  paint the bookmark, asset and file widgets.
+"""The delegate used to visualise bookmark, asset and file items derived from `base.BaseListWidget`.
 
-The listdelegate is fully integerated with the BaseListViews because we're relying
-on the drawing of the elements to define clickable regions on a row.
+The delegate is responsible for painting the thumbnails, names, and clickable buttons
+of the list items. The base list widget has a number of custom features, such as,
+clickable in-line-buttons that the deleagate is aware of.
 
-The listdelegate itself is very slow - we're using QPainterPaths to draw aliased
-text output and hence backing some of the operations by simple caches.
+We're painting text using `QPainterPaths` for a high-quality, aliased display
+but the approach comes with a huge performance hit and therefore any QPainterPath
+paint operation is backed by a cache (see `PATH_CACHE`).
 
 """
 import re
-from functools import wraps
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from . import common
-from . import images
+from .. import common
+from .. import images
 
 
 regex_remove_version = re.compile(
@@ -37,10 +39,12 @@ RevealRect = 7
 ArchiveRect = 8
 FavouriteRect = 9
 DataRect = 10
-BookmarkPropertiesRect = 11
+PropertiesRect = 11
 
 
 PATH_CACHE = {}
+RECTANGLE_CACHE = {}
+TEXT_SEGMENT_CACHE = {}
 
 
 def get_painter_path(x, y, font, text):
@@ -53,20 +57,16 @@ def get_painter_path(x, y, font, text):
     return PATH_CACHE[k]
 
 
-
-RECTANGLE_CACHE = {}
-
-
 def get_rectangles(rectangle, count):
     """Returns the paintable/clickable regions based on the number of
     inline icons and the source rectangle.
 
     Args:
-        rectangle (QtCore.QRect): A source rectangle.
-        count (int):    The number of inline icons.
+        rectangle (QtCore.QRect):   An list item's visual rectangle.
+        count (int):                The number of inline icons.
 
     Returns:
-        dict: A dictionary with all the requested rectangles.
+        dict:  Dictionary containing `count` number of rectangles.
 
     """
     k = '{}{}'.format(rectangle, count)
@@ -118,18 +118,16 @@ def get_rectangles(rectangle, count):
         RevealRect: inline_icon_rects[2] if count > 2 else null_rect,
         TodoRect: inline_icon_rects[3] if count > 3 else null_rect,
         AddAssetRect: inline_icon_rects[4] if count > 4 else null_rect,
-        BookmarkPropertiesRect: inline_icon_rects[5] if count > 5 else null_rect,
+        PropertiesRect: inline_icon_rects[5] if count > 5 else null_rect,
         DataRect: data_rect
     }
     return RECTANGLE_CACHE[k]
 
 
-TEXT_SEGMENT_CACHE = {}
-
 
 def paintmethod(func):
-    """@Decorator to save the painter state."""
-    @wraps(func)
+    """Decorator to manage painter states."""
+    @functools.wraps(func)
     def func_wrapper(self, *args, **kwargs):
         args[1].save()
         res = func(self, *args, **kwargs)
@@ -138,8 +136,11 @@ def paintmethod(func):
     return func_wrapper
 
 
+
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
-    """Base listdelegate containing methods to draw our list items."""
+    """The main delegate used to represent lists derived from `base.BaseListWidget`.
+
+    """
     fallback_thumb = u'placeholder'
 
     def __init__(self, parent=None):
@@ -152,7 +153,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def get_paint_arguments(self, painter, option, index, antialiasing=True):
         """A utility class for gathering all the arguments needed to paint
-        the individual listelements.
+        the individual list elements.
 
         """
         if antialiasing:
@@ -199,21 +200,28 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
         return args
 
-    def get_clickable_rectangles(self, index, rectangles):
+    def get_clickable_rectangles(self, index):
         """Clickable rectangles are used by the the QListView to identify
-        interactive regions.
+        interactive/clickable regions.
 
-        For instance, folder names are clickable and used to toggle filters.
-        Since the size of the rectangle depends on how the listdelegate is handling
-        painting, we're using the listdelegate calculate and cache these rectangles.
+        The delegate is responsible for painting any pseudo item buttons, such
+        as item names or in-line buttons and hence, we rely on the delegate
+        to calculate where these rectagles are.
 
-        The actual rectangles are calculated and saved when a relavant paint
-        method is called.
+        Because calculating these rectangles on each paint operation would come with
+        a performance hit we back the operation with a cache and return
+        only already cached result when a request is made.
+
+        Args:
+            index (QtCore.QModelIndex):
+
+        Returns:
+            dict: A list of QRects where clickable regions are found.
 
         """
         if index.row() in self._clickable_rectangles:
             return self._clickable_rectangles[index.row()]
-        return []
+        return {}
 
     def paint_name(self, *args):
         pass
@@ -240,13 +248,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints an item's thumbnail.
 
         If a requested QPixmap has never been drawn before we will create and
-        store it by calling `images.get_thumbnail(*args)`. This method is
-        backed by `images.ImageCache` and stores the requested pixmaps for future
-        use.
+        store it by calling `images.get_thumbnail(*args)`. This method is backed
+        by `images.ImageCache` and stores the requested pixmaps for future use.
 
-        If no associated image data is available, we will use a generic thumbnail
-        associated with the item's type, or a fallback thumbnail set by the delegate.
-        at `self.fallback_thumb`.
+        If no associated image data is available, we will use a generic
+        thumbnail associated with the item's type, or a fallback thumbnail set
+        by the delegate. at `self.fallback_thumb`.
 
         See the `images` module for implementation details.
 
@@ -261,18 +268,21 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         o = 1.0 if selected or active or hover else 0.9
         painter.setOpacity(o)
 
-        _p = index.data(common.ParentPathRole)
-        if not _p:
+        if not index.data(common.ParentPathRole):
             return
 
+        server, job, root = index.data(common.ParentPathRole)[0:3]
         source = index.data(QtCore.Qt.StatusTipRole)
+
         _h = index.data(QtCore.Qt.SizeHintRole)
         if not source or not _h:
             return
         size = _h.height()
 
         pixmap, _color = images.get_thumbnail(
-            _p,
+            server,
+            job,
+            root,
             source,
             size,
             fallback_thumb=self.fallback_thumb
@@ -493,7 +503,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawPixmap(rect, pixmap)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
 
-        rect = rectangles[BookmarkPropertiesRect]
+        rect = rectangles[PropertiesRect]
         if rect and not archived:
             if rect.contains(cursor_position):
                 painter.setOpacity(1.0)
@@ -573,7 +583,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
 
 class BookmarksWidgetDelegate(BaseDelegate):
-    """The listdelegate used to paint the bookmark items."""
+    """The delegate used to paint the bookmark items."""
     fallback_thumb = u'thumb_bookmark_gray'
 
     def paint(self, painter, option, index):
@@ -606,9 +616,11 @@ class BookmarksWidgetDelegate(BaseDelegate):
         if not index.data(common.ParentPathRole):
             return
 
-        # Standin for the descirption rectangle
-        self._clickable_rectangles[index.row()] = []
-        self._clickable_rectangles[index.row()].append((QtCore.QRect(), u''))
+        # The description rectangle for bookmark items is not clickable,
+        # unlike on asset and files items
+        self._clickable_rectangles[index.row()] = [
+            (QtCore.QRect(), u''),
+        ]
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
 
@@ -699,7 +711,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rectangles[DataRect] = _datarect
 
     def sizeHint(self, option, index):
-        return self.parent().model().sourceModel().ROW_SIZE
+        return self.parent().model().sourceModel().row_size()
 
 
 class AssetsWidgetDelegate(BaseDelegate):
@@ -834,12 +846,12 @@ class AssetsWidgetDelegate(BaseDelegate):
         painter.drawPath(path)
 
     def sizeHint(self, option, index):
-        return self.parent().model().sourceModel().ROW_SIZE
+        return self.parent().model().sourceModel().row_size()
 
 
 class FilesWidgetDelegate(BaseDelegate):
     """QAbstractItemDelegate associated with ``FilesWidget``."""
-    maximum_subdirs = 6
+    MAX_SUBDIRS = 6
 
     def __init__(self, parent=None):
         super(FilesWidgetDelegate, self).__init__(parent=parent)
@@ -882,7 +894,7 @@ class FilesWidgetDelegate(BaseDelegate):
         if self.parent().buttons_hidden():
             return self.get_simple_description_rectangle(rectangles, index)
 
-        clickable = self.get_clickable_rectangles(index, rectangles)
+        clickable = self.get_clickable_rectangles(index)
         if not clickable:
             return QtCore.QRect()
 
@@ -1221,7 +1233,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + (common.INDICATOR_WIDTH() * 2))
 
-        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        _, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         # File-name
         name_rect = QtCore.QRect(rect)
@@ -1386,7 +1398,7 @@ class FilesWidgetDelegate(BaseDelegate):
         for n, text in enumerate(subdirs[-1].upper().split(u'/')):
             if not text:
                 continue
-            if n >= self.maximum_subdirs:
+            if n >= self.MAX_SUBDIRS:
                 break
             if len(text) > 36:
                 text = text[0:16] + u'...' + text[-17:]
@@ -1427,7 +1439,7 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
     def sizeHint(self, option, index):
-        return self.parent().model().sourceModel().ROW_SIZE
+        return self.parent().model().sourceModel().row_size()
 
 
 class FavouritesWidgetDelegate(FilesWidgetDelegate):

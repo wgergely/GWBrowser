@@ -16,8 +16,7 @@ class FilterEditor(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super(FilterEditor, self).__init__(parent=parent)
 
-        self.include_editor = None
-        self.exclude_editor = None
+        self.editor = None
 
         self.context_menu_open = False
 
@@ -28,7 +27,7 @@ class FilterEditor(QtWidgets.QDialog):
         self._create_UI()
         self._connect_signals()
 
-        self.setFocusProxy(self.include_editor)
+        self.setFocusProxy(self.editor)
 
     def _create_UI(self):
         QtWidgets.QVBoxLayout(self)
@@ -45,38 +44,24 @@ class FilterEditor(QtWidgets.QDialog):
             common.ROW_HEIGHT()
         )
 
-        label = u'Search filters'
+        label = u'Search'
         label = common_ui.PaintedLabel(label, parent=self)
         row.layout().addWidget(icon, 0)
         row.layout().addWidget(label, 0)
-        row.layout().addStretch(1)
 
-        row = common_ui.add_row(
-            None, parent=self, padding=0, height=common.ROW_HEIGHT())
-        label = u'Include containing:'
-        label = common_ui.PaintedLabel(label, parent=self)
-        self.include_editor = common_ui.LineEdit(parent=self)
-        row.layout().addWidget(label, 0)
-        row.layout().addWidget(self.include_editor, 1)
-
-        row = common_ui.add_row(
-            None, parent=self, padding=0, height=common.ROW_HEIGHT())
-        label = u'Exclude containing:'
-        label = common_ui.PaintedLabel(label, parent=self)
-        self.exclude_editor = common_ui.LineEdit(parent=self)
-        row.layout().addWidget(label, 0)
-        row.layout().addWidget(self.exclude_editor, 1)
-
+        self.editor = common_ui.LineEdit(parent=self)
+        self.editor.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        row.layout().addWidget(self.editor, 1)
         self.layout().addStretch(1)
 
     def _connect_signals(self):
-        self.include_editor.returnPressed.connect(self.action)
+        self.editor.returnPressed.connect(self.action)
         self.finished.connect(
             lambda _: self.done(QtWidgets.QDialog.Accepted))
 
     @QtCore.Slot()
     def action(self):
-        self.finished.emit(self.include_editor.text())
+        self.finished.emit(self.editor.text())
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -122,6 +107,6 @@ class FilterEditor(QtWidgets.QDialog):
         text = text.lower() if text else u''
         text = u'' if text == u'/' else text
 
-        self.include_editor.setText(text)
-        self.include_editor.selectAll()
-        self.include_editor.setFocus()
+        self.editor.setText(text)
+        self.editor.selectAll()
+        self.editor.setFocus()

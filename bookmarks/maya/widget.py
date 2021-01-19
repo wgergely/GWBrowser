@@ -38,6 +38,7 @@ from .. import contextmenu
 from .. import main
 from .. import addfile
 from .. import bookmark_db
+from .. import rv
 from .. import __path__ as package_path
 
 
@@ -359,7 +360,10 @@ def get_framerate():
 
 
 def get_preference(k):
-    return settings.local_settings.value(u'preferences/{}'.format(k))
+    return settings.local_settings.value(
+        settings.SettingsSection,
+        k
+    )
 
 
 def instance():
@@ -675,7 +679,6 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             except ValueError as err:
                 s = u'"{shape}" does not have a unique name. This is not usually allowed for alembic exports and might cause the export to fail.\nError: {err}'.format(
                     shape=shape, err=err)
-                print s
                 log.error(s)
 
             # Camera's don't have mesh nodes but we still want to export them!
@@ -760,7 +763,6 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             ro='-renderableOnly'
         )
         s = u'# jobArg: `{}`'.format(jobArg)
-        print s
 
         cmds.AbcExport(jobArg=jobArg)
         log.success(s)
@@ -971,14 +973,14 @@ def capture_viewport(size=1.0):
         ext=ext
     )
 
-    val = get_preference(u'push_to_rv')
-    val = val if val is not None else True
-    if val:
-        common.push_to_rv(rv_seq_path)
-
-    val = get_preference(u'reveal_capture')
+    val = get_preference(settings.PushCaptureToRVKey)
     val = val if val is not None else False
-    if val:
+    if not val:
+        rv.push(rv_seq_path)
+
+    val = get_preference(settings.RevealCaptureKey)
+    val = val if val is not None else False
+    if not val:
         common.reveal(rv_seq_path)
 
     publish_capture(workspace, capture_folder, scene_info, ext)
@@ -1146,7 +1148,7 @@ class PanelPicker(QtWidgets.QDialog):
     def paintEvent(self, event):
         """Paint the capture window."""
         # Convert click and current mouse positions to local space.
-        mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+        mouse_pos = self.mapFromGlobal(common.cursor.pos())
         painter = QtGui.QPainter()
         painter.begin(self)
 
@@ -1157,7 +1159,7 @@ class PanelPicker(QtWidgets.QDialog):
         painter.drawRect(self.rect())
 
         for panel in self.panels.values():
-            _mouse_pos = panel.mapFromGlobal(QtGui.QCursor.pos())
+            _mouse_pos = panel.mapFromGlobal(common.cursor.pos())
 
             if not panel.rect().contains(_mouse_pos):
                 self.setCursor(QtCore.Qt.ArrowCursor)
@@ -1194,7 +1196,7 @@ class PanelPicker(QtWidgets.QDialog):
             return
 
         for panel, widget in self.panels.iteritems():
-            mouse_pos = widget.mapFromGlobal(QtGui.QCursor.pos())
+            mouse_pos = widget.mapFromGlobal(common.cursor.pos())
             if widget.rect().contains(mouse_pos):
                 self.panel = panel
                 self.done(QtWidgets.QDialog.Accepted)
@@ -2025,91 +2027,82 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     pass
             return val
 
-        if not all((
-            settings.ACTIVE['server'],
-            settings.ACTIVE['job'],
-            settings.ACTIVE['root'],
-        )):
+
+        server = settings.ACTIVE[settings.ServerKey]
+        job = settings.ACTIVE[settings.JobKey]
+        root = settings.ACTIVE[settings.RootKey]
+        asset = settings.ACTIVE[settings.AssetKey]
+        if not all((server, job, root, asset)):
             return
 
         try:
-            t = u'properties'
             v = {}
+            with bookmark_db.transactions(server, root, job) as db:
+                _source = u'{}/{}/{}'.format(server, job, root)
+                source = u'{}/{}/{}/{}'.format(server, job, root, asset)
+                for _k in bookmark_db.TABLES[bookmark_db.BookmarkTable]:
+                    v[_k] = db.value(_source, _k, table=bookmark_db.BookmarkTable)
+                startframe = _get_cut_value('startframe', 'cut_in', db, v)
+                duration = _get_cut_value('duration', 'cut_duration', db, v)
 
-            db = bookmark_db.get_db(
-                settings.ACTIVE['server'],
-                settings.ACTIVE['job'],
-                settings.ACTIVE['root'],
-            )
-            with db.transactions():
-                for _k in bookmark_db.BOOKMARK_DB[t]:
-                    v[_k] = db.value(1, _k, table=t)
+        except Exception as e:
+            log.error(e)
+            raise
 
-                asset = u'{}/{}/{}/{}'.format(
-                    settings.ACTIVE['server'],
-                    settings.ACTIVE['job'],
-                    settings.ACTIVE['root'],
-                    settings.ACTIVE['asset'],
-                )
-
-            startframe = _get_cut_value('startframe', 'cut_in', db, v)
-            duration = _get_cut_value('duration', 'cut_duration', db, v)
-
+        if (v['width'] and v['height']):
             try:
-                if (v['width'] and v['height']):
-                    cmds.setAttr('defaultResolution.width', v['width'])
-                    cmds.setAttr('defaultResolution.height', v['height'])
+                cmds.setAttr('defaultResolution.width', v['width'])
+                cmds.setAttr('defaultResolution.height', v['height'])
             except:
                 log.error('Could not set resolution')
 
+        if v['framerate']:
             try:
-                if v['framerate']:
-                    _set_framerate(v['framerate'])
+                _set_framerate(v['framerate'])
             except:
-                log.error('Could not set frame rate')
+                log.error(u'Could not set frame rate')
 
+        if startframe:
             try:
-                if startframe:
-                    _set_start_frame(startframe)
+                _set_start_frame(startframe)
             except:
-                log.error('Could not set start frame')
+                log.error(u'Could not set start frame')
 
+        if duration:
             try:
-                if duration:
-                    _set_end_frame(startframe + duration)
+                _set_end_frame(startframe + duration)
             except:
-                log.error('Could not set end frame')
+                log.error(u'Could not set end frame')
 
-            cmds.setAttr('defaultRenderGlobals.extensionPadding', 4)
-            cmds.setAttr('defaultRenderGlobals.animation', 1)
-            cmds.setAttr('defaultRenderGlobals.putFrameBeforeExt', 1)
-            cmds.setAttr('defaultRenderGlobals.periodInExt', 2)
-            cmds.setAttr('defaultRenderGlobals.useFrameExt', 0)
-            cmds.setAttr('defaultRenderGlobals.outFormatControl', 0)
-            cmds.setAttr('defaultRenderGlobals.imageFormat', 8)
+        cmds.setAttr('defaultRenderGlobals.extensionPadding', 4)
+        cmds.setAttr('defaultRenderGlobals.animation', 1)
+        cmds.setAttr('defaultRenderGlobals.putFrameBeforeExt', 1)
+        cmds.setAttr('defaultRenderGlobals.periodInExt', 2)
+        cmds.setAttr('defaultRenderGlobals.useFrameExt', 0)
+        cmds.setAttr('defaultRenderGlobals.outFormatControl', 0)
+        cmds.setAttr('defaultRenderGlobals.imageFormat', 8)
 
-            info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
-                w=u'{}'.format(int(v['width'])) if (
-                    v['width'] and v['height']) else u'',
-                h=u'x{}px'.format(int(v['height'])) if (
-                    v['width'] and v['height']) else u'',
-                fps=u'  |  {}fps'.format(
-                    v['framerate']) if v['framerate'] else u'',
-                pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
-                start=u'  |  {}'.format(
-                    int(startframe)) if startframe else u'',
-                duration=u'-{} ({} frames)'.format(
-                    int(startframe) + int(duration),
-                    int(duration) if duration else u'') if duration else u''
-            )
+        info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
+            w=u'{}'.format(int(v['width'])) if (
+                v['width'] and v['height']) else u'',
+            h=u'x{}px'.format(int(v['height'])) if (
+                v['width'] and v['height']) else u'',
+            fps=u'  |  {}fps'.format(
+                v['framerate']) if v['framerate'] else u'',
+            pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
+            start=u'  |  {}'.format(
+                int(startframe)) if startframe else u'',
+            duration=u'-{} ({} frames)'.format(
+                int(startframe) + int(duration),
+                int(duration) if duration else u'') if duration else u''
+        )
 
-            s = u'Successfully applied the default scene settings: {}'.format(
-                info)
-            log.success(s)
-            common_ui.OkBox(
-                u'Successfully applied the default scene settings.',
-                info,
-            ).open()
+        s = u'Successfully applied the default scene settings: {}'.format(info)
+        log.success(s)
+        common_ui.OkBox(
+            u'Successfully applied the default scene settings.',
+            info,
+        ).open()
 
         except Exception as e:
             s = u'Could apply properties'

@@ -1,14 +1,55 @@
-"""Widget used to view the list of jobs on a server.
+# -*- coding: utf-8 -*-
+"""Sub-editor widget used by the Bookmark Editor to add and select jobs on on a
+server.
 
 """
+import functools
 from PySide2 import QtCore, QtGui, QtWidgets
 import _scandir
 
 from .. import common
+from .. import common_ui
 from .. import settings
 from .. import images
 from .. import contextmenu
 from .. import templates
+from .. import log
+from .. import shortcuts
+
+from ..properties import base
+
+from . import list_widget
+
+SECTIONS = {
+    0: {
+        'name': u'Add Job',
+        'icon': u'',
+        'color': common.SECONDARY_BACKGROUND,
+        'groups': {
+            0: {
+                0: {
+                    'name': u'Name',
+                    'key': None,
+                    'validator': base.namevalidator,
+                    'widget': common_ui.LineEdit,
+                    'placeholder': u'Name, eg. `MY_NEW_JOB`',
+                    'description': u'The job\'s name, eg. `MY_NEW_JOB`.',
+                },
+            },
+            1: {
+                0: {
+                    'name': u'Template',
+                    'key': None,
+                    'validator': None,
+                    'widget': functools.partial(
+                        templates.TemplatesWidget, templates.JobTemplateMode),
+                    'placeholder': None,
+                    'description': u'Select a folder template to create this asset.',
+                },
+            },
+        },
+    },
+}
 
 
 def get_job_thumbnail(path):
@@ -34,6 +75,87 @@ def get_job_thumbnail(path):
     return QtGui.QPixmap()
 
 
+class AddJobWidget(base.PropertiesWidget):
+    """A custom `PropertiesWidget` used to add new jobs on a server.
+
+    """
+    jobAdded = QtCore.Signal(unicode)
+    buttons = (u'Create', u'Cancel')
+
+    def __init__(self, server, parent=None):
+        super(AddJobWidget, self).__init__(
+            SECTIONS,
+            server,
+            None,
+            None,
+            asset=None,
+            db_table=None,
+            fallback_thumb=u'folder_sm',
+            buttons=self.buttons,
+            parent=parent
+        )
+
+        self.setWindowTitle(u'{}: Add Job'.format(self.server))
+        self.setFixedHeight(common.HEIGHT() * 0.66)
+
+    def init_data(self):
+        pass
+
+    def done(self, result):
+        if result == QtWidgets.QDialog.Rejected:
+            return super(base.PropertiesWidget, self).done(result)  # pylint: disable=E1003
+
+        s = u'Could not create job.'
+
+        k = u'name'
+        if not hasattr(self, k + '_editor'):
+            raise RuntimeError(u'Missing editor.')
+
+        editor = getattr(self, k + '_editor')
+        if not editor.text():
+            common_ui.ErrorBox(
+                s,
+                u'Enter a name before continuing.'
+            ).open()
+            return None
+
+        name = editor.text()
+
+        k = u'template'
+        if not hasattr(self, k + '_editor'):
+            raise RuntimeError(u'Missing editor.')
+
+        editor = getattr(self, k + '_editor')
+        model = editor.template_list_widget.selectionModel()
+        if not model.hasSelection():
+            common_ui.ErrorBox(
+                s,
+                u'Select a template before continuing.'
+            ).open()
+            return None
+
+        # Create template and signal
+        if editor.template_list_widget.create(name, self.server):
+            path = u'{}/{}'.format(self.server, name)
+            self.jobAdded.emit(path)
+
+            path += u'/thumbnail.{}'.format(common.THUMBNAIL_FORMAT)
+            self.thumbnail_editor.save_image(destination=path)
+
+            common_ui.OkBox(
+                u'{} was successfully created.'.format(name),
+                u''
+            ).open()
+            super(base.PropertiesWidget, self).done(result) # pylint: disable=E1003
+        else:
+            common_ui.ErrorBox(
+                u'Failed to create {}.'.format(name),
+                u''
+            ).open()
+            log.error(u'Error creating job.')
+        return None
+
+
 class JobContextMenu(contextmenu.BaseContextMenu):
     """Custom context menu used to control the list of saved servers.
 
@@ -53,7 +175,7 @@ class JobContextMenu(contextmenu.BaseContextMenu):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
 
-        menu_set[u'Add new job'] = {
+        menu_set[u'Add Job...'] = {
             u'action': self.parent().add,
             u'icon': pixmap
         }
@@ -86,35 +208,70 @@ class JobContextMenu(contextmenu.BaseContextMenu):
         return menu_set
 
 
-class JobListWidget(QtWidgets.QListWidget):
+class JobListWidget(list_widget.ListWidget):
     """Simple list widget used to add and remove servers to/from the local
     settings.
+
+    Signals:
+        jobChanged(server, job):    Emitted when the current job selection changedes.
 
     """
     jobChanged = QtCore.Signal(unicode, unicode)
 
     def __init__(self, parent=None):
-        super(JobListWidget, self).__init__(parent=parent)
-        self._server = None
+        super(JobListWidget, self).__init__(
+            default_message=u'No jobs found.',
+            parent=parent
+        )
 
-        common.set_custom_stylesheet(self)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectItems)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.update_timer = QtCore.QTimer(parent=self)
+        self.update_timer.setSingleShot(False)
+        self.update_timer.setInterval(666)
 
         self.setWindowTitle(u'Job Editor')
         self.setObjectName(u'JobEditor')
 
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
         self.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
         )
+        self.setMinimumWidth(common.WIDTH() * 0.33)
 
         self._connect_signals()
+        self.init_shortcuts()
+
+    def init_shortcuts(self):
+        shortcuts.add_shortcuts(self, shortcuts.BookmarkEditorShortcuts)
+        connect = functools.partial(shortcuts.connect, shortcuts.BookmarkEditorShortcuts)
+        connect(shortcuts.AddItem, self.add)
+
 
     def _connect_signals(self):
+        super(JobListWidget, self)._connect_signals()
         self.selectionModel().selectionChanged.connect(self.save_current)
         self.selectionModel().selectionChanged.connect(self.emit_job_changed)
+        self.update_timer.timeout.connect(self.update_items)
+
+    def update_items(self):
+        bookmarks = settings.local_settings.get_bookmarks()
+        jobs = [f for f in bookmarks.values()]
+        if not jobs:
+            return
+        jobs = [f[settings.JobKey] for f in jobs]
+
+        for n in xrange(self.model().rowCount()):
+            item = self.item(n)
+            if item.data(QtCore.Qt.DisplayRole) in jobs:
+                item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+                item.setData(QtCore.Qt.CheckStateRole, QtCore.Qt.Checked)
+            else:
+                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsUserCheckable)
+                item.setData(QtCore.Qt.CheckStateRole, None)
 
     @QtCore.Slot(QtCore.QItemSelection)
     @QtCore.Slot(QtCore.QItemSelection)
@@ -130,40 +287,44 @@ class JobListWidget(QtWidgets.QListWidget):
 
     @QtCore.Slot()
     def add(self):
+        """Open the widget used to add a new job to the server.
+
+        """
         if not self._server:
             return
 
-        w = templates.TemplatesWidget(u'job', parent=self)
-        w.set_path(self._server)
+        widget = AddJobWidget(self._server, parent=self)
+        widget.jobAdded.connect(self.init_data)
+        widget.jobAdded.connect(lambda x: self.restore_current(name=x))
+        widget.jobAdded.connect(widget.close)
+        widget.open()
 
-        w.templateCreated.connect(self.init_data)
-        w.templateCreated.connect(lambda x: self.restore_current(name=x))
-        w.templateCreated.connect(w.close)
-        w.exec_()
-
+    @staticmethod
     @QtCore.Slot()
-    def save_current(self, current, previous):
+    def save_current(current, previous):
         index = next((f for f in current.indexes()), QtCore.QModelIndex())
         if not index.isValid():
             return
-
         settings.local_settings.setValue(
-            u'bookmark_editor/job',
+            settings.UIStateSection,
+            settings.BookmarkEditorJobKey,
             index.data(QtCore.Qt.DisplayRole)
         )
 
     @QtCore.Slot()
     def restore_current(self, name=None):
         if name:
-            current = name
+            v = name
         else:
-            current = settings.local_settings.value(u'bookmark_editor/job')
-
-        if not current:
+            v = settings.local_settings.value(
+                settings.UIStateSection,
+                settings.BookmarkEditorJobKey
+            )
+        if not v:
             return
 
         for n in xrange(self.count()):
-            if not current == self.item(n).text():
+            if not v == self.item(n).text():
                 continue
             index = self.indexFromItem(self.item(n))
             self.selectionModel().select(
@@ -172,7 +333,6 @@ class JobListWidget(QtWidgets.QListWidget):
             )
             self.scrollToItem(
                 self.item(n), QtWidgets.QAbstractItemView.EnsureVisible)
-            return
 
     def contextMenuEvent(self, event):
         item = self.itemAt(event.pos())
@@ -186,6 +346,7 @@ class JobListWidget(QtWidgets.QListWidget):
         super(JobListWidget, self).showEvent(event)
         self.init_data()
         self.restore_current()
+        self.update_timer.start()
 
     @QtCore.Slot(unicode)
     def server_changed(self, server):
@@ -207,7 +368,7 @@ class JobListWidget(QtWidgets.QListWidget):
         self.blockSignals(True)
         self.clear()
 
-        if not self._server:
+        if not self._server or not QtCore.QFileInfo(self._server).exists():
             self.blockSignals(False)
             return
 
