@@ -16,6 +16,7 @@ from . import common
 from . import common_ui
 from . import bookmark_db
 from . import images
+from . import actions
 
 
 NoHighlightFlag = 0b000000
@@ -354,7 +355,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             return
         file_info = QtCore.QFileInfo(url.url())
         if file_info.exists():
-            common.reveal(file_info.filePath())
+            actions.reveal(file_info.filePath())
             QtGui.QClipboard().setText(file_info.filePath())
         else:
             QtGui.QDesktopServices.openUrl(url)

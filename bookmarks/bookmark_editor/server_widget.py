@@ -3,8 +3,6 @@
 server.
 
 """
-import re
-import os
 import functools
 
 from PySide2 import QtCore, QtGui, QtWidgets
@@ -15,6 +13,7 @@ from .. import common_ui
 from .. import images
 from .. import contextmenu
 from .. import shortcuts
+from .. import actions
 
 from . import list_widget
 
@@ -23,7 +22,7 @@ class AddServerEditor(QtWidgets.QDialog):
     """Dialog used to add a new server to `local_settings`.
 
     """
-    def __init__(self,parent=None):
+    def __init__(self, parent=None):
         super(AddServerEditor, self).__init__(parent=parent)
         self.ok_button = None
         self.pick_button = None
@@ -128,68 +127,41 @@ class ServerContextMenu(contextmenu.BaseContextMenu):
 
     """
 
-    def __init__(self, index, parent=None):
-        super(ServerContextMenu, self).__init__(index, parent=parent)
-        self.add_add_menu()
-        self.add_separator()
-        if isinstance(index, QtWidgets.QListWidgetItem) and index.flags() & QtCore.Qt.ItemIsEnabled:
-            self.add_reveal_menu()
-            self.add_remove_menu()
-        elif isinstance(index, QtWidgets.QListWidgetItem) and not index.flags() & QtCore.Qt.ItemIsEnabled:
-            self.add_remove_menu()
-        self.add_separator()
-        self.add_refresh_menu()
+    def setup(self):
+        self.add_menu()
+        self.separator()
+        if isinstance(self.index, QtWidgets.QListWidgetItem) and self.index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.reveal_menu()
+            self.remove_menu()
+        elif isinstance(self.index, QtWidgets.QListWidgetItem) and not self.index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.remove_menu()
+        self.separator()
+        self.refresh_menu()
 
-    @contextmenu.contextmenu
-    def add_add_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.MARGIN())
 
-        menu_set[u'Add server...'] = {
+    def add_menu(self):
+        self.menu[u'Add server...'] = {
             u'action': self.parent().add,
-            u'icon': pixmap
+            u'icon': self.get_icon(u'add', color=common.ADD)
         }
-        return menu_set
 
-    @contextmenu.contextmenu
-    def add_reveal_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'reveal_folder', common.SECONDARY_TEXT, common.MARGIN())
-
-        @QtCore.Slot()
-        def reveal(*args, **kwargs):
-            common.reveal(self.index.text() + '/.')
-
-        menu_set[u'Reveal...'] = {
-            u'action': reveal,
-            u'icon': pixmap
+    def reveal_menu(self):
+        self.menu[u'Reveal...'] = {
+            u'action': lambda: actions.reveal(self.index.text() + '/.'),
+            u'icon': self.get_icon(u'reveal_folder'),
         }
-        return menu_set
 
-    @contextmenu.contextmenu
-    def add_remove_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, common.MARGIN())
-
-        QtCore.Slot()
-
-        menu_set[u'Remove'] = {
+    def remove_menu(self):
+        self.menu[u'Remove'] = {
             u'action': self.parent().remove,
-            u'icon': pixmap
+            u'icon': self.get_icon(u'remove', color=common.REMOVE)
         }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_refresh_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.SECONDARY_TEXT, common.MARGIN())
-        menu_set[u'Refresh'] = {
+    def refresh_menu(self):
+        self.menu[u'Refresh'] = {
             u'action': (self.parent().init_data, self.parent().restore_current),
-            u'icon': pixmap
+            u'icon': self.get_icon(u'refresh')
         }
-
-        return menu_set
 
 
 class ServerListWidget(list_widget.ListWidget):
@@ -266,7 +238,10 @@ class ServerListWidget(list_widget.ListWidget):
     @common.error
     @QtCore.Slot()
     def add(self, *args, **kwargs):
-        w = AddServerEditor(parent=self)
+
+        w = AddServerEditor(parent=self.window())
+        pos = self.mapToGlobal(self.window().rect().topLeft())
+        w.move(pos)
         if w.exec_() == QtWidgets.QDialog.Accepted:
             self.restore_current(current=w.text())
             self.save_current()

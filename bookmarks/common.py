@@ -6,7 +6,6 @@ File sequences are recognised using regexes defined in this module. See
 :func:`.get_sequence_startpath`,  :func:`.get_ranges` for more information.
 
 """
-import subprocess
 import functools
 import traceback
 import inspect
@@ -14,22 +13,17 @@ import time
 import os
 import sys
 import re
-import zipfile
 import hashlib
 import weakref
 import _scandir
 
 from PySide2 import QtGui, QtCore, QtWidgets
-import OpenImageIO
 
 
-SERVERS = []
 
-font_db = None  # Must be set before bookmarks is initialized
 STANDALONE = True  # The current mode of bookmarks
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://github.com/wgergely/bookmarks'
-
 BOOKMARK_ROOT_DIR = u'.bookmark'
 BOOKMARK_ROOT_KEY = 'BOOKMARKS_ROOT'
 
@@ -39,9 +33,9 @@ SoloMode = 1
 selections will be syncronised across DCCs and desktop instances."""
 
 # Flags
-MarkedAsArchived =  0b1000000000
+MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
-MarkedAsActive =    0b100000000000
+MarkedAsActive = 0b100000000000
 """Custom Item flags."""
 
 InfoThread = 0
@@ -51,8 +45,147 @@ ThumbnailThread = 1
 MAXITEMS = 999999
 """The maximum number of items a model is allowed to load."""
 
-SEQPROXY = u'[0]'
-""""""
+SEQSTART = u'{'
+SEQEND = u'}'
+SEQPROXY = u'{SEQSTART}0{SEQEND}'.format(
+    SEQSTART=SEQSTART,
+    SEQEND=SEQEND
+)
+
+SERVERS = []
+font_db = None  # Must be set before bookmarks is initialized
+HASH_DATA = {}
+
+FlagsRole = QtCore.Qt.UserRole + 1
+ParentPathRole = FlagsRole + 1
+DescriptionRole = ParentPathRole + 1
+TodoCountRole = DescriptionRole + 1
+FileDetailsRole = TodoCountRole + 1
+SequenceRole = FileDetailsRole + 1  # SRE Match object
+FramesRole = SequenceRole + 1  # List of frame names
+FileInfoLoaded = FramesRole + 1
+ThumbnailLoaded = FileInfoLoaded + 1
+StartpathRole = ThumbnailLoaded + 1
+EndpathRole = StartpathRole + 1
+TypeRole = EndpathRole + 1
+EntryRole = TypeRole + 1
+IdRole = EntryRole + 1
+SortByNameRole = IdRole + 1
+SortByLastModifiedRole = SortByNameRole + 1
+SortBySizeRole = SortByLastModifiedRole + 1
+TextSegmentRole = SortBySizeRole + 1
+
+FileItem = 1100
+SequenceItem = 1200
+
+SORT_WITH_BASENAME = False
+
+IsSequenceRegex = re.compile(
+    ur'^(.+?)(\{}.*\{})(.*)$'.format(SEQSTART, SEQEND),
+    flags=re.IGNORECASE | re.UNICODE
+)
+SequenceStartRegex = re.compile(
+    ur'^(.*)\{}([0-9]+).*\{}(.*)$'.format(SEQSTART, SEQEND),
+    flags=re.IGNORECASE | re.UNICODE
+)
+SequenceEndRegex = re.compile(
+    ur'^(.*)\{}.*?([0-9]+)\{}(.*)$'.format(SEQSTART, SEQEND),
+    flags=re.IGNORECASE | re.UNICODE
+)
+GetSequenceRegex = re.compile(
+    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{1,})$',
+    flags=re.IGNORECASE | re.UNICODE)
+
+PlatformWindows = 0
+PlatformMacOS = PlatformWindows + 1
+PlatformUnsupported = PlatformMacOS + 1
+
+WindowsPath = 0
+MacOSPath = WindowsPath + 1
+UnixPath = MacOSPath + 1
+SlackPath = UnixPath + 1
+
+PrimaryFontRole = 0
+SecondaryFontRole = PrimaryFontRole + 1
+MetricsRole = SecondaryFontRole + 1
+
+
+cursor = QtGui.QCursor()
+UI_SCALE = 1.0
+"""The global UI scale value. Depending on context, this should correspond to
+any UI scaling set in the host DCC. In standalone mode the app factors in the
+current DPI scaling and scales the UI accordingly."""
+
+
+def get_platform():
+    """Returns the current platform."""
+    ptype = QtCore.QSysInfo().productType()
+    if ptype.lower() in (u'osx', u'macos'):
+        return PlatformMacOS
+    if u'win' in ptype.lower():
+        return PlatformWindows
+    return PlatformUnsupported
+
+
+if get_platform() == PlatformWindows:
+    DPI = 72.0
+elif get_platform() == PlatformMacOS:
+    DPI = 96.0
+elif get_platform() == PlatformUnsupported:
+    DPI = 72.0
+
+
+BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
+SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
+BACKGROUND = QtGui.QColor(80, 80, 80)
+
+TEXT = QtGui.QColor(220, 220, 220)
+TEXT_SELECTED = QtGui.QColor(250, 250, 250)
+TEXT_DISABLED = QtGui.QColor(140, 140, 140)
+
+TEXT_NOTE = QtGui.QColor(150, 150, 255)
+SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
+
+SEPARATOR = QtGui.QColor(45, 45, 45)
+FAVOURITE = QtGui.QColor(107, 135, 165)
+REMOVE = QtGui.QColor(219, 114, 114)
+ADD = QtGui.QColor(90, 200, 155)
+THUMBNAIL_BACKGROUND = SEPARATOR
+
+TRANSPARENT = QtGui.QColor(0, 0, 0, 0)
+
+
+def SMALL_FONT_SIZE(): return int(psize(11.0))  # 8.5pt@72dbpi
+
+
+def MEDIUM_FONT_SIZE(): return int(psize(12.0))  # 9pt@72dpi
+
+
+def LARGE_FONT_SIZE(): return int(psize(16.0))  # 12pt@72dpi
+
+
+def ROW_HEIGHT(): return int(psize(34.0))
+
+
+def BOOKMARK_ROW_HEIGHT(): return int(psize(40.0))
+
+
+def ASSET_ROW_HEIGHT(): return int(psize(64.0))
+
+
+def ROW_SEPARATOR(): return int(psize(1.0))
+
+
+def MARGIN(): return int(psize(18.0))
+
+
+def INDICATOR_WIDTH(): return int(psize(4.0))
+
+
+def WIDTH(): return int(psize(640.0))
+
+
+def HEIGHT(): return int(psize(480.0))
 
 
 def error(func):
@@ -118,233 +251,12 @@ def debug(func):
     return func_wrapper
 
 
-
-def toggle_on_top(window, v):
-    """Sets the WindowStaysOnTopHint for the window.
-
-    """
-    from . import settings
-    settings.local_settings.setValue(
-        settings.UIStateSection,
-        settings.WindowAlwaysOnTopKey,
-        not v
-    )
-    flags = window.windowFlags()
-    window.hide()
-
-    if flags & QtCore.Qt.WindowStaysOnTopHint:
-        flags = flags & ~QtCore.Qt.WindowStaysOnTopHint
-    else:
-        flags = flags | QtCore.Qt.WindowStaysOnTopHint
-    window.setWindowFlags(flags)
-    window.showNormal()
-    window.activateWindow()
-
-def toggle_frameless(window, v):
-    """Sets the WindowStaysOnTopHint for the window.
-
-    """
-    from . import settings
-    settings.local_settings.setValue(
-        settings.UIStateSection,
-        settings.WindowFramelessKey,
-        not v
-    )
-
-    flags = window.windowFlags()
-    window.hide()
-
-    if flags & QtCore.Qt.FramelessWindowHint:
-        flags = flags & ~QtCore.Qt.FramelessWindowHint
-        o = 0
-    else:
-        flags = flags | QtCore.Qt.FramelessWindowHint
-        o = INDICATOR_WIDTH()
-
-    window._frameless = not v
-    window.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=not v)
-    window.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=not v)
-    window.layout().setContentsMargins(o, o, o, o)
-    window.headerwidget.setHidden(v)
-    window.headerwidget.setDisabled(v)
-    window.setWindowFlags(flags)
-    window.showNormal()
-    window.activateWindow()
-
-
-
-def get_oiio_namefilters():
-    """Gets all accepted formats from the oiio build as a namefilter list.
-    Use the return value on the QFileDialog.setNameFilters() method.
-
-    """
-    extension_list = OpenImageIO.get_string_attribute('extension_list')
-    namefilters = []
-    arr = []
-    for exts in extension_list.split(u';'):
-        exts = exts.split(u':')
-        _exts = exts[1].split(u',')
-        e = [u'*.{}'.format(f) for f in _exts]
-        namefilter = u'{} files ({})'.format(exts[0].upper(), u' '.join(e))
-        namefilters.append(namefilter)
-        for _e in _exts:
-            arr.append(_e)
-
-    allfiles = [u'*.{}'.format(f) for f in arr]
-    allfiles = u' '.join(allfiles)
-    allfiles = u'All files ({})'.format(allfiles)
-    namefilters.insert(0, allfiles)
-    return u';;'.join(namefilters)
-
-
-# Extending the
-FlagsRole = QtCore.Qt.UserRole + 1
-ParentPathRole = FlagsRole + 1
-DescriptionRole = ParentPathRole + 1
-TodoCountRole = DescriptionRole + 1
-FileDetailsRole = TodoCountRole + 1
-SequenceRole = FileDetailsRole + 1  # SRE Match object
-FramesRole = SequenceRole + 1  # List of frame names
-FileInfoLoaded = FramesRole + 1
-ThumbnailLoaded = FileInfoLoaded + 1
-StartpathRole = ThumbnailLoaded + 1
-EndpathRole = StartpathRole + 1
-TypeRole = EndpathRole + 1
-EntryRole = TypeRole + 1
-IdRole = EntryRole + 1
-SortByNameRole = IdRole + 1
-SortByLastModifiedRole = SortByNameRole + 1
-SortBySizeRole = SortByLastModifiedRole + 1
-TextSegmentRole = SortBySizeRole + 1
-"""Model data roles."""
-
-FileItem = 1100
-SequenceItem = 1200
-"""Model data types."""
-
-SORT_WITH_BASENAME = False
-
-IsSequenceRegex = re.compile(
-    ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
-SequenceStartRegex = re.compile(
-    ur'^(.*)\[([0-9]+).*\](.*)$',
-    flags=re.IGNORECASE | re.UNICODE)
-SequenceEndRegex = re.compile(
-    ur'^(.*)\[.*?([0-9]+)\](.*)$',
-    flags=re.IGNORECASE | re.UNICODE)
-GetSequenceRegex = re.compile(
-    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{1,})$',
-    flags=re.IGNORECASE | re.UNICODE)
-
-WindowsPath = 0
-UnixPath = WindowsPath + 1
-SlackPath = UnixPath + 1
-MacOSPath = SlackPath + 1
-
-PrimaryFontRole = 0
-SecondaryFontRole = PrimaryFontRole + 1
-MetricsRole = SecondaryFontRole + 1
-
-
-def get_platform():
-    """Returns the name of the current platform.
-
-    Returns:
-        unicode: *mac* or *win*, depending on the platform.
-
-    Raises:
-        NotImplementedError: If the current platform is not supported.
-
-    """
-    ptype = QtCore.QSysInfo().productType().lower()
-    if ptype in (u'darwin', u'osx', u'macos'):
-        return u'mac'
-    if u'win' in ptype:
-        return u'win'
-    raise NotImplementedError(
-        u'The platform "{}" is not supported'.format(ptype))
-
-
-UI_SCALE = 1.0
-"""The global UI scale value. Depending on context, this should correspond to
-any UI scaling set in the host DCC. In standalone mode the app factors in the
-current DPI scaling and scales the UI accordingly."""
-
-THUMBNAIL_IMAGE_SIZE = 512.0
-THUMBNAIL_FORMAT = u'png'
-
-cursor = QtGui.QCursor()
-
-
-if get_platform() == u'mac':
-    DPI = 96.0
-else:
-    DPI = 72.0
-
-
-def SMALL_FONT_SIZE(): return int(psize(11.0))  # 8.5pt@72dbpi
-
-
-def MEDIUM_FONT_SIZE(): return int(psize(12.0))  # 9pt@72dpi
-
-
-def LARGE_FONT_SIZE(): return int(psize(16.0))  # 12pt@72dpi
-
-
-def ROW_HEIGHT(): return int(psize(34.0))
-
-
-def BOOKMARK_ROW_HEIGHT(): return int(psize(40.0))
-
-
-def ASSET_ROW_HEIGHT(): return int(psize(64.0))
-
-
-def ROW_SEPARATOR(): return int(psize(1.0))
-
-
-def MARGIN(): return int(psize(18.0))
-
-
-def INDICATOR_WIDTH(): return int(psize(4.0))
-
-
-def WIDTH(): return int(psize(640.0))
-
-
-def HEIGHT(): return int(psize(480.0))
-
-
-
-BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
-SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
-BACKGROUND = QtGui.QColor(80, 80, 80)
-
-TEXT = QtGui.QColor(220, 220, 220)
-TEXT_SELECTED = QtGui.QColor(250, 250, 250)
-TEXT_DISABLED = QtGui.QColor(140, 140, 140)
-
-TEXT_NOTE = QtGui.QColor(150, 150, 255)
-SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
-
-SEPARATOR = QtGui.QColor(45, 45, 45)
-FAVOURITE = QtGui.QColor(107, 135, 165)
-REMOVE = QtGui.QColor(219, 114, 114)
-ADD = QtGui.QColor(90, 200, 155)
-THUMBNAIL_BACKGROUND = SEPARATOR
-
-TRANSPARENT = QtGui.QColor(0, 0, 0, 0)
-
-
 def psize(n):
     """Returns a scaled UI value.
     All UI values are assumed to be in `pixels`.
 
     """
     return (float(n) * (float(DPI) / 72.0)) * float(UI_SCALE)
-
-
-HASH_DATA = {}
 
 
 def get_hash(key):
@@ -390,45 +302,6 @@ def get_hash(key):
     return HASH_DATA[key]
 
 
-def proxy_path(v):
-    """Encompasses the logic used to associate preferences with items.
-
-    Sequence items need a generic key to save values as the sequence notation
-    might change as files are added/removed to image seuquences. Any `FileItem`
-    will use their file path as the key and SequenceItems will use `[0]` in place
-    of their frame-range notation.
-
-    Args:
-        v (QModelIndex, dict or unicode): Data dict, index or filepath string.
-
-    Returns:
-        unicode: The key used to store the items information in the local
-        preferences and the bookmarks database.
-
-    """
-    if isinstance(v, weakref.ref):
-        v = v()[QtCore.Qt.StatusTipRole]
-    if isinstance(v, dict):
-        v = v[QtCore.Qt.StatusTipRole]
-    elif isinstance(v, QtCore.QModelIndex):
-        v = v.data(QtCore.Qt.StatusTipRole)
-    elif isinstance(v, unicode):
-        pass
-    else:
-        from . import log
-        s = u'Invalid type. Expected `<type \'unicode\'>'
-        log.error(s)
-        raise ValueError(s)
-
-    collapsed = is_collapsed(v)
-    if collapsed:
-        return collapsed.group(1) + SEQPROXY + collapsed.group(3)
-    seq = get_sequence(v)
-    if seq:
-        return seq.group(1) + SEQPROXY + seq.group(3) + u'.' + seq.group(4)
-    return v
-
-
 def rgb(color):
     """Returns an rgba string representation of the given color.
 
@@ -449,7 +322,8 @@ def get_username():
     return n
 
 
-def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
+def qlast_modified(n):
+    return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 def namekey(s):
@@ -564,104 +438,43 @@ def set_custom_stylesheet(widget):
     widget.setStyleSheet(qss)
 
 
-def reveal(path):
-    """Reveals the specified folder in the file explorer.
+def proxy_path(v):
+    """Encompasses the logic used to associate preferences with items.
+
+    Sequence items need a generic key to save values as the sequence notation
+    might change as files are added/removed to image seuquences. Any `FileItem`
+    will use their file path as the key and SequenceItems will use `[0]` in place
+    of their frame-range notation.
 
     Args:
-        name(unicode): A path to the file.
-
-    """
-    path = get_sequence_endpath(path)
-    if get_platform() == u'win':
-        if QtCore.QFileInfo(path).isFile():
-            args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
-        elif QtCore.QFileInfo(path).isDir():
-            path = os.path.normpath(os.path.abspath(path))
-            args = [path,]
-        else:
-            args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
-        return QtCore.QProcess.startDetached(u'explorer', args)
-
-    if get_platform() == u'mac':
-        args = [
-            u'-e',
-            u'tell application "Finder"',
-            u'-e',
-            u'activate',
-            u'-e',
-            u'select POSIX file "{}"'.format(
-                QtCore.QDir.toNativeSeparators(path)), u'-e', u'end tell']
-        return QtCore.QProcess.startDetached(u'osascript', args)
-
-    raise NotImplementedError('{} os has not been implemented.'.format(
-        QtCore.QSysInfo().productType()))
-
-
-def copy_path(path, mode=WindowsPath, first=True, copy=True):
-    """Copy a file path to the clipboard.
-
-    The path will be conformed to the given `mode` (eg. forward slashes
-    converted to back-slashes for `WindowsPath`).
-
-    Args:
-        path (unicode): Description of parameter `path`.
-        mode (int):     Any of `WindowsPath`, `UnixPath`, `SlackPath` or
-                        `MacOSPath`. Defaults to `WindowsPath`.
-        first (bool):   If `True` copy the first item of a sequence.
-        copy (bool):    If copy is false the converted path won't be copied to
-                        the clipboard. Defaults to `True`.
+        v (QModelIndex, dict or unicode): Data dict, index or filepath string.
 
     Returns:
-        unicode: The converted path.
+        unicode: The key used to store the items information in the local
+        preferences and the bookmarks database.
 
     """
-    if first:
-        path = get_sequence_startpath(path)
+    if isinstance(v, weakref.ref):
+        v = v()[QtCore.Qt.StatusTipRole]
+    if isinstance(v, dict):
+        v = v[QtCore.Qt.StatusTipRole]
+    elif isinstance(v, QtCore.QModelIndex):
+        v = v.data(QtCore.Qt.StatusTipRole)
+    elif isinstance(v, unicode):
+        pass
     else:
-        path = get_sequence_endpath(path)
-
-    # Normalise path
-    path = re.sub(ur'[\/\\]', ur'/', path,
-                  flags=re.IGNORECASE | re.UNICODE).strip(u'/')
-
-    if mode == WindowsPath:
-        prefix = u'//' if u':' not in path else u''
-    elif mode == UnixPath:
-        prefix = u'//' if u':' not in path else u''
-    elif mode == SlackPath:
-        prefix = u'file://'
-    elif mode == MacOSPath:
-        prefix = u'smb://'
-        path = path.replace(u':', u'')
-    else:
-        prefix = u''
-    path = prefix + path
-    if mode == WindowsPath:
-        path = re.sub(ur'[\/\\]', ur'\\', path,
-                      flags=re.IGNORECASE | re.UNICODE)
-
-    if copy:
-        QtGui.QClipboard().setText(path)
-
         from . import log
-        log.success(u'Copied {}'.format(path))
+        s = u'Invalid type. Expected `<type \'unicode\'>'
+        log.error(s)
+        raise ValueError(s)
 
-    return path
-
-
-@QtCore.Slot(QtCore.QModelIndex)
-def execute(index, first=False):
-    """Given the model index, executes the index's path using `QDesktopServices`."""
-    if not index.isValid():
-        return
-    path = index.data(QtCore.Qt.StatusTipRole)
-    if first:
-        path = get_sequence_startpath(path)
-    else:
-        path = get_sequence_endpath(path)
-
-    url = QtCore.QUrl.fromLocalFile(path)
-    QtGui.QDesktopServices.openUrl(url)
+    collapsed = is_collapsed(v)
+    if collapsed:
+        return collapsed.group(1) + SEQPROXY + collapsed.group(3)
+    seq = get_sequence(v)
+    if seq:
+        return seq.group(1) + SEQPROXY + seq.group(3) + u'.' + seq.group(4)
+    return v
 
 
 def get_sequence(s):
@@ -816,7 +629,7 @@ def get_sequence_paths(index):
 def draw_aliased_text(painter, font, rect, text, align, color):
     """Allows drawing aliased text using *QPainterPath*.
 
-    This is a slow to calculate but ensures the rendered text looks *smooth* (on
+    This is slow to calculate but ensures the rendered text looks *smooth* (on
     Windows espcially, I noticed a lot of aliasing issues). We're also eliding
     the given text to the width of the given rectangle.
 
@@ -873,23 +686,6 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 
     painter.restore()
     return width
-
-
-@error
-@debug
-def exec_instance():
-    """Starts a new instance of Bookmarks."""
-    if BOOKMARK_ROOT_KEY not in os.environ:
-        s = u'Bookmarks does not seem to be installed correctly:\n'
-        s += u'"{}" environment variable is not set'.format(BOOKMARK_ROOT_KEY)
-        raise RuntimeError(s)
-
-    if get_platform() == u'win':
-        p = os.environ[BOOKMARK_ROOT_KEY] + \
-            os.path.sep + 'bookmarks.exe'
-        subprocess.Popen(p)
-    else:
-        raise NotImplementedError(u'Not yet implemented.')
 
 
 class FontDatabase(QtGui.QFontDatabase):

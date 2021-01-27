@@ -81,8 +81,7 @@ def add_row(label, color=common.SECONDARY_TEXT, parent=None, padding=common.MARG
             parent=parent
         )
         l.setFixedWidth(common.MARGIN() * 8.6667)
-        l.setDisabled(True)
-        w.layout().addWidget(l, 1)
+        w.layout().addWidget(l)
 
     if parent:
         parent.layout().addWidget(w, 1)
@@ -262,8 +261,21 @@ class PaintedLabel(QtWidgets.QLabel):
 
     def paintEvent(self, event):
         """Custom paint event to use the aliased paint method."""
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+
         painter = QtGui.QPainter()
         painter.begin(self)
+
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        pressed = option.state & QtWidgets.QStyle.State_Sunken
+        focus = option.state & QtWidgets.QStyle.State_HasFocus
+        disabled = not self.isEnabled()
+
+        o = 1.0 if hover else 0.8
+        o = 0.3 if disabled else 1.0
+        painter.setOpacity(o)
+
         rect = self.rect()
         rect.setLeft(rect.left() + common.INDICATOR_WIDTH())
         common.draw_aliased_text(
@@ -275,6 +287,12 @@ class PaintedLabel(QtWidgets.QLabel):
             self._color
         )
         painter.end()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def enterEvent(self, event):
+        self.update()
 
 
 class ClickableIconButton(QtWidgets.QLabel):

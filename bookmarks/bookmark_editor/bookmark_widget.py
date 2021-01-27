@@ -14,6 +14,7 @@ from .. import images
 from .. import contextmenu
 from .. import common_ui
 from .. import shortcuts
+from .. import actions
 
 from . import list_widget
 
@@ -22,63 +23,58 @@ class BookmarkContextMenu(contextmenu.BaseContextMenu):
     """Custom context menu used to control the list of saved servers.
 
     """
+    def setup(self):
+        self.add_menu()
+        self.separator()
+        if isinstance(self.index, QtWidgets.QListWidgetItem) and self.index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.bookmark_properties_menu()
+            self.reveal_menu()
+        self.separator()
+        self.refresh_menu()
 
-    def __init__(self, index, parent=None):
-        super(BookmarkContextMenu, self).__init__(index, parent=parent)
-        self.add_add_menu()
-        self.add_separator()
-        if isinstance(index, QtWidgets.QListWidgetItem) and index.flags() & QtCore.Qt.ItemIsEnabled:
-            self.add_bookmark_properties_menu()
-            self.add_reveal_menu()
-        self.add_separator()
-        self.add_refresh_menu()
-
-    @contextmenu.contextmenu
-    def add_add_menu(self, menu_set):
+    def add_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
 
-        menu_set[u'Add Bookmark...'] = {
+        self.menu[u'Add Bookmark...'] = {
             u'action': self.parent().add,
             u'icon': pixmap
         }
-        return menu_set
 
-    @contextmenu.contextmenu
-    def add_reveal_menu(self, menu_set):
+    def reveal_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'reveal_folder', common.SECONDARY_TEXT, common.MARGIN())
 
         @QtCore.Slot()
         def reveal():
-            common.reveal(self.index.data(QtCore.Qt.UserRole) + '/.')
+            actions.reveal(self.index.data(QtCore.Qt.UserRole) + '/.')
 
-        menu_set[u'Reveal...'] = {
+        self.menu[u'Reveal...'] = {
             u'action': reveal,
             u'icon': pixmap
         }
-        return menu_set
 
-    @contextmenu.contextmenu
-    def add_refresh_menu(self, menu_set):
+    def refresh_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.MARGIN())
-        menu_set[u'Refresh'] = {
+        self.menu[u'Refresh'] = {
             u'action': self.parent().init_data,
             u'icon': pixmap
         }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_bookmark_properties_menu(self, menu_set):
+    def bookmark_properties_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'settings', common.SECONDARY_TEXT, common.MARGIN())
-        menu_set[u'Properties'] = {
-            u'action': lambda: self.parent().edit_properties(self.index),
+
+        server = self.parent().server
+        job = self.parent().job
+        root = self.index.data(QtCore.Qt.DisplayRole)
+
+        self.menu[u'Properties'] = {
+            'text': u'Edit Properties...',
+            u'action': functools.partial(actions.edit_bookmark, server, job, root),
             u'icon': pixmap
         }
-        return menu_set
 
 
 class BookmarkListWidget(list_widget.ListWidget):
@@ -135,44 +131,30 @@ class BookmarkListWidget(list_widget.ListWidget):
             if item.data(QtCore.Qt.UserRole) in [f for f in bookmarks]:
                 del bookmarks[item.data(QtCore.Qt.UserRole)]
             self.bookmarkRemoved.emit(
-                self._server, self._job, item.data(QtCore.Qt.DisplayRole))
+                self.server, self.job, item.data(QtCore.Qt.DisplayRole))
         elif item.checkState() == QtCore.Qt.Unchecked:
             item.setCheckState(QtCore.Qt.Checked)
             bookmarks[item.data(QtCore.Qt.UserRole)] = {
-                settings.ServerKey: self._server,
-                settings.JobKey: self._job,
+                settings.ServerKey: self.server,
+                settings.JobKey: self.job,
                 settings.RootKey: item.data(QtCore.Qt.DisplayRole)
             }
             self.bookmarkAdded.emit(
-                self._server, self._job, item.data(QtCore.Qt.DisplayRole))
+                self.server, self.job, item.data(QtCore.Qt.DisplayRole))
 
         self.set_item_state(item)
-
-    @QtCore.Slot()
-    def edit_properties(self, item):
-        """Open the bookmark properties editor.
-
-        """
-        from ..properties import bookmark_properties_widget
-        widget = bookmark_properties_widget.BookmarkPropertiesWidget(
-            self._server,
-            self._job,
-            item.data(QtCore.Qt.DisplayRole),
-            parent=self
-        )
-        widget.open()
 
     @common.debug
     @common.error
     @QtCore.Slot()
     def add(self, *args, **kwargs):
-        if not self._server or not self._job:
+        if not self.server or not self.job:
             return
 
         path = QtWidgets.QFileDialog.getExistingDirectory(
             self,
             u'Pick a new bookmark folder',
-            self._server + u'/' + self._job,
+            self.server + u'/' + self.job,
             QtWidgets.QFileDialog.ShowDirsOnly | QtWidgets.QFileDialog.DontResolveSymlinks
         )
         if not path:
@@ -180,7 +162,7 @@ class BookmarkListWidget(list_widget.ListWidget):
         if not QtCore.QDir(path).mkdir(common.BOOKMARK_ROOT_DIR):
             log.error(u'Failed to create bookmark.')
 
-        name = path.split(self._job)[-1].strip(u'/').strip(u'\\')
+        name = path.split(self.job)[-1].strip(u'/').strip(u'\\')
 
         for n in xrange(self.count()):
             item = self.item(n)
@@ -228,11 +210,11 @@ class BookmarkListWidget(list_widget.ListWidget):
             self.clear()
             return
 
-        if server == self._server and job == self._job:
+        if server == self.server and job == self.job:
             return
 
-        self._server = server
-        self._job = job
+        self.server = server
+        self.job = job
         self.init_data()
 
     @QtCore.Slot()
@@ -242,11 +224,11 @@ class BookmarkListWidget(list_widget.ListWidget):
         """
         self.clear()
 
-        if not self._server or not self._job:
+        if not self.server or not self.job:
             self.loaded.emit()
             return
 
-        path = self._server + u'/' + self._job
+        path = self.server + u'/' + self.job
         dirs = self.find_bookmark_dirs(path, -1, 4, [])
         self._interrupt_requested = False
 
@@ -258,7 +240,7 @@ class BookmarkListWidget(list_widget.ListWidget):
                 QtCore.Qt.ItemIsUserCheckable
             )
             item.setCheckState(QtCore.Qt.Unchecked)
-            name = d.split(self._job)[-1].strip(u'/').strip('\\')
+            name = d.split(self.job)[-1].strip(u'/').strip('\\')
             item.setData(QtCore.Qt.DisplayRole, name)
             item.setData(QtCore.Qt.UserRole, d)
             size = QtCore.QSize(
@@ -283,7 +265,7 @@ class BookmarkListWidget(list_widget.ListWidget):
         bookmarks = settings.local_settings.get_bookmarks()
 
         from . import job_widget
-        pixmap = job_widget.get_job_thumbnail(self._server + u'/' + self._job)
+        pixmap = job_widget.get_job_thumbnail(self.server + u'/' + self.job)
 
         if item.data(QtCore.Qt.UserRole) in [f for f in bookmarks]:
             item.setCheckState(QtCore.Qt.Checked)

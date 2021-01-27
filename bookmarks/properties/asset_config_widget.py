@@ -18,6 +18,7 @@ from . import asset_config
 from .. import common
 from .. import log
 from .. import common_ui
+from .. import images
 from ..bookmark_editor import list_widget
 from . import base
 
@@ -49,7 +50,6 @@ def _set(d, keys, v):
     d[k] = v
 
 
-
 class TokenEditor(QtWidgets.QDialog):
     """Popup dialog used to insert an available token to one of the file
     name template editors.
@@ -71,14 +71,15 @@ class TokenEditor(QtWidgets.QDialog):
     def _create_ui(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QHBoxLayout(self)
-        o = common.INDICATOR_WIDTH()
-        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
         editor = list_widget.ListWidget(parent=self)
         editor.setSpacing(0)
 
-        editor.itemClicked.connect(lambda x: self.tokenSelected.emit(x.data(QtCore.Qt.DisplayRole)))
-        editor.itemClicked.connect(lambda x: self.done(QtWidgets.QDialog.Accepted))
+        editor.itemClicked.connect(
+            lambda x: self.tokenSelected.emit(x.data(QtCore.Qt.DisplayRole)))
+        editor.itemClicked.connect(
+            lambda x: self.done(QtWidgets.QDialog.Accepted))
 
         self.layout().addWidget(editor, 0)
 
@@ -90,7 +91,7 @@ class TokenEditor(QtWidgets.QDialog):
             task=u'ANIM',
             mode=u'ANIM',
             element=u'Tower',
-            ext=common.THUMBNAIL_FORMAT,
+            ext=images.THUMBNAIL_FORMAT,
             prefix=u'ABC',
             asset='test'
         )
@@ -330,7 +331,6 @@ class AssetConfigEditor(QtWidgets.QWidget):
                         functools.partial(self.show_subfolders_editor, section, k, v, data))
                 else:
                     button.setDisabled(True)
-
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(dict)

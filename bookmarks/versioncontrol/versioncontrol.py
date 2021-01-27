@@ -32,6 +32,7 @@ from . import version
 from .. import log
 from .. import common
 from .. import common_ui
+from .. import actions
 from .. import __version__ as package_version
 
 
@@ -287,7 +288,7 @@ def check():
         import subprocess
         cmd = u'"{}"'.format(file_path)
         subprocess.Popen(cmd)
-        common.reveal(file_path)
+        actions.reveal(file_path)
 
     progress_widget.close()
     progress_widget.deleteLater()

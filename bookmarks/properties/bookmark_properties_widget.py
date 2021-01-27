@@ -26,7 +26,28 @@ from . import base
 from . import asset_config_widget
 
 
-_widget_instance = None
+instance = None
+
+def close():
+    global instance
+    if instance is None:
+        return
+    instance.close()
+    instance.deleteLater()
+    instance = None
+
+
+def show(server, job, root):
+    global instance
+    close()
+    instance = BookmarkPropertiesWidget(
+        server,
+        job,
+        root,
+    )
+    instance.open()
+    return instance
+
 
 SECTIONS = {
     0: {
@@ -334,6 +355,8 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
     def save_changes(self):
         try:
             self._save_db_data()
+            v = self.description_editor.text()
+            self.valueUpdated.emit(self.db_source(), common.DescriptionRole, v)
         except:
             s = u'Could not save properties to the database.'
             log.error(s)
@@ -350,13 +373,14 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
 
         try:
             self.thumbnail_editor.save_image()
+            self.thumbnailUpdated.emit(self.db_source())
         except:
             s = u'Failed to save the thumbnail.'
             log.error(s)
             common_ui.ErrorBox('Error', s).open()
             return False
 
-        log.success(u'Properties saved correctly')
+        self.itemUpdated.emit(self.db_source())
         return True
 
     def _add_asset_config(self):

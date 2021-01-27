@@ -105,12 +105,14 @@ class ListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter.setPen(QtCore.Qt.NoPen)
         if selected:
             painter.setBrush(common.BACKGROUND_SELECTED)
+
+            pen = QtGui.QPen(common.ADD)
+            pen.setWidthF(common.ROW_SEPARATOR() * 3.0)
+            painter.setPen(pen)
             painter.drawRoundedRect(rect, o, o)
 
         if checked:
-            pen = QtGui.QPen(common.ADD)
-            pen.setWidthF(common.ROW_SEPARATOR() * 2.0)
-            painter.setPen(pen)
+            painter.setPen(QtCore.Qt.NoPen)
             color = QtGui.QColor(common.ADD)
             color.setAlpha(150)
             painter.setBrush(color)
@@ -198,9 +200,9 @@ class ListWidget(QtWidgets.QListWidget):
 
         self.default_message = default_message
 
-        self._server = None
-        self._job = None
-        self._root = None
+        self.server = None
+        self.job = None
+        self.root = None
 
         self.setResizeMode(QtWidgets.QListWidget.Adjust)
         self.setEditTriggers(

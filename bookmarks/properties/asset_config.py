@@ -48,6 +48,7 @@ import OpenImageIO
 
 from .. import log
 from .. import bookmark_db
+from .. import images
 from .. import common
 
 
@@ -427,7 +428,7 @@ class AssetConfig(QtCore.QObject):
                         return _v['description']
         return u''
 
-    def expand_tokens(self, s, user=getpass.getuser(), version=u'v001', host=socket.gethostname(), task=u'anim', ext=common.THUMBNAIL_FORMAT, prefix=None, **_kwargs):
+    def expand_tokens(self, s, user=getpass.getuser(), version=u'v001', host=socket.gethostname(), task=u'anim', ext=images.THUMBNAIL_FORMAT, prefix=None, **_kwargs):
         """Expands all valid tokens in the given string, based on the current
         asset config values.
 

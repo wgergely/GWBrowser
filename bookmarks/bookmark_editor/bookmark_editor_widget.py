@@ -15,12 +15,32 @@ from PySide2 import QtCore, QtWidgets
 
 from .. import common
 from .. import settings
-from .. import images
 from .. import common_ui
 
 from . import server_widget
 from . import job_widget
 from . import bookmark_widget
+
+
+
+instance = None
+
+def close():
+    global instance
+    if instance is None:
+        return
+    instance.close()
+    instance.deleteLater()
+    instance = None
+
+
+def show():
+    global instance
+
+    close()
+    instance = BookmarkEditorWidget()
+    instance.open()
+    return instance
 
 
 
@@ -56,18 +76,6 @@ class BookmarkEditorWidget(QtWidgets.QDialog):
         o = common.MARGIN()
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o * 0.5)
-
-        row = common_ui.add_row(None, parent=self)
-        label = QtWidgets.QLabel(parent=self)
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'bookmark', common.SEPARATOR, common.ROW_HEIGHT())
-        label.setPixmap(pixmap)
-        row.layout().addWidget(label, 0)
-        label = common_ui.PaintedLabel(
-            u'Bookmark Editor', size=common.LARGE_FONT_SIZE(), parent=self)
-        row.layout().addWidget(label, 0)
-        row.layout().addStretch(1)
-        self.layout().addSpacing(common.MARGIN() * 0.5)
 
         _o = common.INDICATOR_WIDTH()
         main_row = common_ui.get_group(vertical=False, parent=self, margin=0)
@@ -188,13 +196,12 @@ class BookmarkEditorWidget(QtWidgets.QDialog):
         self.job_add_button.clicked.connect(self.job_widget.add)
         self.bookmark_add_button.clicked.connect(self.bookmark_widget.add)
 
-        self.bookmark_widget.loaded.connect(self.bookmarksChanged)
-
         self.bookmark_widget.bookmarkAdded.connect(settings.local_settings.save_bookmark)
         self.bookmark_widget.bookmarkRemoved.connect(settings.local_settings.remove_bookmark)
 
+        # self.bookmark_widget.loaded.connect(self.bookmarksChanged)
         self.bookmark_widget.bookmarkAdded.connect(self.bookmarksChanged)
         self.bookmark_widget.bookmarkRemoved.connect(self.bookmarksChanged)
 
         self.done_button.clicked.connect(self.close)
-        self.finished.connect(self.bookmarksChanged)
+        # self.finished.connect(self.bookmarksChanged)

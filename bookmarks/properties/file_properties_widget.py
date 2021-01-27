@@ -39,10 +39,39 @@ from .. import common
 from .. import settings
 from .. import bookmark_db
 from .. import log
+from .. import actions
 
 from . import base
 from . import asset_config
 from . import file_properties_widgets
+
+
+instance = None
+
+
+def close():
+    global instance
+    if instance is None:
+        return
+    instance.close()
+    instance.deleteLater()
+    instance = None
+
+
+def show(server, job, root, asset, extension=None, file=None):
+    global instance
+
+    close()
+    instance = FilePropertiesWidget(
+        server,
+        job,
+        root,
+        asset,
+        extension=extension,
+        file=file
+    )
+    instance.open()
+    return instance
 
 
 LOCAL_KEYS = (
@@ -53,6 +82,19 @@ LOCAL_KEYS = (
     u'user',
     u'template'
 )
+
+INACTIVE_KEYS = (
+    u'bookmark',
+    u'asset',
+    u'folder',
+    u'prefix',
+    u'element',
+    u'version',
+    u'extension',
+    u'user',
+    u'template',
+)
+
 
 SECTIONS = {
     0: {
@@ -168,78 +210,12 @@ SECTIONS = {
 }
 
 
-class PrefixEditor(QtWidgets.QDialog):
-    """A popup editor used to edit a bookmark prefix.
-
-    """
-    def __init__(self, parent=None):
-        super(PrefixEditor, self).__init__(parent=parent)
-        self._create_ui()
-
-    def _create_ui(self):
-        QtWidgets.QHBoxLayout(self)
-
-        self.editor = common_ui.LineEdit(parent=self)
-        self.editor.setPlaceholderText(u'Enter a prefix, eg. \'MYB\'')
-        self.editor.setValidator(base.textvalidator)
-        self.setFocusProxy(self.editor)
-        self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.ok_button = common_ui.PaintedButton(u'Save')
-
-        self.ok_button.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
-        self.editor.returnPressed.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
-
-        self.setWindowTitle(u'Edit Prefix')
-        self.layout().addWidget(self.editor, 1)
-        self.layout().addWidget(self.ok_button, 0)
-
-        self.init_data()
-
-    def init_data(self):
-        self.parent().prefix_editor.setText(self.editor.text())
-
-        p = self.parent()
-        args = (p.server, p.job, p.root)
-        with bookmark_db.transactions(*args) as db:
-            v = db.value(
-                u'/'.join(args),
-                u'prefix',
-                table=bookmark_db.BookmarkTable
-            )
-
-        if not v:
-            return
-
-        self.editor.setText(v)
-
-    def done(self, result):
-        if result == QtWidgets.QDialog.Rejected:
-            super(PrefixEditor, self).done(result)
-            return
-
-        p = self.parent()
-        p.prefix_editor.setText(self.editor.text())
-        args = (p.server, p.job, p.root)
-        with bookmark_db.transactions(*args) as db:
-            db.setValue(
-                u'/'.join(args),
-                u'prefix',
-                self.editor.text(),
-                table=bookmark_db.BookmarkTable
-            )
-
-        super(PrefixEditor, self).done(result)
-
-    def sizeHint(self):
-        return QtCore.QSize(common.WIDTH() * 0.5, common.ROW_HEIGHT())
-
-
 
 class FilePropertiesWidget(base.PropertiesWidget):
     """The widget used to create file name template compliant files.
 
     """
-    def __init__(self, server, job, root, asset, extension=None, parent=None):
+    def __init__(self, server, job, root, asset, extension=None, file=None, parent=None):
         super(FilePropertiesWidget, self).__init__(
             SECTIONS,
             server,
@@ -252,8 +228,14 @@ class FilePropertiesWidget(base.PropertiesWidget):
             parent=parent
         )
 
+        self._file = file
         self._extension = extension
         self._filelist = {}
+
+
+        if self._file is not None:
+            self.set_file()
+            return
 
         self.update_timer = QtCore.QTimer(parent=self)
         self.update_timer.setInterval(250)
@@ -262,7 +244,20 @@ class FilePropertiesWidget(base.PropertiesWidget):
         self.update_timer.timeout.connect(self.set_source)
         self.update_timer.timeout.connect(self.verify_unique)
 
-        self.fileSaveRequested.connect(log.debug)
+        if settings.ACTIVE[settings.TaskKey] is not None:
+            self.add_task(settings.ACTIVE[settings.TaskKey])
+
+    def set_file(self):
+        self.thumbnail_editor.source = self._file
+        self.thumbnail_editor.update()
+
+        for k in INACTIVE_KEYS:
+            if not hasattr(self, k + '_editor'):
+                continue
+            editor = getattr(self, k + '_editor')
+            editor.parent().setDisabled(True)
+
+        self.filename_editor.setText(QtCore.QFileInfo(self._file).fileName())
 
     def _connect(self, k):
         if not hasattr(self, k + '_editor'):
@@ -346,7 +341,8 @@ class FilePropertiesWidget(base.PropertiesWidget):
             ext=_get('extension').lower()
         )
         v = _strip(v)
-        v = v.replace(u'{invalid_token}', u'<span style="color:rgba({})">{{invalid_token}}</span>'.format(common.rgb(common.REMOVE)))
+        v = v.replace(
+            u'{invalid_token}', u'<span style="color:rgba({})">{{invalid_token}}</span>'.format(common.rgb(common.REMOVE)))
 
         self.filename_editor.setText(v)
 
@@ -361,9 +357,11 @@ class FilePropertiesWidget(base.PropertiesWidget):
             self._filelist[self.db_source()] = file_info.exists()
 
         if self._filelist[self.db_source()]:
-            self.filename_editor.setStyleSheet(u'color:rgba({});'.format(common.rgb(common.REMOVE)))
+            self.filename_editor.setStyleSheet(
+                u'color:rgba({});'.format(common.rgb(common.REMOVE)))
         else:
-            self.filename_editor.setStyleSheet(u'color:rgba({});'.format(common.rgb(common.ADD)))
+            self.filename_editor.setStyleSheet(
+                u'color:rgba({});'.format(common.rgb(common.ADD)))
 
     def parent_folder(self):
         """The folder where the new file is about to be saved.
@@ -376,6 +374,9 @@ class FilePropertiesWidget(base.PropertiesWidget):
 
     def db_source(self):
         """The final file path."""
+        if self._file is not None:
+            return common.proxy_path(self._file)
+
         if not self.parent_folder():
             return None
         return self.parent_folder() + u'/' + self.name()
@@ -403,6 +404,8 @@ class FilePropertiesWidget(base.PropertiesWidget):
         else:
             return
 
+    @common.error
+    @common.debug
     def init_data(self):
         """Initialises the default values of each editor.
 
@@ -418,20 +421,29 @@ class FilePropertiesWidget(base.PropertiesWidget):
             self.asset_editor.setCurrentText(self.asset)
 
         self.user_editor.blockSignals(True)
-        self.user_editor.setText(common.get_username())
+        if self._file is not None:
+            self.user_editor.setText(u'-')
+        else:
+            self.user_editor.setText(common.get_username())
         self.user_editor.blockSignals(False)
-        for k in LOCAL_KEYS:
-            self._set_local_value(k)
+
+        if self._file is None:
+            for k in LOCAL_KEYS:
+                self._set_local_value(k)
 
         # Prefix
         self.prefix_editor.setReadOnly(True)
-        with bookmark_db.transactions(self.server, self.job, self.root) as db:
-            source = u'{}/{}/{}'.format(self.server, self.job, self.root)
-            prefix = db.value(source, u'prefix', table=bookmark_db.BookmarkTable)
-        if prefix:
-            self.prefix_editor.setText(prefix)
+        if self._file is None:
+            with bookmark_db.transactions(self.server, self.job, self.root) as db:
+                prefix = db.value(
+                    db.source(),
+                    u'prefix',
+                    table=bookmark_db.BookmarkTable
+                )
+            if prefix:
+                self.prefix_editor.setText(prefix)
 
-        if self._extension:
+        if self._extension and self._file is None:
             self.extension_editor.setCurrentText(self._extension.upper())
             self.extension_editor.setDisabled(True)
             self.update_tasks(self._extension)
@@ -440,6 +452,19 @@ class FilePropertiesWidget(base.PropertiesWidget):
                 self.folder_editor.blockSignals(True)
                 self.folder_editor.setCurrentText(self._extension.upper())
                 self.folder_editor.blockSignals(False)
+
+        # Description
+        if self._file is not None:
+            with bookmark_db.transactions(self.server, self.job, self.root) as db:
+                v = db.value(
+                    self.db_source(),
+                    u'description',
+                    table=bookmark_db.AssetTable
+                )
+            v = v if v else u''
+            self.description_editor.setText(v)
+            self.description_editor.setFocus()
+            return
 
         # Increment the version if the source already exists
         self.set_name()
@@ -461,21 +486,23 @@ class FilePropertiesWidget(base.PropertiesWidget):
             self.folder_editor.set_mode(file_properties_widgets.NoMode)
 
     def save_changes(self):
-        """Creates a new empty file and saves any custom data to the bookmark
-        database.
+        """Creates a new empty file or updates and existing item.
 
         """
-        try:
-            if not self._create_file():
+        if self._file is None:
+            try:
+                if not self.create_file():
+                    return False
+            except:
+                s = u'Could not create file.'
+                log.error(s)
+                common_ui.ErrorBox('Error', s).open()
                 return False
-        except:
-            s = u'Could not create file.'
-            log.error(s)
-            common_ui.ErrorBox('Error', s).open()
-            return False
 
         try:
             self._save_db_data()
+            v = self.description_editor.text()
+            self.valueUpdated.emit(self.db_source(), common.DescriptionRole, v)
         except:
             s = u'Could not save properties to the database.'
             log.error(s)
@@ -484,21 +511,18 @@ class FilePropertiesWidget(base.PropertiesWidget):
 
         try:
             self.thumbnail_editor.save_image()
+            self.thumbnailUpdated.emit(self.db_source())
         except:
             s = u'Failed to save the thumbnail.'
             log.error(s)
             common_ui.ErrorBox('Error', s).open()
             return False
 
-        description = self.description_editor.text()
-        self.descriptionUpdated.emit(description)
-
-        log.success(u'Properties saved correctly.')
+        self.itemUpdated.emit(self.db_source())
         return True
 
-    def _create_file(self):
-        """Method used to create a placeholder file on the disc using the specified
-        file-name.
+    def create_file(self):
+        """Creates a new file on the disk.
 
         """
         if not self.parent_folder():
@@ -525,11 +549,13 @@ class FilePropertiesWidget(base.PropertiesWidget):
         if file_info.exists():
             common_ui.ErrorBox(
                 u'File already exists.',
-                u'{} already exists. Try incrementing the version number.'.format(name)
+                u'{} already exists. Try incrementing the version number.'.format(
+                    name)
             ).open()
             return False
 
-        path = os.path.normpath(file_info.absoluteFilePath())
+        _path = file_info.absoluteFilePath()
+        path = os.path.normpath(_path)
         try:
             open(path, 'a').close()
         except:
@@ -539,8 +565,7 @@ class FilePropertiesWidget(base.PropertiesWidget):
             ).open()
             return False
 
-        # Let's notify bookmarks, that a file has been successfully saved
-        self.fileSaveRequested.emit(file_info.absoluteFilePath())
+        self.itemCreated.emit(_path)
         return True
 
     def save_local_value(self, key, value):
@@ -599,8 +624,13 @@ class FilePropertiesWidget(base.PropertiesWidget):
         """Used to reveal the parent folder in the file explorer.
 
         """
+        if self._file is not None:
+            actions.reveal(self._file)
+            return
+
         if not self.parent_folder():
             return
+
         _dir = QtCore.QDir(self.parent_folder())
 
         if not _dir.exists():
@@ -618,14 +648,15 @@ class FilePropertiesWidget(base.PropertiesWidget):
             if mbox.exec_() == QtWidgets.QMessageBox.RejectRole:
                 return
             if not _dir.mkpath(u'.'):
-                common_ui.ErrorBox(u'Could not create destination folder.').open()
+                common_ui.ErrorBox(
+                    u'Could not create destination folder.').open()
                 return
 
-        common.reveal(_dir.path())
+        actions.reveal(_dir.path())
 
     @QtCore.Slot()
     def prefix_button_clicked(self):
-        editor = PrefixEditor(parent=self)
+        editor = file_properties_widgets.PrefixEditor(parent=self)
         editor.open()
 
     @QtCore.Slot()
@@ -687,7 +718,7 @@ class FilePropertiesWidget(base.PropertiesWidget):
             if name[:idx] != entry.name[:idx]:
                 continue
 
-            _v = entry.name[idx:idx+len(v)]
+            _v = entry.name[idx:idx + len(v)]
 
             _prefix = u'v' if _v.startswith(u'v') else u''
             _padding = len(_v.replace(u'v', u''))
@@ -717,25 +748,3 @@ class FilePropertiesWidget(base.PropertiesWidget):
 
         v = u'{}{}'.format(_prefix, u'{}'.format(_n).zfill(_padding))
         self.version_editor.setText(v)
-
-
-
-
-if __name__ == '__main__':
-    import bookmarks.standalone as standalone
-    app = standalone.StandaloneApp([])
-
-    server = u'D:/dev/bookmarks-dummy-server'
-    job = u'TestJob'
-    root = u'data/asset'
-    asset = u'SH0050'
-
-    w = FilePropertiesWidget(
-        server,
-        job,
-        root,
-        asset=asset,
-        extension='fbx'
-    )
-    w.open()
-    app.exec_()

@@ -28,11 +28,11 @@ RemoveItem = AddItem + 1
 
 Refresh = AddItem + 1
 CopyItemPath = Refresh + 1
-CopyAltPath = CopyItemPath + 1
-RevealItem = CopyAltPath + 1
+CopyAltItemPath = CopyItemPath + 1
+RevealItem = CopyAltItemPath + 1
 
-OpenProperties = RevealItem + 1
-CopyProperties = OpenProperties + 1
+EditItem = RevealItem + 1
+CopyProperties = EditItem + 1
 PasteProperties = CopyProperties + 1
 
 Quit = PasteProperties + 1
@@ -164,7 +164,7 @@ MainWidgetShortcuts = {
         'description': u'Copy file path',
         'shortcut': None,
     },
-    CopyAltPath: {
+    CopyAltItemPath: {
         'value': u'Ctrl+Shift+C',
         'default': u'Ctrl+Shift+C',
         'repeat': False,
@@ -178,7 +178,7 @@ MainWidgetShortcuts = {
         'description': u'Reveal item in the file explorer',
         'shortcut': None,
     },
-    OpenProperties: {
+    EditItem: {
         'value': u'Ctrl+E',
         'default': u'Ctrl+E',
         'repeat': False,

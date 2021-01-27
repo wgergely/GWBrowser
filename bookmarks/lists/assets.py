@@ -4,6 +4,7 @@
 """
 import re
 import _scandir
+import functools
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
@@ -12,6 +13,7 @@ from .. import threads
 from .. import contextmenu
 from .. import bookmark_db
 from .. import settings
+from .. import actions
 
 from . import delegate
 from . import base
@@ -20,32 +22,31 @@ from . import base
 class AssetsWidgetContextMenu(contextmenu.BaseContextMenu):
     """The context menu associated with the AssetsWidget."""
 
-    def __init__(self, index, parent=None):
-        super(AssetsWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_window_menu()
-        self.add_separator()
-        self.add_show_addasset_menu()
-        self.add_separator()
-        self.add_sg_bulk_link_menu()
-        self.add_separator()
-        self.add_properties_menu()
-        self.add_separator()
-        if index.isValid():
-            self.add_mode_toggles_menu()
-        self.add_separator()
-        self.add_urls_menu()
-        self.add_separator()
-        if index.isValid():
-            self.add_notes_menu()
-            self.add_copy_menu()
-            self.add_reveal_item_menu()
-        self.add_separator()
-        self.add_set_generate_thumbnails_menu()
-        self.add_row_size_menu()
-        self.add_sort_menu()
-        self.add_display_toggles_menu()
-        self.add_separator()
-        self.add_refresh_menu()
+    def setup(self):
+        self.window_menu()
+        self.separator()
+        self.show_addasset_menu()
+        self.separator()
+        self.sg_bulk_link_menu()
+        self.separator()
+        self.edit_selected_asset_menu()
+        self.separator()
+        if self.index.isValid():
+            self.mode_toggles_menu()
+        self.separator()
+        self.urls_menu()
+        self.separator()
+        if self.index.isValid():
+            self.notes_menu()
+            self.copy_menu()
+            self.reveal_item_menu()
+        self.separator()
+        self.set_generate_thumbnails_menu()
+        self.row_size_menu()
+        self.sort_menu()
+        self.display_toggles_menu()
+        self.separator()
+        self.refresh_menu()
 
 
 class AssetModel(base.BaseModel):
@@ -215,6 +216,8 @@ class AssetsWidget(base.ThreadedBaseWidget):
         self.setWindowTitle(u'Assets')
         self._background_icon = u'assets'
 
+        actions.signals.assetValueUpdated.connect(self.update_model_value)
+
     def inline_icons_count(self):
         """The number of icons on the right - hand side."""
         if self.width() < common.WIDTH() * 0.5:
@@ -244,13 +247,6 @@ class AssetsWidget(base.ThreadedBaseWidget):
                 index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
 
-    @QtCore.Slot()
-    def show_properties_widget(self):
-        """Shows the `AssetPropertiesWidget` for editing the asset properties.
-
-        """
-        self.show_asset_property_widget(update=True)
-
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
@@ -275,53 +271,6 @@ class AssetsWidget(base.ThreadedBaseWidget):
         if rectangles[delegate.PropertiesRect].contains(cursor_position):
             self.show_properties_widget()
             return
-
-    @QtCore.Slot()
-    def show_add_widget(self):
-        """Show the `FilePropertiesWidget` used to add a new template file.
-
-        """
-        if not self.selectionModel().hasSelection():
-            return None
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return None
-        if not index.data(QtCore.Qt.StatusTipRole):
-            return None
-        if len(index.data(common.ParentPathRole)) < 4:
-            return None
-
-        self.show_file_property_widget(
-            *index.data(common.ParentPathRole)[0:4],
-            extension=None
-        )
-
-    @QtCore.Slot()
-    def show_shotgun_bulk_link_widget(self, current_only=False):
-        """Shows the bulk shotgun asset linker.
-
-        """
-        model = self.model().sourceModel()
-        data = model.model_data()
-        parent_path = model.parent_path()
-
-        if current_only:
-            _model = self.selectionModel()
-            if not _model.hasSelection():
-                return
-            assets = (_model.currentIndex().data(common.ParentPathRole)[3], )
-        else:
-            assets = [f[common.ParentPathRole][-1] for f in data.itervalues()]
-
-        from ..shotgun import bulk_link_widget
-        w = bulk_link_widget.BulkLinkWidget(
-            assets,
-            parent_path[0],
-            parent_path[1],
-            parent_path[2],
-        )
-        # w.dataSaved.connect()
-        w.open()
 
     def get_hint_string(self):
         return u'No assets found. Select right-click -> Add Asset to create a new one.'

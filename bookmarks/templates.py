@@ -20,6 +20,8 @@ from . import common_ui
 from . import images
 from . import contextmenu
 from . import settings
+from . import actions
+
 from .bookmark_editor import list_widget
 
 
@@ -297,23 +299,21 @@ def delete_template(source):
 
 
 class TemplateContextMenu(contextmenu.BaseContextMenu):
+    def setup(self):
+        self.refresh_menu()
+        self.separator()
+        self.add_menu()
+        self.separator()
+        if self.index:
+            self.reveal_menu()
+            self.separator()
+            self.remove_menu()
 
-    def __init__(self, index, parent=None):
-        super(TemplateContextMenu, self).__init__(index, parent=parent)
-        self.add_refresh_menu()
-        self.add_separator()
-        self.add_add_menu()
-        self.add_separator()
-        if index:
-            self.add_reveal_menu()
-            self.add_separator()
-            self.add_remove_menu()
 
-    @contextmenu.contextmenu
-    def add_add_menu(self, menu_set):
+    def add_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
-        menu_set['add'] = {
+        self.menu['add'] = {
             u'text': u'Add new {} template...'.format(self.parent().mode()),
             u'action': (
                 functools.partial(pick_template, self.parent().mode()),
@@ -322,15 +322,12 @@ class TemplateContextMenu(contextmenu.BaseContextMenu):
             u'icon': pixmap
         }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_remove_menu(self, menu_set):
+    def remove_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'close', common.REMOVE, common.MARGIN())
 
         source = self.index.data(TemplatePathRole)
-        menu_set[u'Delete'] = {
+        self.menu[u'Delete'] = {
             u'action': (
                 functools.partial(delete_template, source),
                 self.parent().init_data
@@ -338,32 +335,26 @@ class TemplateContextMenu(contextmenu.BaseContextMenu):
             u'icon': pixmap
         }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_refresh_menu(self, menu_set):
+    def refresh_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.MARGIN())
 
-        menu_set[u'Refresh'] = {
+        self.menu[u'Refresh'] = {
             u'action': self.parent().init_data,
             u'icon': pixmap
         }
-        return menu_set
 
-    @contextmenu.contextmenu
-    def add_reveal_menu(self, menu_set):
+    def reveal_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.MARGIN())
 
         def reveal():
-            common.reveal(self.index.data(TemplatePathRole))
+            actions.reveal(self.index.data(TemplatePathRole))
 
-        menu_set[u'Show in file explorer...'] = {
+        self.menu[u'Show in file explorer...'] = {
             u'icon': pixmap,
             u'action': reveal,
         }
-        return menu_set
 
 
 class TemplateListDelegate(list_widget.ListWidgetDelegate):

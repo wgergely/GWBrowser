@@ -11,13 +11,13 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from . import log
 from . import common
 from . import common_ui
-from . import bookmark_db
 from . import images
 from . import settings
 from . import threads
 from . import contextmenu
 from . import topbar
 from . import shortcuts
+from . import actions
 from . import rv
 
 from .lists import base
@@ -28,11 +28,6 @@ from .lists import files
 
 
 _instance = None
-
-BookmarksWidget = 0
-AssetsWidget = 1
-FilesWidget = 2
-FavouritesWidget = 3
 
 
 def instance():
@@ -66,135 +61,6 @@ class StatusBar(QtWidgets.QStatusBar):
             common.TEXT
         )
         painter.end()
-
-
-class TrayMenu(contextmenu.BaseContextMenu):
-    """The context-menu associated with the our custom tray menu.
-
-    """
-
-    def __init__(self, parent=None):
-        super(TrayMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-
-        self.stays_on_top = False
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
-
-        self.add_window_menu()
-        self.add_separator()
-        self.add_tray_menu()
-
-    @contextmenu.contextmenu
-    def add_tray_menu(self, menu_set):
-        """Actions associated with the visibility of the widget."""
-        menu_set[u'Quit'] = {
-            u'action': self.parent().shutdown
-        }
-        return menu_set
-
-
-class MinimizeButton(common_ui.ClickableIconButton):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(MinimizeButton, self).__init__(
-            u'minimize',
-            (common.REMOVE, common.SECONDARY_TEXT),
-            common.MARGIN() - common.INDICATOR_WIDTH(),
-            description=u'Click to minimize the window...',
-            parent=parent
-        )
-
-
-class CloseButton(common_ui.ClickableIconButton):
-    """Button used to close/hide a widget or window."""
-
-    def __init__(self, parent=None):
-        super(CloseButton, self).__init__(
-            u'close',
-            (common.REMOVE, common.SECONDARY_TEXT),
-            common.MARGIN() - common.INDICATOR_WIDTH(),
-            description=u'Click to close the window...',
-            parent=parent
-        )
-
-
-class HeaderWidget(QtWidgets.QWidget):
-    """Horizontal widget for controlling the position of the active window."""
-    widgetMoved = QtCore.Signal(QtCore.QPoint)
-
-    def __init__(self, parent=None):
-        super(HeaderWidget, self).__init__(parent=parent)
-        self.label = None
-        self.closebutton = None
-        self.move_in_progress = False
-        self.move_start_event_pos = None
-        self.move_start_widget_pos = None
-
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.MARGIN() +
-                            (common.INDICATOR_WIDTH() * 2))
-
-        self._create_ui()
-
-    def _create_ui(self):
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        menu_bar = QtWidgets.QMenuBar(parent=self)
-        self.layout().addWidget(menu_bar)
-        menu_bar.hide()
-        menu = menu_bar.addMenu(common.PRODUCT)
-        action = menu.addAction(u'Quit')
-        action.triggered.connect(self.parent().shutdown)
-
-        self.layout().addStretch()
-        self.layout().addWidget(MinimizeButton(parent=self))
-        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
-        self.layout().addWidget(CloseButton(parent=self))
-        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
-
-    def mousePressEvent(self, event):
-        """Custom ``movePressEvent``.
-        We're setting the properties needed to moving the main window.
-
-        """
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.move_in_progress = True
-        self.move_start_event_pos = event.pos()
-        self.move_start_widget_pos = self.mapToGlobal(
-            self.geometry().topLeft())
-
-    def mouseMoveEvent(self, event):
-        """Moves the the parent window when clicked.
-
-        """
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        if event.buttons() == QtCore.Qt.NoButton:
-            return
-        if self.move_start_widget_pos:
-            margins = self.window().layout().contentsMargins()
-            offset = (event.pos() - self.move_start_event_pos)
-            pos = self.window().mapToGlobal(self.geometry().topLeft()) + offset
-            self.parent().move(
-                pos.x() - margins.left(),
-                pos.y() - margins.top()
-            )
-            bl = self.window().rect().bottomLeft()
-            bl = self.window().mapToGlobal(bl)
-            self.widgetMoved.emit(bl)
-
-    def contextMenuEvent(self, event):
-        """Shows the context menu associated with the tray in the header."""
-        widget = TrayMenu(parent=self.window())
-        pos = self.window().mapToGlobal(event.pos())
-        widget.move(pos)
-        common.move_widget_to_available_geo(widget)
-        widget.show()
 
 
 class ToggleModeButton(QtWidgets.QWidget):
@@ -241,7 +107,7 @@ class ToggleModeButton(QtWidgets.QWidget):
     def toggle_mode(self):
         """Simply toggles the solo mode."""
         settings.local_settings.sync()
-        
+
         if settings.local_settings.current_mode() == common.SynchronisedMode:
             settings.local_settings.set_mode(common.SoloMode)
             self.animation.setCurrentTime(0)
@@ -331,10 +197,8 @@ class MainWidget(QtWidgets.QWidget):
 
         self._contextMenu = None
         self._initialized = False
-        self._frameless = False
         self.shortcuts = []
 
-        self.headerwidget = None
         self.stackedwidget = None
         self.bookmarkswidget = None
         self.topbar = None
@@ -356,11 +220,7 @@ class MainWidget(QtWidgets.QWidget):
     @common.debug
     @common.error
     def _create_ui(self):
-        if self._frameless is True:
-            o = common.INDICATOR_WIDTH()  # offset around the widget
-        else:
-            o = 0
-
+        o = 0
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
@@ -371,7 +231,6 @@ class MainWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Minimum
         )
 
-        self.headerwidget = HeaderWidget(parent=self)
         self.stackedwidget = base.StackedWidget(parent=self)
         self.bookmarkswidget = bookmarks.BookmarksWidget(parent=self)
         self.assetswidget = assets.AssetsWidget(parent=self)
@@ -395,10 +254,6 @@ class MainWidget(QtWidgets.QWidget):
 
         self.topbar = topbar.ListControlWidget(parent=self)
 
-        self.layout().addWidget(self.headerwidget)
-        self.headerwidget.setHidden(not self._frameless)
-        self.headerwidget.setDisabled(not self._frameless)
-
         self.layout().addWidget(self.topbar)
         self.layout().addWidget(self.stackedwidget)
 
@@ -418,75 +273,6 @@ class MainWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.statusbar, 1)
         row.layout().addWidget(self.solo_button, 0)
 
-    def widget(self):
-        return self.stackedwidget.currentWidget()
-
-    @common.error
-    @common.debug
-    def _destroy_ui(self):
-        """Destroys child widgets, all associated timers and helper classes.
-
-        """
-        settings.local_settings.server_mount_timer.stop()
-
-        self.topbar.bookmarks_button.timer.stop()
-        self.topbar.assets_button.timer.stop()
-        self.topbar.files_button.timer.stop()
-        self.topbar.favourites_button.timer.stop()
-
-        self.bookmarkswidget.timer.stop()
-        self.assetswidget.timer.stop()
-        self.fileswidget.timer.stop()
-        self.favouriteswidget.timer.stop()
-
-        self.hide()
-        self.setUpdatesEnabled(False)
-        self.deleteLater()
-
-        for widget in (
-            self.assetswidget,
-            self.fileswidget,
-            self.favouriteswidget,
-            self.topbar.task_view
-        ):
-            try:
-                widget.removeEventFilter(self)
-                widget.hide()
-                widget.setUpdatesEnabled(False)
-                widget.blockSignals(True)
-
-                if hasattr(widget, 'timer'):
-                    widget.timer.stop()
-                if hasattr(widget, 'request_visible_fileinfo_timer'):
-                    widget.request_visible_fileinfo_timer.stop()
-                if hasattr(widget, 'request_visible_thumbnail_timer'):
-                    widget.request_visible_thumbnail_timer.stop()
-                if hasattr(widget, 'queue_model_timer'):
-                    widget.queue_model_timer.stop()
-                if hasattr(widget.model(), 'sourceModel'):
-                    widget.model().sourceModel().deleteLater()
-                widget.model().deleteLater()
-                widget.deleteLater()
-
-                for child in widget.children():
-                    child.deleteLater()
-            except Exception as err:
-                log.error(u'Error occured deleteing the ui.')
-
-        for widget in (self.topbar, self.headerwidget, self.stackedwidget, self.statusbar):
-            widget.setUpdatesEnabled(False)
-            widget.blockSignals(True)
-            widget.hide()
-            widget.deleteLater()
-            for child in widget.children():
-                child.deleteLater()
-
-        images.ImageCache.INTERNAL_MODEL_DATA = None
-
-        settings.local_settings.deleteLater()
-        settings.local_settings = None
-        gc.collect()
-
     @common.debug
     @common.error
     def _connect_signals(self):
@@ -503,17 +289,14 @@ class MainWidget(QtWidgets.QWidget):
         lb = lc.control_button()
         s = self.stackedwidget
 
-        #####################################################
-        self.shutdown.connect(self.terminate)
-        #####################################################
         lc.bookmarks_button.clicked.connect(
-            lambda: lc.listChanged.emit(0))
+            lambda: lc.listChanged.emit(base.BookmarkTab))
         lc.assets_button.clicked.connect(
-            lambda: lc.listChanged.emit(1))
+            lambda: lc.listChanged.emit(base.AssetTab))
         lc.files_button.clicked.connect(
-            lambda: lc.listChanged.emit(2))
+            lambda: lc.listChanged.emit(base.FileTab))
         lc.favourites_button.clicked.connect(
-            lambda: lc.listChanged.emit(3))
+            lambda: lc.listChanged.emit(base.FavouriteTab))
         #####################################################
         # Bookmark -> Asset
         b.model().sourceModel().activeChanged.connect(
@@ -530,8 +313,6 @@ class MainWidget(QtWidgets.QWidget):
             l.model().modelDataResetRequested)
         l.model().taskFolderChangeRequested.connect(lc.files_button.show_view)
 
-        ff.favouritesChanged.connect(
-            ff.model().sourceModel().modelDataResetRequested)
         #####################################################
         # Stacked widget navigation
         lc.listChanged.connect(s.setCurrentIndex)
@@ -634,6 +415,73 @@ class MainWidget(QtWidgets.QWidget):
         f.model().sourceModel().taskFolderChanged.connect(f.model().sourceModel().init_row_size)
         f.model().sourceModel().taskFolderChanged.connect(f.reset_row_layout)
 
+    @common.error
+    @common.debug
+    def destroy_ui(self):
+        """Destroys child widgets, all associated timers and helper classes.
+
+        """
+        settings.local_settings.server_mount_timer.stop()
+
+        self.topbar.bookmarks_button.timer.stop()
+        self.topbar.assets_button.timer.stop()
+        self.topbar.files_button.timer.stop()
+        self.topbar.favourites_button.timer.stop()
+
+        self.bookmarkswidget.timer.stop()
+        self.assetswidget.timer.stop()
+        self.fileswidget.timer.stop()
+        self.favouriteswidget.timer.stop()
+
+        self.hide()
+        self.setUpdatesEnabled(False)
+        self.deleteLater()
+
+        for widget in (
+            self.assetswidget,
+            self.fileswidget,
+            self.favouriteswidget,
+            self.topbar.task_view
+        ):
+            try:
+                widget.removeEventFilter(self)
+                widget.hide()
+                widget.setUpdatesEnabled(False)
+                widget.blockSignals(True)
+
+                if hasattr(widget, 'timer'):
+                    widget.timer.stop()
+                if hasattr(widget, 'request_visible_fileinfo_timer'):
+                    widget.request_visible_fileinfo_timer.stop()
+                if hasattr(widget, 'request_visible_thumbnail_timer'):
+                    widget.request_visible_thumbnail_timer.stop()
+                if hasattr(widget, 'queue_model_timer'):
+                    widget.queue_model_timer.stop()
+                if hasattr(widget.model(), 'sourceModel'):
+                    widget.model().sourceModel().deleteLater()
+                widget.model().deleteLater()
+                widget.deleteLater()
+
+                for child in widget.children():
+                    child.deleteLater()
+            except Exception as err:
+                log.error(u'Error occured deleteing the ui.')
+
+        for widget in (self.topbar, self.stackedwidget, self.statusbar):
+            widget.setUpdatesEnabled(False)
+            widget.blockSignals(True)
+            widget.hide()
+            widget.deleteLater()
+            for child in widget.children():
+                child.deleteLater()
+
+        images.ImageCache.INTERNAL_MODEL_DATA = None
+
+        settings.local_settings.deleteLater()
+        settings.local_settings = None
+        gc.collect()
+
+
     @QtCore.Slot()
     def initialize(self):
         """Slot connected to the ``initializer``.
@@ -694,10 +542,24 @@ class MainWidget(QtWidgets.QWidget):
                 functools.partial(update_window_title, model.active_index()))
 
         self.init_shortcuts()
+        self.init_queued_transaction_thread()
 
         self._initialized = True
         self.initialized.emit()
 
+    @common.debug
+    @common.error
+    def init_queued_transaction_thread(self):
+        """This additional thread is responsible for setting item flags.
+
+        """
+        t_worker = threads.TransactionsWorker(threads.QueuedDatabaseTransaction)
+        t_thread = threads.BaseThread(t_worker)
+        t_thread.started.connect(t_thread.startCheckQueue)
+        t_thread.start()
+
+    @common.debug
+    @common.error
     def init_shortcuts(self):
         connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
 
@@ -705,20 +567,39 @@ class MainWidget(QtWidgets.QWidget):
             self,
             shortcuts.MainWidgetShortcuts
         )
-        connect(shortcuts.OpenNewInstance, common.exec_instance)
-        connect(shortcuts.RowIncrease, lambda: self.widget().increase_row_size())
-        connect(shortcuts.RowDecrease, lambda: self.widget().decrease_row_size())
-        connect(shortcuts.RowReset, lambda: self.widget().reset_row_size())
-        connect(shortcuts.ShowBookmarksTab, functools.partial(self.topbar.listChanged.emit, 0))
-        connect(shortcuts.ShowAssetsTab, functools.partial(self.topbar.listChanged.emit, 1))
-        connect(shortcuts.ShowFilesTab, functools.partial(self.topbar.listChanged.emit, 2))
-        connect(shortcuts.ShowFavouritesTab, functools.partial(self.topbar.listChanged.emit, 3))
-        connect(shortcuts.NextTab, self.next_tab)
-        connect(shortcuts.PreviousTab, self.previous_tab)
-        connect(shortcuts.AddItem, lambda: self.widget().show_add_widget())
-        connect(shortcuts.Refresh, lambda: self.widget().model().sourceModel().modelDataResetRequested.emit())
+        connect(
+            shortcuts.OpenNewInstance,
+            actions.exec_instance
+        )
+
+        connect(shortcuts.RowIncrease, actions.increase_row_size)
+        connect(shortcuts.RowDecrease, actions.decrease_row_size)
+        connect(shortcuts.RowReset, actions.reset_row_size)
+
+        connect(shortcuts.ShowBookmarksTab, functools.partial(actions.change_tab, base.BookmarkTab))
+        connect(shortcuts.ShowAssetsTab, functools.partial(actions.change_tab, base.AssetTab))
+        connect(shortcuts.ShowFilesTab, functools.partial(actions.change_tab, base.FileTab))
+        connect(shortcuts.ShowFavouritesTab, functools.partial(actions.change_tab, base.FavouriteTab))
+
+        connect(shortcuts.NextTab, actions.next_tab)
+        connect(shortcuts.PreviousTab, actions.previous_tab)
+
+        connect(shortcuts.AddItem, actions.add_item)
+        connect(shortcuts.EditItem, actions.edit_item)
+
+        connect(shortcuts.Refresh, actions.refresh)
 
 
+    def widget(self):
+        return self.stackedwidget.currentWidget()
+
+    def index(self):
+        if not self.widget().selectionModel().hasSelection():
+            return QtCore.QModelIndex()
+        index = self.widget().selectionModel().currentIndex()
+        if not index.isValid():
+            return QtCore.QModelIndex()
+        return index
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -726,56 +607,55 @@ class MainWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
+        self._paint_background(painter)
+        if not self._initialized:
+            self._paint_loading(painter)
+        painter.end()
+
+    def _paint_background(self, painter):
         rect = QtCore.QRect(self.rect())
         pen = QtGui.QPen(QtGui.QColor(35, 35, 35, 255))
-        pen.setWidth(1.0)
+        pen.setWidth(common.ROW_SEPARATOR())
         painter.setPen(pen)
         painter.setBrush(common.SEPARATOR.darker(110))
+        painter.drawRect(rect)
 
-        if self._frameless is True:
-            o = common.INDICATOR_WIDTH()
-            rect = rect.marginsRemoved(QtCore.QMargins(o, o, o, o))
-            painter.drawRoundedRect(rect, o * 3, o * 3)
-        else:
-            painter.drawRect(rect)
+    def _paint_loading(self, painter):
+        font, metrics = common.font_db.primary_font(
+            common.MEDIUM_FONT_SIZE())
+        rect = QtCore.QRect(self.rect())
+        align = QtCore.Qt.AlignCenter
+        color = QtGui.QColor(255, 255, 255, 80)
 
-        if not self._initialized:
-            font, metrics = common.font_db.primary_font(
-                common.MEDIUM_FONT_SIZE())
-            rect = QtCore.QRect(self.rect())
-            align = QtCore.Qt.AlignCenter
-            color = QtGui.QColor(255, 255, 255, 80)
+        pixmaprect = QtCore.QRect(rect)
+        center = pixmaprect.center()
+        s = common.ASSET_ROW_HEIGHT() * 1.5
+        o = common.MARGIN()
 
-            pixmaprect = QtCore.QRect(rect)
-            center = pixmaprect.center()
-            s = common.ASSET_ROW_HEIGHT() * 1.5
-            o = common.MARGIN()
+        pixmaprect.setWidth(s)
+        pixmaprect.setHeight(s)
+        pixmaprect.moveCenter(center)
 
-            pixmaprect.setWidth(s)
-            pixmaprect.setHeight(s)
-            pixmaprect.moveCenter(center)
+        painter.setBrush(QtGui.QColor(0, 0, 0, 20))
+        pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 20))
+        painter.setPen(pen)
 
-            painter.setBrush(QtGui.QColor(0, 0, 0, 20))
-            pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 20))
-            painter.setPen(pen)
+        painter.drawRoundedRect(
+            pixmaprect.marginsAdded(
+                QtCore.QMargins(o * 3, o * 3, o * 3, o * 3)),
+            o, o)
 
-            painter.drawRoundedRect(
-                pixmaprect.marginsAdded(
-                    QtCore.QMargins(o * 3, o * 3, o * 3, o * 3)),
-                o, o)
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'icon_bw', None, s)
+        painter.setOpacity(0.5)
+        painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
+        painter.setOpacity(1.0)
 
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'icon_bw', None, s)
-            painter.setOpacity(0.5)
-            painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
-            painter.setOpacity(1.0)
+        rect.setTop(pixmaprect.bottom() + (o * 0.5))
+        rect.setHeight(metrics.height())
+        common.draw_aliased_text(
+            painter, font, rect, self.init_progress, align, color)
 
-            rect.setTop(pixmaprect.bottom() + (o * 0.5))
-            rect.setHeight(metrics.height())
-            common.draw_aliased_text(
-                painter, font, rect, self.init_progress, align, color)
-
-        painter.end()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def entered(self, index, role=QtCore.Qt.StatusTipRole):
@@ -808,42 +688,8 @@ class MainWidget(QtWidgets.QWidget):
         if not self._initialized:
             self.initializer.start()
 
-    @QtCore.Slot()
-    def terminate(self):
-        """Terminates  gracefully by stopping the associated
-        threads and tearing the UI down.
-
-        """
-        self.statusbar.showMessage(u'Closing down...')
-        threads.quit()
-        bookmark_db.close()
-        self._destroy_ui()
-
-        try:
-            self.terminated.emit()
-        except:
-            pass
-
-    @QtCore.Slot()
-    def next_tab(self):
-        n = self.stackedwidget.currentIndex()
-        n += 1
-        if n > (self.stackedwidget.count() - 1):
-            self.topbar.listChanged.emit(0)
-            return
-        self.topbar.listChanged.emit(n)
-
-    @QtCore.Slot()
-    def previous_tab(self):
-        n = self.stackedwidget.currentIndex()
-        n -= 1
-        if n < 0:
-            n = self.stackedwidget.count() - 1
-            self.topbar.listChanged.emit(n)
-            return
-        self.topbar.listChanged.emit(n)
-
-    @QtCore.Slot()
+    @common.error
+    @common.debug
     def rv_push(self):
         """Pushes the selected footage to RV."""
         if not self.widget().hasSelection():
@@ -853,5 +699,4 @@ class MainWidget(QtWidgets.QWidget):
             return
         path = common.get_sequence_startpath(
             index.data(QtCore.Qt.StatusTipRole))
-
         rv.push(path)

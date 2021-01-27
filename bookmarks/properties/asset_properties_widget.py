@@ -15,6 +15,31 @@ from .. import templates
 from . import base
 
 
+instance = None
+
+
+def close():
+    global instance
+    if instance is None:
+        return
+    instance.close()
+    instance.deleteLater()
+    instance = None
+
+
+def show(server, job, root, asset=None):
+    global instance
+
+    close()
+    instance = AssetPropertiesWidget(
+        server,
+        job,
+        root,
+        asset=asset
+    )
+    instance.open()
+    return instance
+
 
 SECTIONS = {
     0: {
@@ -166,6 +191,8 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         update (bool=False): Enables the update mode, if the widget is used to edit an existing asset.
 
     """
+    assetUpdated = QtCore.Signal(unicode)
+
     def __init__(self, server, job, root, asset=None, parent=None):
         if asset:
             buttons = (u'Update', u'Cancel')
@@ -194,6 +221,7 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         else:
             self.setWindowTitle(
                 u'{}/{}/{}: Create Asset'.format(server, job, root))
+            self.name_editor.setFocus()
 
     def name(self):
         """Returns the name of the asset.
@@ -261,24 +289,24 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         """
         try:
             self._save_db_data()
+            v = self.description_editor.text()
+            self.valueUpdated.emit(self.db_source(), common.DescriptionRole, v)
         except:
             s = u'Could not save properties to the database.'
             log.error(s)
             common_ui.ErrorBox('Error', s).open()
             return False
 
-        description = self.description_editor.text()
-        self.descriptionUpdated.emit(description)
-
         try:
             self.thumbnail_editor.save_image()
+            self.thumbnailUpdated.emit(self.db_source())
         except:
             s = u'Failed to save the thumbnail.'
             log.error(s)
             common_ui.ErrorBox('Error', s).open()
             return False
 
-        log.success(u'Properties saved correctly')
+        self.itemUpdated.emit(self.db_source())
         return True
 
     def done(self, result):
@@ -307,14 +335,17 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         elif self.asset is None and name and has_template:
             res = editor.create(
                 name,
-                u'{}/{}/{}'.format(self.server, self.job, self.root)
+                u'/'.join((self.server, self.job, self.root))
             )
             if not res:
                 log.error(u'Failed to create asset.')
                 return False
-            else:
-                self.assetCreated.emit(name)
-                common_ui.OkBox(u'"{}" created.'.format(name), u'').open()
+
+            path = u'/'.join((self.server, self.job, self.root, name))
+            self.itemCreated.emit(path)
+
+            common_ui.OkBox(u'"{}" created.'.format(name), u'').open()
+
         return True
 
     def _get_project_id(self):
@@ -330,7 +361,7 @@ class AssetPropertiesWidget(base.PropertiesWidget):
     def link_button_clicked(self):
         if self._db_table is not None:
             self.save_changes()
-            
+
         from ..shotgun import bulk_link_widget
         if self.shotgun_name_editor.text():
             custom_suggestions = (self.shotgun_name_editor.text(), )

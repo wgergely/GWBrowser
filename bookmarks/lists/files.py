@@ -11,6 +11,7 @@ from .. import common
 from .. import threads
 from .. import settings
 from .. import images
+from .. import actions
 from ..properties import asset_config
 
 from . import base
@@ -22,35 +23,30 @@ FILTER_EXTENSIONS = False
 
 
 class FilesWidgetContextMenu(contextmenu.BaseContextMenu):
-    """Context menu associated with the `FilesWidget`."""
-
-    def __init__(self, index, parent=None):
-        super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_window_menu()
-        self.add_separator()
-        self.add_add_file_menu()
-        self.add_task_toggles_menu()
-        self.add_services_menu()
-        #
-        self.add_separator()
-        if index.isValid():
-            self.add_mode_toggles_menu()
-            self.add_separator()
-        self.add_separator()
-        self.add_urls_menu()
-        self.add_separator()
-        if index.isValid():
-            self.add_notes_menu()
-            self.add_copy_menu()
-            self.add_reveal_item_menu()
-        self.add_separator()
-        self.add_collapse_sequence_menu()
-        self.add_set_generate_thumbnails_menu()
-        self.add_row_size_menu()
-        self.add_sort_menu()
-        self.add_separator()
-        self.add_separator()
-        self.add_refresh_menu()
+    def setup(self):
+        self.window_menu()
+        self.separator()
+        self.add_file_menu()
+        self.task_toggles_menu()
+        self.services_menu()
+        self.separator()
+        if self.index.isValid():
+            self.mode_toggles_menu()
+            self.separator()
+        self.separator()
+        self.urls_menu()
+        self.separator()
+        if self.index.isValid():
+            self.notes_menu()
+            self.copy_menu()
+            self.reveal_item_menu()
+        self.separator()
+        self.collapse_sequence_menu()
+        self.set_generate_thumbnails_menu()
+        self.row_size_menu()
+        self.sort_menu()
+        self.separator()
+        self.refresh_menu()
 
 
 class FilesModel(base.BaseModel):
@@ -353,12 +349,14 @@ class FilesModel(base.BaseModel):
         retrieval.
 
         """
-        log.debug('set_task({})'.format(val), self)
         settings.set_active(settings.TaskKey, val)
         if not self.model_data():
             self.__initdata__()
+            res = True
         else:
             self.sort_data()
+            res = False
+        return res
 
     @common.debug
     @common.error
@@ -572,8 +570,6 @@ class FilesWidget(base.ThreadedBaseWidget):
     Delegate = delegate.FilesWidgetDelegate
     ContextMenu = FilesWidgetContextMenu
 
-    newFileAdded = QtCore.Signal(unicode)
-
     def __init__(self, parent=None):
         super(FilesWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Files')
@@ -583,62 +579,8 @@ class FilesWidget(base.ThreadedBaseWidget):
         self.setDragEnabled(True)
         self.viewport().setAcceptDrops(True)
 
-        self.newFileAdded.connect(self.new_file_added)
-
-    @QtCore.Slot(unicode)
-    def new_file_added(self, file_path):
-        """Slot to be called when a new file has been added and
-        we want to show.
-
-        """
-        if not QtCore.QFileInfo(file_path).exists():
-            return
-
-        server = settings.ACTIVE[settings.ServerKey]
-        job = settings.ACTIVE[settings.JobKey]
-        root = settings.ACTIVE[settings.RootKey]
-        asset = settings.ACTIVE[settings.AssetKey]
-
-        path = file_path.replace(u'\\', u'/')
-        if path.startswith(server):
-            path = path[len(server):].lstrip(u'/')
-        else:
-            return
-        if path.startswith(job):
-            path = path[len(job):].lstrip(u'/')
-        else:
-            return
-        if path.startswith(root):
-            path = path[len(root):].lstrip(u'/')
-        else:
-            return
-        if path.startswith(asset):
-            path = path[len(asset):].lstrip(u'/')
-        else:
-            return
-
-        task = path.split(u'/')[0]
-
-        if task != settings.ACTIVE[settings.TaskKey]:
-            self.model().sourceModel().taskFolderChanged.emit(task)
-        self.model().sourceModel().modelDataResetRequested.emit()
-
-        if self.model().sourceModel().data_type() == common.SequenceItem:
-            file_path = common.proxy_path(file_path)
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0)
-            _file_path = index.data(QtCore.Qt.StatusTipRole)
-            if self.model().sourceModel().data_type() == common.SequenceItem:
-                _file_path = common.proxy_path(_file_path)
-
-            if _file_path == file_path:
-                self.scrollTo(
-                    index,
-                    QtWidgets.QAbstractItemView.PositionAtCenter)
-                self.selectionModel().setCurrentIndex(
-                    index,
-                    QtCore.QItemSelectionModel.ClearAndSelect)
-                return
+        actions.signals.fileValueUpdated.connect(self.update_model_value)
+        actions.signals.fileAdded.connect(self.select_list_item)
 
     def set_model(self, *args, **kwargs):
         """Extends the subclass's signal connections.
@@ -775,19 +717,55 @@ class FilesWidget(base.ThreadedBaseWidget):
 
         self.drag_source_index = QtCore.QModelIndex()
 
-    @QtCore.Slot()
-    def show_add_widget(self):
-        model = self.model().sourceModel()
-        editor = self.show_file_property_widget(
-            *model.parent_path()[0:4],
-            extension=None
-        )
-        if not model.task():
-            return
-        editor.add_task(model.task())
-
     def get_hint_string(self):
         model = self.model().sourceModel()
         if not model.task():
             return u'No task folder selected. Click the File tab to select one.'
         return u'{} is empty. Right-Click -> Add File to create a new file, or select another task folder.'.format(model.task().upper())
+
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(int)
+    @QtCore.Slot(object)
+    def update_model_value(self, source, role, v):
+        model = self.model().sourceModel()
+        data = model.model_data()
+        for idx in xrange(model.rowCount()):
+            if source != common.proxy_path(data[idx][QtCore.Qt.StatusTipRole]):
+                continue
+            data[idx][role] = v
+            self.update_row(idx)
+            break
+
+    @QtCore.Slot(unicode)
+    def select_list_item(self, v, role=QtCore.Qt.DisplayRole, update=True, limit=10000):
+        model = self.model().sourceModel()
+        task = model.task()
+        parent_path = u'/'.join(model.parent_path())
+
+        # We probably saved outside the asset, we won't be looking showing the
+        # file...
+        if parent_path not in v:
+            return
+
+        # Check if we have to change task folders
+        _task = v.replace(parent_path, u'').strip(u'/').split(u'/')[0]
+        if task != _task:
+            update = model.set_task(_task)
+
+        if model.data_type() != common.FileItem:
+            model.set_data_type(common.FileItem)
+
+        model = self.model()
+        if update and model.rowCount() < limit:
+            model.sourceModel().modelDataResetRequested.emit()
+
+        for n in xrange(model.rowCount()):
+            index = model.index(n, 0)
+            if v == index.data(QtCore.Qt.StatusTipRole):
+                self.selectionModel().setCurrentIndex(
+                    index,
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                self.scrollTo(
+                    index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                return

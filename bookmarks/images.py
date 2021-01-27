@@ -23,7 +23,12 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from . import log
 from . import common
 
+
+THUMBNAIL_IMAGE_SIZE = 512.0
+THUMBNAIL_FORMAT = u'png'
+
 pixel_ratio = None
+
 oiio_cache = OpenImageIO.ImageCache(shared=True)
 oiio_cache.attribute(u'max_memory_MB', 4096.0)
 oiio_cache.attribute(u'max_open_files', 0)
@@ -59,6 +64,31 @@ __RESOURCES = {
 for _source, k in ((os.path.normpath(os.path.abspath(u'{}/../rsc/{}'.format(__file__, f))), f) for f in (GuiResource, ThumbnailResource, FormatResource)):
     for _entry in _scandir.scandir(_source):
         __RESOURCES[k].append(_entry.name.split(u'.')[0])
+
+
+
+def get_oiio_namefilters():
+    """Gets all accepted formats from the oiio build as a namefilter list.
+    Use the return value on the QFileDialog.setNameFilters() method.
+
+    """
+    extension_list = OpenImageIO.get_string_attribute('extension_list')
+    namefilters = []
+    arr = []
+    for exts in extension_list.split(u';'):
+        exts = exts.split(u':')
+        _exts = exts[1].split(u',')
+        e = [u'*.{}'.format(f) for f in _exts]
+        namefilter = u'{} files ({})'.format(exts[0].upper(), u' '.join(e))
+        namefilters.append(namefilter)
+        for _e in _exts:
+            arr.append(_e)
+
+    allfiles = [u'*.{}'.format(f) for f in arr]
+    allfiles = u' '.join(allfiles)
+    allfiles = u'All files ({})'.format(allfiles)
+    namefilters.insert(0, allfiles)
+    return u';;'.join(namefilters)
 
 
 
@@ -201,7 +231,7 @@ def set_from_source(index, source):
     res = ImageCache.oiio_make_thumbnail(
         source,
         destination,
-        common.THUMBNAIL_IMAGE_SIZE
+        THUMBNAIL_IMAGE_SIZE
     )
     if not res:
         from . import common_ui
@@ -260,7 +290,7 @@ def pick(index):
     _filedialog_widget.setFileMode(QtWidgets.QFileDialog.ExistingFile)
     _filedialog_widget.setViewMode(QtWidgets.QFileDialog.List)
     _filedialog_widget.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-    _filedialog_widget.setNameFilter(common.get_oiio_namefilters())
+    _filedialog_widget.setNameFilter(get_oiio_namefilters())
     _filedialog_widget.setFilter(
         QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
     _filedialog_widget.setLabelText(
@@ -324,9 +354,13 @@ def get_thumbnail_path(server, job, root, file_path, proxy=False):
         unicode:                The resolved thumbnail path.
 
     """
+    for arg in (server, job, root, file_path):
+        if not isinstance(arg, unicode):
+            raise TypeError('Invalid type. Expected {}, got {}'.format(unicode, type(arg)))
+            
     if common.is_collapsed(file_path) or proxy:
         file_path = common.proxy_path(file_path)
-    name = common.get_hash(file_path) + u'.' + common.THUMBNAIL_FORMAT
+    name = common.get_hash(file_path) + u'.' + THUMBNAIL_FORMAT
     return server + u'/' + job + u'/' + root + u'/.bookmark/' + name
 
 
@@ -347,7 +381,7 @@ def get_placeholder_path(file_path, fallback=u'placeholder'):
         raise TypeError(
             u'Invalid type. Expected <type \'unicode\', got {}'.format(type(file_path)))
 
-    path = lambda r, n: u'{}/../rsc/{}/{}.{}'.format(__file__, r, n, common.THUMBNAIL_FORMAT)
+    path = lambda r, n: u'{}/../rsc/{}/{}.{}'.format(__file__, r, n, THUMBNAIL_FORMAT)
 
     file_info = QtCore.QFileInfo(file_path)
     suffix = file_info.suffix().lower()
@@ -1154,7 +1188,7 @@ class ScreenCapture(QtWidgets.QDialog):
             destination,
             common.PRODUCT,
             uuid.uuid1(),
-            common.THUMBNAIL_FORMAT
+            THUMBNAIL_FORMAT
         )
         f = QtCore.QFileInfo(destination)
         if not f.dir().exists():

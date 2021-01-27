@@ -5,9 +5,11 @@ import _scandir
 
 from .. import bookmark_db
 from .. import common
+from .. import common_ui
 from .. import settings
 from .. import images
 from . import asset_config
+from . import base
 
 NoMode = u'invalid'
 SceneMode = u'scene'
@@ -376,6 +378,75 @@ class FileNamePreview(QtWidgets.QLabel):
         o = common.INDICATOR_WIDTH()
         painter.drawRoundedRect(rect, o, o)
         painter.end()
+
+
+class PrefixEditor(QtWidgets.QDialog):
+    """A popup editor used to edit a bookmark prefix.
+
+    """
+
+    def __init__(self, parent=None):
+        super(PrefixEditor, self).__init__(parent=parent)
+        self._create_ui()
+
+    def _create_ui(self):
+        QtWidgets.QHBoxLayout(self)
+
+        self.editor = common_ui.LineEdit(parent=self)
+        self.editor.setPlaceholderText(u'Enter a prefix, eg. \'MYB\'')
+        self.editor.setValidator(base.textvalidator)
+        self.setFocusProxy(self.editor)
+        self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.ok_button = common_ui.PaintedButton(u'Save')
+
+        self.ok_button.clicked.connect(
+            lambda: self.done(QtWidgets.QDialog.Accepted))
+        self.editor.returnPressed.connect(
+            lambda: self.done(QtWidgets.QDialog.Accepted))
+
+        self.setWindowTitle(u'Edit Prefix')
+        self.layout().addWidget(self.editor, 1)
+        self.layout().addWidget(self.ok_button, 0)
+
+        self.init_data()
+
+    def init_data(self):
+        self.parent().prefix_editor.setText(self.editor.text())
+
+        p = self.parent()
+        args = (p.server, p.job, p.root)
+        with bookmark_db.transactions(*args) as db:
+            v = db.value(
+                u'/'.join(args),
+                u'prefix',
+                table=bookmark_db.BookmarkTable
+            )
+
+        if not v:
+            return
+
+        self.editor.setText(v)
+
+    def done(self, result):
+        if result == QtWidgets.QDialog.Rejected:
+            super(PrefixEditor, self).done(result)
+            return
+
+        p = self.parent()
+        p.prefix_editor.setText(self.editor.text())
+        args = (p.server, p.job, p.root)
+        with bookmark_db.transactions(*args) as db:
+            db.setValue(
+                u'/'.join(args),
+                u'prefix',
+                self.editor.text(),
+                table=bookmark_db.BookmarkTable
+            )
+
+        super(PrefixEditor, self).done(result)
+
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH() * 0.5, common.ROW_HEIGHT())
 
 
 if __name__ == '__main__':

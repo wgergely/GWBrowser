@@ -17,6 +17,7 @@ from .. import images
 from .. import threads
 from .. import settings
 from .. import contextmenu
+from .. import actions
 
 from . import delegate
 from . import files
@@ -47,27 +48,18 @@ def _parent_path():
 
 
 class FavouritesWidgetContextMenu(contextmenu.BaseContextMenu):
-    def __init__(self, index, parent=None):
-        super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
-        self.index = index
-
-        self.add_control_favourites_menu()
-
-        if index.isValid():
-            self.add_remove_favourite_menu()
-            self.add_separator()
-            #
-            self.add_reveal_item_menu()
-            self.add_copy_menu()
-        #
-        self.add_separator()
-        #
-        self.add_sort_menu()
-        self.add_collapse_sequence_menu()
-        #
-        self.add_separator()
-        #
-        self.add_refresh_menu()
+    def setup(self):
+        self.control_favourites_menu()
+        if self.index.isValid():
+            self.remove_favourite_menu()
+            self.separator()
+            self.reveal_item_menu()
+            self.copy_menu()
+        self.separator()
+        self.sort_menu()
+        self.collapse_sequence_menu()
+        self.separator()
+        self.refresh_menu()
 
 
 class FavouritesModel(files.FilesModel):
@@ -177,13 +169,6 @@ class FavouritesWidget(files.FilesWidget):
         self.reset_timer.timeout.connect(
             self.model().sourceModel().modelDataResetRequested)
 
-    def set_model(self, *args):
-        super(FavouritesWidget, self).set_model(*args)
-        self.favouritesChanged.connect(
-            self.model().sourceModel().modelDataResetRequested)
-        self.favouritesChanged.connect(
-            lambda: log.debug('favouritesChanged -> modelDataResetRequested', self))
-
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return True
@@ -254,11 +239,6 @@ class FavouritesWidget(files.FilesWidget):
             items.append(k)
 
         settings.local_settings.add_favourites(items)
-        self.favouritesChanged.emit()
-
-    def showEvent(self, event):
-        super(FavouritesWidget, self).showEvent(event)
-        self.model().sourceModel().modelDataResetRequested.emit()
 
     def get_hint_string(self):
         model = self.model().sourceModel()
@@ -316,7 +296,7 @@ class FavouritesWidget(files.FilesWidget):
             if not QtCore.QFileInfo(destination).exists():
                 raise RuntimeError(
                     u'Unexpected error occured: could not find the favourites file')
-            common.reveal(destination)
+            actions.reveal(destination)
 
         except Exception as e:
             common_ui.ErrorBox(

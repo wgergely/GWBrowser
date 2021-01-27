@@ -38,9 +38,28 @@ IdRole = QtCore.Qt.UserRole + 1
 ThumbnailHashRole = IdRole + 1
 ThumbnailUrlRole = ThumbnailHashRole + 1
 
-
 instance = None
 CLIENTS = {}
+
+
+def close():
+    global instance
+    instance.close()
+    instance.deleteLater()
+    instance = None
+
+
+def show(token):
+    global instance
+    if instance is not None and instance.token == token:
+        instance.open()
+        instance.raise_()
+        return
+
+    close()
+    instance = SlackWidget(token)
+    instance.open()
+    return instance
 
 
 def get_client(token):

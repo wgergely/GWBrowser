@@ -59,10 +59,14 @@ from ..shotgun import shotgun
 
 
 SLACK_API_URL = u'https://api.slack.com/apps'
-CLIPBOARD = {}
+
+CLIPBOARD = {
+    bookmark_db.BookmarkTable: {},
+    bookmark_db.AssetTable: {},
+}
 
 asset_config_help = u'Settings for asset folder names, filters and file name templates.'
-_widget_instance = None
+instance = None
 
 floatvalidator = QtGui.QRegExpValidator()
 floatvalidator.setRegExp(QtCore.QRegExp(ur'[0-9]+[\.]?[0-9]*'))
@@ -112,7 +116,7 @@ def copy_properties(server, job, root, asset=None, table=bookmark_db.BookmarkTab
 
     if data:
         global CLIPBOARD
-        CLIPBOARD = data
+        CLIPBOARD[table] = data
         log.success(u'{} copied.'.format(table.title()))
 
     return data
@@ -123,13 +127,13 @@ def paste_properties(server, job, root, asset=None, table=bookmark_db.BookmarkTa
     bookmark's properties.
 
     """
-    if not CLIPBOARD:
+    if not CLIPBOARD[table]:
         return
 
     source = u'/'.join((server, job, root)) if not asset else u'/'.join((server, job, root, asset))
     with bookmark_db.transactions(server, job, root) as db:
-        for k in CLIPBOARD:
-            db.setValue(source, k, CLIPBOARD[k], table=table)
+        for k in CLIPBOARD[table]:
+            db.setValue(source, k, CLIPBOARD[table][k], table=table)
     log.success(u'{} data pasted.'.format(table.title()))
 
 
@@ -184,7 +188,7 @@ def process_image(source):
             QtCore.QStandardPaths.GenericDataLocation),
         product=common.PRODUCT,
         uuid=uuid.uuid1(),
-        ext=common.THUMBNAIL_FORMAT
+        ext=images.THUMBNAIL_FORMAT
     )
     f = QtCore.QFileInfo(destination)
     if not f.dir().exists():
@@ -197,7 +201,7 @@ def process_image(source):
     res = images.ImageCache.oiio_make_thumbnail(
         source,
         destination,
-        common.THUMBNAIL_IMAGE_SIZE
+        images.THUMBNAIL_IMAGE_SIZE
     )
 
     s = u'Error converting the thumbnail.'
@@ -209,7 +213,7 @@ def process_image(source):
     images.ImageCache.flush(destination)
     image = images.ImageCache.get_image(
         destination,
-        int(common.THUMBNAIL_IMAGE_SIZE),
+        int(images.THUMBNAIL_IMAGE_SIZE),
         force=True
     )
     if not image or image.isNull():
@@ -258,34 +262,28 @@ class ThumbnailContextMenu(contextmenu.BaseContextMenu):
     """Context menu associated with the ThumbnailWidget.
 
     """
-
-    def __init__(self, parent=None):
-        super(ThumbnailContextMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_thumbnail_menu()
-
-    @contextmenu.contextmenu
-    def add_thumbnail_menu(self, menu_set):
-        """Menu for thumbnail operations."""
+    def setup(self):
         add_pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.MARGIN())
         remove_pixmap = images.ImageCache.get_rsc_pixmap(
             u'remove', common.REMOVE, common.MARGIN())
 
-        menu_set[u'Capture...'] = {
+        self.menu[u'Capture...'] = {
             u'icon': add_pixmap,
             u'action': self.parent().capture
         }
-        menu_set[u'Pick...'] = {
+        self.menu[u'Pick...'] = {
             u'icon': add_pixmap,
             u'action': self.parent().pick_image
         }
-        menu_set[u'separator'] = {}
-        menu_set[u'Reset'] = {
+
+        self.separator()
+
+        self.menu[u'Reset'] = {
             u'icon': remove_pixmap,
             u'action': self.parent().reset_image
         }
-        return menu_set
+
 
 
 class ThumbnailWidget(common_ui.ClickableIconButton):
@@ -365,7 +363,7 @@ class ThumbnailWidget(common_ui.ClickableIconButton):
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         dialog.setViewMode(QtWidgets.QFileDialog.List)
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter(common.get_oiio_namefilters())
+        dialog.setNameFilter(images.get_oiio_namefilters())
         dialog.setFilter(
             QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         dialog.setLabelText(
@@ -470,7 +468,7 @@ class ThumbnailWidget(common_ui.ClickableIconButton):
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     def contextMenuEvent(self, event):
-        menu = ThumbnailContextMenu(parent=self)
+        menu = ThumbnailContextMenu(QtCore.QModelIndex(), parent=self)
         pos = self.rect().center()
         pos = self.mapToGlobal(pos)
         menu.move(pos)
@@ -571,9 +569,10 @@ class PropertiesWidget(QtWidgets.QDialog):
         fallback_thumb (unicode): An rsc image name. Defaults to `'placeholder'`.
 
     """
-    assetCreated = QtCore.Signal(unicode)
-    descriptionUpdated = QtCore.Signal(unicode)
-    fileSaveRequested = QtCore.Signal(unicode)
+    itemCreated = QtCore.Signal(unicode)
+    itemUpdated = QtCore.Signal(unicode)
+    valueUpdated = QtCore.Signal(unicode, int, object)
+    thumbnailUpdated = QtCore.Signal(unicode)
 
     def __init__(
         self,
@@ -590,9 +589,6 @@ class PropertiesWidget(QtWidgets.QDialog):
     ):
         if not isinstance(sections, dict):
             raise TypeError('Invalid section data.')
-
-        global _widget_instance
-        _widget_instance = self
 
         super(PropertiesWidget, self).__init__(
             parent=parent,

@@ -9,8 +9,30 @@ from PySide2 import QtWidgets, QtCore
 from .. import settings
 from .. import common
 from .. import common_ui
+from .. import actions
 from . import base
 from . import preference_properties_widgets
+
+
+
+instance = None
+
+
+def close():
+    global instance
+    if instance is None:
+        return
+    instance.close()
+    instance.deleteLater()
+    instance = None
+
+
+def show(server, job, root, asset, extension=None):
+    global instance
+    close()
+    instance = PreferencesWidget()
+    instance.open()
+    return instance
 
 
 
@@ -239,7 +261,7 @@ class PreferencesWidget(base.PropertiesWidget):
         editor = getattr(self, settings.RVKey + '_editor')
         if not editor.text():
             return
-        common.reveal(editor.text())
+        actions.reveal(editor.text())
 
     @common.error
     @common.debug
@@ -254,7 +276,7 @@ class PreferencesWidget(base.PropertiesWidget):
         editor = getattr(self, settings.FFMpegKey + '_editor')
         if not editor.text():
             return
-        common.reveal(editor.text())
+        actions.reveal(editor.text())
 
     def _pick_file(self, k):
         editor = getattr(self, k + '_editor')

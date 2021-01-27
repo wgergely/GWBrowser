@@ -19,9 +19,13 @@ from .. import images
 
 
 regex_remove_version = re.compile(
-    ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE | re.UNICODE)
-regex_remove_bracket = re.compile(
-    ur'[\[\]]*', flags=re.IGNORECASE | re.UNICODE)
+    ur'(.*)(v)([\{}0-9\-\{}]+.*)'.format(common.SEQSTART, common.SEQEND),
+    flags=re.IGNORECASE | re.UNICODE
+)
+regex_remove_seq_marker = re.compile(
+    ur'[\{}\{}]*'.format(common.SEQSTART, common.SEQEND),
+    flags=re.IGNORECASE | re.UNICODE
+)
 
 
 HOVER_COLOR = QtGui.QColor(255, 255, 255, 10)
@@ -45,6 +49,8 @@ PropertiesRect = 11
 PATH_CACHE = {}
 RECTANGLE_CACHE = {}
 TEXT_SEGMENT_CACHE = {}
+
+DESCRIPTION_RECTS = {}
 
 
 def get_painter_path(x, y, font, text):
@@ -738,13 +744,17 @@ class AssetsWidgetDelegate(BaseDelegate):
 
     def get_description_rect(self, rectangles, index):
         """Returns the description area of an ``AssetsWidget`` item."""
+        k = '/'.join([repr(v) for v in rectangles.values()])
+        if k in DESCRIPTION_RECTS:
+            return DESCRIPTION_RECTS[k]
+
         if not index.isValid():
             return
 
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + common.MARGIN())
 
-        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
+        _, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
 
         name_rect = QtCore.QRect(rect)
         center = name_rect.center()
@@ -753,17 +763,23 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         if index.data(common.DescriptionRole):
             name_rect.moveCenter(
-                QtCore.QPoint(name_rect.center().x(),
-                              name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+                QtCore.QPoint(
+                    name_rect.center().x(),
+                    name_rect.center().y() - (metrics.lineSpacing() / 2.0)
+                )
             )
 
         description_rect = QtCore.QRect(name_rect)
         description_rect.moveCenter(
-            QtCore.QPoint(name_rect.center().x(),
-                          name_rect.center().y() + metrics.lineSpacing())
+            QtCore.QPoint(
+                name_rect.center().x(),
+                name_rect.center().y() + metrics.lineSpacing()
+            )
         )
         description_rect.setRight(description_rect.right() - common.MARGIN())
-        return description_rect
+
+        DESCRIPTION_RECTS[k] = description_rect
+        return DESCRIPTION_RECTS[k]
 
     @paintmethod
     def paint_name(self, *args):
@@ -891,14 +907,21 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def get_description_rect(self, rectangles, index):
         """The description rectangle of a file item."""
+        k = '/'.join([repr(v) for v in rectangles.values()])
+        if k in DESCRIPTION_RECTS:
+            return DESCRIPTION_RECTS[k]
+
         if self.parent().buttons_hidden():
-            return self.get_simple_description_rectangle(rectangles, index)
+            rect = self.get_simple_description_rectangle(rectangles, index)
+        else:
+            clickable = self.get_clickable_rectangles(index)
+            if not clickable:
+                rect = QtCore.QRect()
+            else:
+                rect = clickable[0][0]
 
-        clickable = self.get_clickable_rectangles(index)
-        if not clickable:
-            return QtCore.QRect()
-
-        return clickable[0][0]
+        DESCRIPTION_RECTS[k] = rect
+        return DESCRIPTION_RECTS[k]
 
     @paintmethod
     def paint_name(self, *args):
@@ -1310,7 +1333,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
             # Frame-range without the "[]" characters
             s = match.group(2)
-            s = regex_remove_bracket.sub(u'', s)
+            s = regex_remove_seq_marker.sub(u'', s)
             if len(s) > 17:
                 s = s[0:8] + u'...' + s[-8:]
             if index.data(common.FramesRole) > 1:

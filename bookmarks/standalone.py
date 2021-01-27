@@ -7,10 +7,13 @@ import importlib
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from . import common
+from . import common_ui
+from . import contextmenu
 from . import main
 from . import settings
 from . import images
 from . import shortcuts
+from . import actions
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES, True)
@@ -53,6 +56,152 @@ def instance():
     return _instance
 
 
+
+class TrayMenu(contextmenu.BaseContextMenu):
+    """The context-menu associated with the our custom tray menu.
+
+    """
+
+    def __init__(self, parent=None):
+        super(TrayMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+
+        self.stays_on_top = False
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+
+    def setup(self):
+        self.window_menu()
+        self.separator()
+        self.tray_menu()
+
+    def tray_menu(self):
+        """Actions associated with the visibility of the widget."""
+        self.menu[u'Quit'] = {
+            'action': actions.quit,
+        }
+        return
+
+
+class MinimizeButton(common_ui.ClickableIconButton):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(MinimizeButton, self).__init__(
+            u'minimize',
+            (common.REMOVE, common.SECONDARY_TEXT),
+            common.MARGIN() - common.INDICATOR_WIDTH(),
+            description=u'Click to minimize the window...',
+            parent=parent
+        )
+
+
+class CloseButton(common_ui.ClickableIconButton):
+    """Button used to close/hide a widget or window."""
+
+    def __init__(self, parent=None):
+        super(CloseButton, self).__init__(
+            u'close',
+            (common.REMOVE, common.SECONDARY_TEXT),
+            common.MARGIN() - common.INDICATOR_WIDTH(),
+            description=u'Click to close the window...',
+            parent=parent
+        )
+
+
+class HeaderWidget(QtWidgets.QWidget):
+    """Horizontal widget for controlling the position of the active window."""
+    widgetMoved = QtCore.Signal(QtCore.QPoint)
+
+    def __init__(self, parent=None):
+        super(HeaderWidget, self).__init__(parent=parent)
+        self.label = None
+        self.closebutton = None
+        self.move_in_progress = False
+        self.move_start_event_pos = None
+        self.move_start_widget_pos = None
+
+        self.double_click_timer = QtCore.QTimer(parent=self)
+        self.double_click_timer.setInterval(
+            QtWidgets.QApplication.instance().doubleClickInterval())
+        self.double_click_timer.setSingleShot(True)
+
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setFixedHeight(common.MARGIN() +
+                            (common.INDICATOR_WIDTH() * 2))
+
+        self._create_ui()
+
+    def _create_ui(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        menu_bar = QtWidgets.QMenuBar(parent=self)
+        self.layout().addWidget(menu_bar)
+        menu_bar.hide()
+        menu = menu_bar.addMenu(common.PRODUCT)
+
+        action = menu.addAction(u'Quit')
+        action.triggered.connect(actions.quit)
+
+        self.layout().addStretch()
+        self.layout().addWidget(MinimizeButton(parent=self))
+        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
+        self.layout().addWidget(CloseButton(parent=self))
+        self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
+
+    def mousePressEvent(self, event):
+        """Custom ``movePressEvent``.
+        We're setting the properties needed to moving the main window.
+
+        """
+        if self.double_click_timer.isActive():
+            return
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+
+        self.double_click_timer.start(self.double_click_timer.interval())
+        self.move_in_progress = True
+        self.move_start_event_pos = event.pos()
+        self.move_start_widget_pos = self.mapToGlobal(
+            self.geometry().topLeft())
+
+    def mouseMoveEvent(self, event):
+        """Moves the the parent window when clicked.
+
+        """
+        if self.double_click_timer.isActive():
+            return
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        if event.buttons() == QtCore.Qt.NoButton:
+            return
+        if self.move_start_widget_pos:
+            margins = self.window().layout().contentsMargins()
+            offset = (event.pos() - self.move_start_event_pos)
+            pos = self.window().mapToGlobal(self.geometry().topLeft()) + offset
+            self.parent().move(
+                pos.x() - margins.left(),
+                pos.y() - margins.top()
+            )
+            bl = self.window().rect().bottomLeft()
+            bl = self.window().mapToGlobal(bl)
+            self.widgetMoved.emit(bl)
+
+    def contextMenuEvent(self, event):
+        """Shows the context menu associated with the tray in the header."""
+        widget = TrayMenu(parent=self.window())
+        pos = self.window().mapToGlobal(event.pos())
+        widget.move(pos)
+        common.move_widget_to_available_geo(widget)
+        widget.show()
+
+    def mouseDoubleClickEvent(self, event):
+        event.accept()
+        actions.toggle_maximized()
+
+
 class StandaloneMainWidget(main.MainWidget):
     """Modified ``MainWidget``adapted to run as a standalone
     application, with or without window borders.
@@ -81,8 +230,9 @@ class StandaloneMainWidget(main.MainWidget):
         super(StandaloneMainWidget, self).__init__(parent=None)
 
         self.tray = None
-        self._frameless = None
-        self._ontop = None
+        self._frameless = False
+        self._ontop = False
+        self.headerwidget = None
 
         common.set_custom_stylesheet(self)
 
@@ -106,39 +256,59 @@ class StandaloneMainWidget(main.MainWidget):
         self.setMouseTracking(True)
 
         self.initialized.connect(self.connect_extra_signals)
-        self.adjustSize()
+        self.initialized.connect(self.update_layout)
 
+        self.adjustSize()
         self.init_window_flags()
         self.init_tray()
 
-    def init_window_flags(self):
+    def _create_ui(self):
+        super(StandaloneMainWidget, self)._create_ui()
+
+        self.headerwidget = HeaderWidget(parent=self)
+        self.layout().insertWidget(0, self.headerwidget, 1)
+        self.headerwidget.setHidden(True)
+
+    def update_layout(self):
+        if self._frameless and self.layout():
+            self.headerwidget.setHidden(False)
+            o = common.INDICATOR_WIDTH()
+            self.layout().setContentsMargins(o, o, o, o)
+        elif not self._frameless and self.layout():
+            self.headerwidget.setHidden(True)
+            self.layout().setContentsMargins(0, 0, 0, 0)
+
+    def init_window_flags(self, v=None):
         self._frameless = settings.local_settings.value(
             settings.UIStateSection,
             settings.WindowFramelessKey,
         )
-        if self._frameless is True:
-            self.setWindowFlags(
-                self.windowFlags() | QtCore.Qt.FramelessWindowHint)
-
-            self.setAttribute(QtCore.Qt.WA_NoSystemBackground, on=True)
-            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, on=True)
+        if self._frameless:
+            self.setWindowFlags(self.windowFlags() | QtCore.Qt.FramelessWindowHint)
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+            self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        else:
+            self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.FramelessWindowHint)
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+            self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
 
         self._ontop = settings.local_settings.value(
             settings.UIStateSection,
             settings.WindowAlwaysOnTopKey
         )
-        if self._ontop is True:
-            self.setWindowFlags(
-                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        if self._ontop:
+            self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
 
     def init_shortcuts(self):
         super(StandaloneMainWidget, self).init_shortcuts()
         connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
 
-        connect(shortcuts.Quit, self.shutdown)
-        connect(shortcuts.Minimize, self.toggle_minimized)
-        connect(shortcuts.Maximize, self.toggle_maximized)
-        connect(shortcuts.FullScreen, self.toggle_fullscreen)
+        connect(shortcuts.Quit, actions.quit)
+        connect(shortcuts.Minimize, actions.toggle_minimized)
+        connect(shortcuts.Maximize, actions.toggle_maximized)
+        connect(shortcuts.FullScreen, actions.toggle_fullscreen)
 
     def init_tray(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
@@ -147,33 +317,27 @@ class StandaloneMainWidget(main.MainWidget):
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
         self.tray.setIcon(icon)
-        self.tray.setContextMenu(main.TrayMenu(parent=self))
+        self.tray.setContextMenu(TrayMenu(parent=self))
         self.tray.setToolTip(common.PRODUCT)
 
         self.tray.activated.connect(self.trayActivated)
 
         self.tray.show()
 
-    @QtCore.Slot()
-    def toggle_fullscreen(self):
-        if self.isFullScreen():
-            self.showNormal()
-        else:
-            self.showFullScreen()
+    def _paint_background(self, painter):
+        if not self._frameless:
+            super(StandaloneMainWidget, self)._paint_background(painter)
+            return
 
-    @QtCore.Slot()
-    def toggle_maximized(self):
-        if self.isMaximized():
-            self.showNormal()
-        else:
-            self.showMaximized()
+        rect = QtCore.QRect(self.rect())
+        pen = QtGui.QPen(QtGui.QColor(35, 35, 35, 255))
+        pen.setWidth(common.ROW_SEPARATOR() * 2)
+        painter.setPen(pen)
+        painter.setBrush(common.SEPARATOR.darker(110))
 
-    @QtCore.Slot()
-    def toggle_minimized(self):
-        if self.isMinimized():
-            self.showNormal()
-        else:
-            self.showMinimized()
+        o = common.INDICATOR_WIDTH()
+        rect = rect.adjusted(o, o, -o, -o)
+        painter.drawRoundedRect(rect, o * 3, o * 3)
 
     @common.error
     @common.debug
@@ -283,13 +447,13 @@ class StandaloneMainWidget(main.MainWidget):
     def connect_extra_signals(self):
         """Modifies layout for display in standalone-mode."""
         self.headerwidget.widgetMoved.connect(self.save_window)
-        self.headerwidget.findChild(
-            main.MinimizeButton).clicked.connect(self.showMinimized)
-        self.headerwidget.findChild(main.CloseButton).clicked.connect(self.close)
+        self.headerwidget.findChild(MinimizeButton).clicked.connect(
+            actions.toggle_minimized)
+        self.headerwidget.findChild(CloseButton).clicked.connect(
+            actions.quit)
 
-        self.fileswidget.activated.connect(common.execute)
-        self.favouriteswidget.activated.connect(common.execute)
-        self.terminated.connect(QtWidgets.QApplication.instance().quit)
+        self.fileswidget.activated.connect(actions.execute)
+        self.favouriteswidget.activated.connect(actions.execute)
 
     def trayActivated(self, reason):
         """Slot called by the QSystemTrayIcon when clicked."""

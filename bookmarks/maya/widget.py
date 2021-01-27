@@ -39,6 +39,7 @@ from .. import main
 from .. import addfile
 from .. import bookmark_db
 from .. import rv
+from .. import actions
 from .. import __path__ as package_path
 
 
@@ -981,7 +982,7 @@ def capture_viewport(size=1.0):
     val = get_preference(settings.RevealCaptureKey)
     val = val if val is not None else False
     if not val:
-        common.reveal(rv_seq_path)
+        actions.reveal(rv_seq_path)
 
     publish_capture(workspace, capture_folder, scene_info, ext)
 
@@ -1046,20 +1047,6 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         # Remove the
         QtCore.QFile.copy(source, dest)
         idx += 1
-
-
-def contextmenu_main(func):
-    """Decorator to create a menu set."""
-    @functools.wraps(func)
-    def func_wrapper(self, menu_set):
-        widget = self.parent().parent().parent().parent()
-        menu_set = func(
-            self,
-            menu_set,
-            main=widget
-        )
-        return menu_set
-    return func_wrapper
 
 
 class PanelPicker(QtWidgets.QDialog):
@@ -1221,77 +1208,78 @@ class BrowserButtonContextMenu(contextmenu.BaseContextMenu):
         super(BrowserButtonContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
 
-        self.add_maya_actions_menu()
-        self.add_separator()
-        self.add_show_menu()
+    def setup(self):
+        self.maya_actions_menu()
+        self.separator()
+        self.show_menu()
 
-    @contextmenu.contextmenu
-    def add_maya_actions_menu(self, menu_set):
-        menu_set[u'save'] = {
+
+    def maya_actions_menu(self):
+        self.menu[u'save'] = {
             u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.MARGIN()),
             u'text': u'Save version...',
             u'action': self.parent().saveRequested.emit
         }
-        menu_set[u'save_increment'] = {
+        self.menu[u'save_increment'] = {
             u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.SECONDARY_TEXT, common.MARGIN()),
             u'text': u'Save quick increment...',
             u'action': self.parent().incrementRequested.emit
         }
-        return menu_set
+        return
 
-    @contextmenu.contextmenu
-    def add_export_alembic_menu(self, menu_set):
+
+    def export_alembic_menu(self):
         objectset_pixmap = images.ImageCache.get_rsc_pixmap(
             u'set', None, common.MARGIN())
 
         outliner_set_members = outliner_sets()
 
         key = u'alembic_animation'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export timeline to alembic'
+        self.menu[key] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(key)] = objectset_pixmap
+        self.menu[u'{}:text'.format(key)] = u'Export timeline to alembic'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
-            menu_set[key][_k] = {
+            self.menu[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
                 u'action': functools.partial(self.parent().alembicExportRequested.emit, k, v, False)
             }
 
         key = u'alembic_frame'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export current frame to alembic'
+        self.menu[key] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(key)] = objectset_pixmap
+        self.menu[u'{}:text'.format(key)] = u'Export current frame to alembic'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
-            menu_set[key][_k] = {
+            self.menu[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
                 u'action': functools.partial(self.parent().alembicExportRequested.emit, k, v, True)
             }
 
-        return menu_set
+        return
 
-    @contextmenu.contextmenu
-    def add_show_menu(self, menu_set):
+
+    def show_menu(self):
         if not hasattr(self.parent(), 'clicked'):
-            return menu_set
-        menu_set[u'show'] = {
+            return
+        self.menu[u'show'] = {
             u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN()),
             u'text': u'Toggle {}'.format(common.PRODUCT),
             u'action': self.parent().clicked.emit
         }
-        return menu_set
+        return
 
-    @contextmenu.contextmenu
-    def add_capture_menu(self, menu_set):
+
+    def capture_menu(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'capture', None, common.MARGIN())
         k = 'Capture viewport'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(k)] = pixmap
+        self.menu[k] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(k)] = pixmap
 
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
@@ -1299,11 +1287,11 @@ class BrowserButtonContextMenu(contextmenu.BaseContextMenu):
         def size(n): return (int(int(width) * n), int(int(height) * n))
 
         for n in (1.0, 0.5, 0.25, 1.5, 2.0):
-            menu_set[k][u'capture{}'.format(n)] = {
+            self.menu[k][u'capture{}'.format(n)] = {
                 u'text': u'Capture  |  @{}  |  {}x{}px'.format(n, *size(n)),
                 u'action': functools.partial(capture_viewport, size=n)
             }
-        return menu_set
+        return
 
 
 class MayaBrowserButton(common_ui.ClickableIconButton):
@@ -1425,175 +1413,152 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
 
 
 class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
-    """The context menu for all Maya specific actions."""
-
-    def __init__(self, index, parent=None):
-        super(MayaMainWidgetContextMenu, self).__init__(
-            index, parent=parent)
-
-        self.add_apply_bookmark_settings_menu()
-        self.add_separator()
-
-        self.add_save_actions_menu()
-        self.add_separator()
-
+    def setup(self):
+        self.apply_bookmark_settings_menu()
+        self.separator()
+        self.save_actions_menu()
+        self.separator()
         if index.isValid():
-            self.add_scenes_menu()
-        self.add_separator()
+            self.scenes_menu()
+        self.separator()
+        self.export_alembic_menu()
+        self.separator()
+        self.capture_menu()
 
-        # Caches
-        self.add_export_alembic_menu()
-
-        self.add_separator()
-
-        self.add_capture_menu()
-
-    @contextmenu.contextmenu
-    @contextmenu_main
-    def add_apply_bookmark_settings_menu(self, menu_set, main=None):
+    def apply_bookmark_settings_menu(self):
+        parent = self.parent().parent().parent().parent()
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.MARGIN())
 
-        menu_set[u'apply_settings'] = {
+        self.menu[u'apply_settings'] = {
             u'text': u'Apply scene settings...',
             u'icon': pixmap,
-            u'action': main.apply_settings
+            u'action': parent.apply_settings
         }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    @contextmenu_main
-    def add_save_actions_menu(self, menu_set, main=None):
+    def save_actions_menu(self):
         """Save actions.
 
         """
+        parent = self.parent().parent().parent().parent()
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'add_file', common.TEXT_SELECTED, common.MARGIN())
         pixmap2 = images.ImageCache.get_rsc_pixmap(
             u'add_file', common.TEXT_DISABLED, common.MARGIN())
-        menu_set[u'new'] = {
+        self.menu[u'new'] = {
             u'text': u'Save version...',
             u'icon': pixmap,
-            u'action': lambda: main.save_scene(increment=False)
+            u'action': lambda: parent.save_scene(increment=False)
         }
         if common.get_sequence(scene.fileName()):
-            menu_set[u'increment'] = {
+            self.menu[u'increment'] = {
                 u'text': u'Save quick increment...',
                 u'icon': pixmap2,
-                u'action': lambda: main.save_scene(increment=True)
+                u'action': lambda: parent.save_scene(increment=True)
             }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    @contextmenu_main
-    def add_scenes_menu(self, menu_set, main=None):
+    def scenes_menu(self):
         """Maya & alembic import/open actions.
 
         """
+        parent = self.parent().parent().parent().parent()
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
         _s = file_info.suffix().lower()
         if _s not in (u'ma', u'mb', u'abc'):
-            return menu_set
+            return
 
         maya_pixmap = images.ImageCache.get_rsc_pixmap(
             u'maya', None, common.MARGIN())
         maya_reference_pixmap = images.ImageCache.get_rsc_pixmap(
             u'maya_reference', None, common.MARGIN())
 
-        menu_set[u'open_scene'] = {
+        self.menu[u'open_scene'] = {
             u'text': u'Open',
             u'icon': maya_pixmap,
             u'action': lambda: open_scene(file_info.filePath())
         }
-        menu_set[u'import_local_scene'] = {
+        self.menu[u'import_local_scene'] = {
             u'text': u'Import',
             u'icon': maya_pixmap,
             u'action': lambda: import_scene(file_info.filePath(), reference=False)
         }
-        menu_set[u'import_scene'] = {
+        self.menu[u'import_scene'] = {
             u'text': u'Import as reference',
             u'icon': maya_reference_pixmap,
             u'action': lambda: import_scene(file_info.filePath(), reference=True)
         }
-        return menu_set
 
-    @contextmenu.contextmenu
-    @contextmenu_main
-    def add_export_alembic_menu(self, menu_set, main=None):
+    def export_alembic_menu(self):
+        parent = self.parent().parent().parent().parent()
         objectset_pixmap = images.ImageCache.get_rsc_pixmap(
             u'set', None, common.MARGIN())
 
         outliner_set_members = outliner_sets()
 
         key = u'alembic_animation'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export timeline to Alembic'
+        self.menu[key] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(key)] = objectset_pixmap
+        self.menu[u'{}:text'.format(key)] = u'Export timeline to Alembic'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
-            menu_set[key][_k] = {
+            self.menu[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
-                u'action': functools.partial(main.export_set_to_alembic, k, v, frame=False)
+                u'action': functools.partial(parent.export_set_to_alembic, k, v, frame=False)
             }
 
         key = u'alembic_frame'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export current frame to Alembic'
+        self.menu[key] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(key)] = objectset_pixmap
+        self.menu[u'{}:text'.format(key)] = u'Export current frame to Alembic'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
-            menu_set[key][_k] = {
+            self.menu[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
-                u'action': functools.partial(main.export_set_to_alembic, k, v, frame=True)
+                u'action': functools.partial(parent.export_set_to_alembic, k, v, frame=True)
             }
 
         key = u'obj'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export set to *.obj'
+        self.menu[key] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(key)] = objectset_pixmap
+        self.menu[u'{}:text'.format(key)] = u'Export set to *.obj'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
-            menu_set[key][_k] = {
+            self.menu[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
-                u'action': functools.partial(main.export_set_to_obj, k, v)
+                u'action': functools.partial(parent.export_set_to_obj, k, v)
             }
 
         key = u'ass'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = u'Export set to Arnold *.ass'
+        self.menu[key] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(key)] = objectset_pixmap
+        self.menu[u'{}:text'.format(key)] = u'Export set to Arnold *.ass'
         for k in sorted(list(outliner_set_members)):
             v = outliner_set_members[k]
             _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
-            menu_set[key][_k] = {
+            self.menu[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
-                u'action': functools.partial(main.export_set_to_ass, k, v)
+                u'action': functools.partial(parent.export_set_to_ass, k, v)
             }
 
-        return menu_set
-
-    @contextmenu.contextmenu
-    @contextmenu_main
-    def add_capture_menu(self, menu_set, main=None):
+    def capture_menu(self):
+        parent = self.parent().parent().parent().parent()
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'capture', None, common.MARGIN())
         k = 'Capture viewport'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(k)] = pixmap
+        self.menu[k] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(k)] = pixmap
 
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
@@ -1601,11 +1566,11 @@ class MayaMainWidgetContextMenu(contextmenu.BaseContextMenu):
         def size(n): return (int(int(width) * n), int(int(height) * n))
 
         for n in (1.0, 0.5, 0.25, 1.5, 2.0):
-            menu_set[k][u'capture{}'.format(n)] = {
+            self.menu[k][u'capture{}'.format(n)] = {
                 u'text': u'Capture  |  @{}  |  {}x{}px'.format(n, *size(n)),
                 u'action': functools.partial(capture_viewport, size=n)
             }
-        return menu_set
+
 
 
 class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
@@ -1641,7 +1606,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.mainwidget.initialized.connect(
             lambda: self.mainwidget.layout().setContentsMargins(0, 0, 0, 0))
         self.mainwidget.initialized.connect(self._connect_signals)
-        self.mainwidget.initialized.connect(self.add_context_callbacks)
+        self.mainwidget.initialized.connect(self.context_callbacks)
         self.mainwidget.initialized.connect(self.set_workspace)
         self.mainwidget.initialized.connect(self.workspace_timer.start)
 
@@ -1840,7 +1805,7 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 source_index.model().setData(source_index, flags, role=common.FlagsRole)
                 break
 
-    def add_context_callbacks(self):
+    def context_callbacks(self):
         """This method is called by the Maya plug-in when initializing."""
 
         callback = OpenMaya.MSceneMessage.addCallback(

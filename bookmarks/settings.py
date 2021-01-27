@@ -546,6 +546,8 @@ class Settings(QtCore.QSettings):
         """Remove a bookmark from `local_settings`.
 
         """
+        from . import actions
+        from .lists import base
         # If the item is currently active, we'll have to unset it.
         if (
             ACTIVE[ServerKey] == server and
@@ -553,6 +555,7 @@ class Settings(QtCore.QSettings):
             ACTIVE[RootKey] == root
         ):
             set_active(ServerKey, None)
+            actions.change_tab(base.BookmarkTab)
 
         # Just in case there's a BookmarkDB instance already open:
         from . import bookmark_db

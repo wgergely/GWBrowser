@@ -45,11 +45,18 @@ from .. import images
 from .. import alembicpreview
 from .. import threads
 from .. import filtereditor
+from .. import actions
 
 from . import delegate
 
 
 BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 50)
+
+
+BookmarkTab = 0
+AssetTab = 1
+FileTab = 2
+FavouriteTab = 3
 
 
 def validate_index(func):
@@ -58,7 +65,6 @@ def validate_index(func):
     """
     @functools.wraps(func)
     def func_wrapper(*args, **kwargs):
-        # Checking validity
         if not args[0].isValid():
             return None
         if not args[0].data(QtCore.Qt.StatusTipRole):
@@ -116,12 +122,59 @@ def flagsmethod(func):
     return func_wrapper
 
 
+
+class StackedWidget(QtWidgets.QStackedWidget):
+    """Stacked widget used to hold and toggle the list widgets containing the
+    bookmarks, assets, files and favourites."""
+
+    def __init__(self, parent=None):
+        super(StackedWidget, self).__init__(parent=parent)
+        self.setObjectName(u'BrowserStackedWidget')
+
+    def setCurrentIndex(self, idx):
+        """Sets the current index of the ``StackedWidget``.
+
+        Args:
+            idx (int): The index of the widget to set.
+
+        """
+        # Converting idx to int
+        idx = 0 if idx is None or False else idx
+        idx = idx if idx >= 0 else 0
+
+        # No active bookmark
+        def active_index(x):
+            return self.widget(x).model().sourceModel().active_index()
+        if not active_index(0).isValid() and idx in (1, 2):
+            idx = 0
+
+        # No active asset
+        if active_index(0).isValid() and not active_index(1).isValid() and idx == 2:
+            idx = 1
+
+        if idx <= 3:
+            settings.local_settings.setValue(
+                settings.UIStateSection,
+                settings.CurrentList,
+                idx
+            )
+
+        self._setCurrentIndex(idx)
+
+    def _setCurrentIndex(self, idx):
+        super(StackedWidget, self).setCurrentIndex(idx)
+        self.currentWidget().setFocus()
+
+    def showEvent(self, event):
+        if self.currentWidget():
+            self.currentWidget().setFocus()
+
+
 class ThumbnailsContextMenu(contextmenu.BaseContextMenu):
-    def __init__(self, index, parent=None):
-        super(ThumbnailsContextMenu, self).__init__(index, parent=parent)
-        self.add_thumbnail_menu()
-        self.add_separator()
-        self.add_sg_thumbnail_menu()
+    def setup(self):
+        self.thumbnail_menu()
+        self.separator()
+        self.sg_thumbnail_menu()
 
 
 class ProgressWidget(QtWidgets.QWidget):
@@ -536,7 +589,7 @@ class BaseModel(QtCore.QAbstractListModel):
         h = default_size.height()
         val = h if val is None else val
         val = h if val < h else val
-        val = int(common.THUMBNAIL_IMAGE_SIZE) if val >= int(common.THUMBNAIL_IMAGE_SIZE) else val
+        val = int(images.THUMBNAIL_IMAGE_SIZE) if val >= int(images.THUMBNAIL_IMAGE_SIZE) else val
 
         self._row_size = QtCore.QSize(default_size.width(), val)
 
@@ -852,7 +905,8 @@ class BaseModel(QtCore.QAbstractListModel):
             return False
         if index.row() not in self.model_data():
             return False
-        self.model_data()[index.row()][role] = data
+        data = self.model_data()
+        data[index.row()][role] = data
         self.dataChanged.emit(index, index)
         return True
 
@@ -925,7 +979,6 @@ class BaseListWidget(QtWidgets.QListView):
     """
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
-    favouritesChanged = QtCore.Signal()
     interruptRequested = QtCore.Signal()
 
     resized = QtCore.Signal(QtCore.QRect)
@@ -971,6 +1024,9 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setInterval(
             QtWidgets.QApplication.instance().keyboardInputInterval())
         self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.save_selection)
+        self.timer.timeout.connect(self.start_queue_timers)
+
         self.timed_search_string = u''
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
@@ -1118,6 +1174,8 @@ class BaseListWidget(QtWidgets.QListView):
         in the view.
 
         """
+        if self.verticalScrollBar().isSliderDown():
+            return
         if not index.isValid():
             return
         if not hasattr(index.model(), u'sourceModel'):
@@ -1126,13 +1184,14 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot(int)
     def update_row(self, idx):
-        """Slot used to update the row associated with the data segment."""
+        """Slot used to update the row associated with a data segment."""
+        if self.verticalScrollBar().isSliderDown():
+            return
         if not self.isVisible():
             return
         if not isinstance(idx, int):
             return
         index = self.model().sourceModel().index(idx, 0)
-        self.model().mapFromSource(index)
         self.update(index)
 
     @QtCore.Slot()
@@ -1141,7 +1200,6 @@ class BaseListWidget(QtWidgets.QListView):
         creep in.
 
         """
-        # We should not mess with the filters when toggling items
         try:
             if self.multi_toggle_state is not None:
                 return
@@ -1317,7 +1375,10 @@ class BaseListWidget(QtWidgets.QListView):
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
-    def toggle_item_flag(self, index, flag, state=None):
+    def add_pending_trasaction(self, server, job, root, k, mode, flag):
+        pass
+
+    def toggle_item_flag(self, index, flag, state=None, commit_now=True):
         """Sets the index's `flag` value based on `state`.
 
         We're using the method to mark items archived, or favourite and save the
@@ -1332,17 +1393,13 @@ class BaseListWidget(QtWidgets.QListView):
             unicode: The key used to find and match items.
 
         """
-        def dummy_func(mode, data, flag):
-            """Does nothing."""
-            pass
-
         def save_to_db(k, mode, flag):
-            """Save the value to the database."""
-            with bookmark_db.transactions(*index.data(common.ParentPathRole)[0:3]) as db:
-                f = db.value(k, u'flags')
-                f = 0 if f is None else f
-                f = f | flag if mode else f & ~flag
-                db.setValue(k, u'flags', f)
+            server, job, root = index.data(common.ParentPathRole)[0:3]
+
+            if not commit_now:
+                threads.queue_database_transaction(server, job, root, k, mode, flag)
+                return
+            bookmark_db.set_flag(server, job, root, k, mode, flag)
 
         def save_to_local_settings(k, mode, flag):
             if mode:
@@ -1360,7 +1417,7 @@ class BaseListWidget(QtWidgets.QListView):
         elif flag == common.MarkedAsActive:
             save_func = save_active
         else:
-            save_func = dummy_func
+            save_func = lambda *args: None
 
         def _set_flag(k, mode, data, flag, commit=False):
             """Sets a single flag value based on the given mode."""
@@ -1394,7 +1451,7 @@ class BaseListWidget(QtWidgets.QListView):
                     index.data(common.ParentPathRole)[1],
                     index.data(common.ParentPathRole)[2],
                 )
-                flags = db.value(proxy_k, u'flags')
+                flags = db.value(proxy_k, u'flags', table=bookmark_db.AssetTable)
                 if not flags:
                     return True
                 if flags & common.MarkedAsArchived:
@@ -1459,64 +1516,10 @@ class BaseListWidget(QtWidgets.QListView):
             else:
                 _set_flags(FILE_DATA, k, mode, flag, commit=True, proxy=False)
 
-        self.repaint()
         return k
 
     def key_space(self):
-        self.show_item_preview()
-
-    def show_item_preview(self):
-        """Display a preview of the currently selected item.
-
-        For alembic archives, this is the hierarchy of the archive file. For
-        image files we'll try to load and display the image itself, and
-        for any other case we will fall back to cached or default thumbnail
-        images.
-
-        """
-        if not self.selectionModel().hasSelection():
-            return
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
-        source = index.data(QtCore.Qt.StatusTipRole)
-        source = common.get_sequence_startpath(source)
-        ext = source.split(u'.').pop()
-
-        if ext.lower() == u'abc':
-            widget = alembicpreview.AlembicView(source)
-            self.selectionModel().currentChanged.connect(widget.close)
-            self.selectionModel().currentChanged.connect(widget.deleteLater)
-            widget.show()
-            return
-
-        # Let's try to open the image outright
-        # If this fails, we will try and look for a saved thumbnail image,
-        # and if that fails too, we will display a general thumbnail.
-
-        # Not a readable image file...
-        if images.oiio_get_buf(source):
-            thumb_path = source
-        else:
-            server, job, root = index.data(common.ParentPathRole)[0:3]
-            thumb_path = images.get_thumbnail(
-                server,
-                job,
-                root,
-                index.data(QtCore.Qt.StatusTipRole),
-                int(common.THUMBNAIL_IMAGE_SIZE),
-                fallback_thumb=u'placeholder',
-                get_path=True
-            )
-            if not thumb_path:
-                return
-
-        # Finally, we'll create and show our widget, and destroy it when the
-        # selection changes
-        widget = images.ImageViewer(thumb_path, parent=self)
-        self.selectionModel().currentChanged.connect(widget.delete_timer.start)
-        widget.open()
+        actions.preview()
 
     def key_down(self):
         """Custom action on  `down` arrow key-press.
@@ -1788,37 +1791,6 @@ class BaseListWidget(QtWidgets.QListView):
             section=settings.UIStateSection
         )
 
-    def increase_row_size(self):
-        """Makes the row height bigger."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-
-        v = model.row_size().height() + common.psize(20)
-        if v >= common.THUMBNAIL_IMAGE_SIZE:
-            return
-
-        self.set_row_size(v)
-        self.reset_row_layout()
-
-    def decrease_row_size(self):
-        """Makes the row height smaller."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-
-        v = model.row_size().height() - common.psize(20)
-        if v <= model.default_row_size().height():
-            v = model.default_row_size().height()
-
-        self.set_row_size(v)
-        self.reset_row_layout()
-
-    def reset_row_size(self):
-        """Resets the row size to its original size."""
-        proxy = self.model()
-        model = proxy.sourceModel()
-        self.set_row_size(model.default_row_size().height())
-        self.reset_row_layout()
-
     def dragEnterEvent(self, event):
         self._thumbnail_drop = (-1, False)
         self.repaint(self.rect())
@@ -1920,12 +1892,14 @@ class BaseListWidget(QtWidgets.QListView):
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         index = self.selectionModel().currentIndex()
 
-        if no_modifier:
+        if no_modifier or numpad_modifier:
+            if not self.timer.isActive():
+                self.timed_search_string = u''
+            self.timer.start()
+
             if event.key() == QtCore.Qt.Key_Escape:
                 self.interruptRequested.emit()
                 return
-
-        if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
                 self.key_space()
                 return
@@ -1935,144 +1909,77 @@ class BaseListWidget(QtWidgets.QListView):
                 return
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
-                self.save_selection()
-                self.start_queue_timers()
                 return
             elif event.key() == QtCore.Qt.Key_Up:
                 self.key_up()
-                self.save_selection()
-                self.start_queue_timers()
                 return
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
-                self.save_selection()
                 return
             elif event.key() == QtCore.Qt.Key_Tab:
                 if not self.description_editor_widget.isVisible():
                     self.key_tab()
-                    self.save_selection()
                     return
                 else:
                     self.key_down()
                     self.key_tab()
-                    self.save_selection()
-                    self.start_queue_timers()
                     return
             elif event.key() == QtCore.Qt.Key_Backtab:
                 if not self.description_editor_widget.isVisible():
                     self.key_tab()
-                    self.save_selection()
                     return
                 else:
                     self.key_up()
                     self.key_tab()
-                    self.save_selection()
-                    self.start_queue_timers()
                     return
             elif event.key() == QtCore.Qt.Key_PageDown:
                 super(BaseListWidget, self).keyPressEvent(event)
-                self.save_selection()
-                self.start_queue_timers()
                 return
             elif event.key() == QtCore.Qt.Key_PageUp:
                 super(BaseListWidget, self).keyPressEvent(event)
-                self.save_selection()
-                self.start_queue_timers()
                 return
             elif event.key() == QtCore.Qt.Key_Home:
                 super(BaseListWidget, self).keyPressEvent(event)
-                self.save_selection()
-                self.start_queue_timers()
                 return
             elif event.key() == QtCore.Qt.Key_End:
                 super(BaseListWidget, self).keyPressEvent(event)
-                self.save_selection()
-                self.start_queue_timers()
-                return
-            else:  # keyboard search and select
-                if not self.timer.isActive():
-                    self.timed_search_string = u''
-                    self.timer.start()
-
-                self.timed_search_string += event.text()
-                self.timer.start()  # restarting timer on input
-
-                sel = self.selectionModel()
-                for n in xrange(self.model().rowCount()):
-                    index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-                    # When only one key is pressed we want to cycle through
-                    # only items starting with that letter:
-                    if len(self.timed_search_string) == 1:
-                        if n <= sel.currentIndex().row():
-                            continue
-
-                        if index.data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
-                            sel.setCurrentIndex(
-                                index,
-                                QtCore.QItemSelectionModel.ClearAndSelect
-                            )
-                            self.save_selection()
-                            break
-                    else:
-                        try:
-                            match = re.search(
-                                self.timed_search_string,
-                                index.data(QtCore.Qt.DisplayRole),
-                                flags=re.IGNORECASE
-                            )
-                        except:
-                            match = None
-
-                        if match:
-                            sel.setCurrentIndex(
-                                index,
-                                QtCore.QItemSelectionModel.ClearAndSelect
-                            )
-                            self.save_selection()
-                            return
-
-        if event.modifiers() & QtCore.Qt.ControlModifier:
-            if event.key() == QtCore.Qt.Key_C:
-                if index.data(common.FileInfoLoaded):
-                    if common.get_platform() == u'mac':
-                        mode = common.MacOSPath
-                    elif common.get_platform() == u'win':
-                        mode = common.WindowsPath
-                    else:
-                        mode = common.UnixPath
-                    path = index.data(QtCore.Qt.StatusTipRole)
-                    if event.modifiers() & QtCore.Qt.ShiftModifier:
-                        return common.copy_path(path, mode=common.UnixPath, first=True)
-                    return common.copy_path(path, mode=mode, first=False)
-
-            if event.key() == QtCore.Qt.Key_T:
-                self.show_todos()
                 return
 
-            if event.key() == QtCore.Qt.Key_O:
-                if index.data(QtCore.Qt.StatusTipRole):
-                    common.reveal(index.data(QtCore.Qt.StatusTipRole))
-                return
+            self.timed_search_string += event.text()
 
-            if event.key() == QtCore.Qt.Key_S:
-                self.save_selection()
-                self.toggle_item_flag(
-                    index,
-                    common.MarkedAsFavourite
-                )
-                self.update(index)
-                self.model().invalidateFilter()
-                return
+            sel = self.selectionModel()
+            for n in xrange(self.model().rowCount()):
+                index = self.model().index(n, 0, parent=QtCore.QModelIndex())
+                # When only one key is pressed we want to cycle through
+                # only items starting with that letter:
+                if len(self.timed_search_string) == 1:
+                    if n <= sel.currentIndex().row():
+                        continue
 
-            if event.key() == QtCore.Qt.Key_A:
-                self.save_selection()
-                self.toggle_item_flag(
-                    index,
-                    common.MarkedAsArchived
-                )
-                self.update(index)
-                self.model().invalidateFilter()
-                return
+                    if index.data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
+                        sel.setCurrentIndex(
+                            index,
+                            QtCore.QItemSelectionModel.ClearAndSelect
+                        )
+                        self.save_selection()
+                        break
+                else:
+                    try:
+                        match = re.search(
+                            self.timed_search_string,
+                            index.data(QtCore.Qt.DisplayRole),
+                            flags=re.IGNORECASE
+                        )
+                    except:
+                        match = None
+
+                    if match:
+                        sel.setCurrentIndex(
+                            index,
+                            QtCore.QItemSelectionModel.ClearAndSelect
+                        )
+                        self.save_selection()
+                        return
 
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
@@ -2111,12 +2018,6 @@ class BaseListWidget(QtWidgets.QListView):
     def contextMenuEvent(self, event):
         """Custom context menu event."""
         index = self.indexAt(event.pos())
-
-        width = self.viewport().geometry().width()
-        width = (width * 0.5) if width > common.HEIGHT() else width
-        width = width - common.INDICATOR_WIDTH()
-
-        # Custom context menu
         shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
         alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
@@ -2128,19 +2029,10 @@ class BaseListWidget(QtWidgets.QListView):
         if not self.ContextMenu:
             return
 
-        if index.isValid():
-            rect = self.visualRect(index)
-            gpos = self.viewport().mapToGlobal(event.pos())
-            rectangles = delegate.get_rectangles(
-                rect, self.inline_icons_count())
-            if rectangles[delegate.ThumbnailRect].contains(event.pos()):
-                widget = self.ThumbnailContextMenu(index, parent=self)
-            else:
-                widget = self.ContextMenu(index, parent=self)
-            widget.move(
-                gpos.x(),
-                self.viewport().mapToGlobal(rect.bottomLeft()).y(),
-            )
+        rect = self.visualRect(index)
+        rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
+        if index.isValid() and rectangles[delegate.ThumbnailRect].contains(event.pos()):
+            widget = self.ThumbnailContextMenu(index, parent=self)
         else:
             widget = self.ContextMenu(index, parent=self)
 
@@ -2212,7 +2104,7 @@ class BaseListWidget(QtWidgets.QListView):
                     path = u'/'.join(p).rstrip(u'/')
                     root_path = u'/'.join(root_dir).strip(u'/')
                     path = path + u'/' + root_path
-                    common.reveal(path)
+                    actions.reveal(path)
                     return
 
         if rectangles[delegate.DataRect].contains(cursor_position):
@@ -2225,102 +2117,42 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
     @QtCore.Slot(unicode)
-    def reveal_list_item(self, list_idx, display_name):
-        """Slot used to reveal a newly added item in a list.
+    def select_list_item(self, v, role=QtCore.Qt.DisplayRole, update=True, limit=10000):
+        """Shows a newly added item in the list.
+
+        Args:
+            v (any): A value to match.
+            role (QtCore.Qt.ItemRole): An item data role.
+            update (bool): Refreshes the model if `True` (the default).
 
         """
-        if not self.parent():
-            return
-        if not hasattr(self.parent(), 'widget'):
-            return
+        model = self.model()
+        if update and model.rowCount() < limit:
+            model.sourceModel().modelDataResetRequested.emit()
 
-        widget = self.parent().widget(list_idx)
-
-        self.parent().parent().topbar.listChanged.emit(list_idx)
-        widget.model().sourceModel().modelDataResetRequested.emit()
-
-        for n in xrange(widget.model().rowCount()):
-            index = widget.model().index(n, 0)
-            if index.data(QtCore.Qt.DisplayRole).lower() == display_name.lower():
-                widget.selectionModel().setCurrentIndex(
+        for n in xrange(model.rowCount()):
+            index = model.index(n, 0)
+            if v == index.data(role):
+                self.selectionModel().setCurrentIndex(
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
+                self.scrollTo(
+                    index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 return
 
-    @QtCore.Slot()
-    def show_asset_property_widget(self, update=False):
-        """Shows the `AssetPropertiesWidget`.
-
-        The widget can take an option `update` parameter used to indicate that
-        we want to update an existing asset. If `update` is `False`, the editor
-        will be used to create a new asset.
-
-        """
-        @QtCore.Slot(QtCore.QModelIndex)
-        @QtCore.Slot(unicode)
-        def _update_description(index, description):
-            """Slot used to update an item description.
-
-            """
-            if self != self.parent().widget(1):
-                return
-            if not index.isValid():
-                return
-
-            source_index = self.model().mapToSource(index)
-            idx = source_index.row()
-            data = self.model().sourceModel().model_data()
-            data[idx][common.DescriptionRole] = description
-            self.update(index)
-
-        if not self.selectionModel().hasSelection():
-            return
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
-        if update and len(index.data(common.ParentPathRole)) >= 3:
-            asset = index.data(common.ParentPathRole)[3]
-        else:
-            asset = None
-
-        from ..properties import asset_properties_widget
-        widget = asset_properties_widget.AssetPropertiesWidget(
-            *index.data(common.ParentPathRole)[0:3],
-            asset=asset
-        )
-        widget.assetCreated.connect(
-            functools.partial(self.reveal_list_item, 1))
-        widget.descriptionUpdated.connect(
-            functools.partial(_update_description, index))
-        widget.open()
-
-    @QtCore.Slot()
-    def show_file_property_widget(self, server, job, root, asset, extension=None):
-        """Slot used to open the file property editor.
-
-        The widget is used to create new files using name templates.
-        If the optional `extension` is passed, the editor will save files of
-        the specified extension.
-
-        """
-        try:
-            from ..properties import file_properties_widget
-            editor = file_properties_widget.FilePropertiesWidget(
-                server,
-                job,
-                root,
-                asset=asset,
-                extension=extension
-            )
-            editor.open()
-            return editor
-        except:
-            log.error(u'Error occured opening the File Property editor.')
-            common_ui.ErrorBox(
-                u'Error occured opening the editor.', u'').open()
-            return None
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(int)
+    @QtCore.Slot(object)
+    def update_model_value(self, source, role, v):
+        model = self.model().sourceModel()
+        data = model.model_data()
+        for idx in xrange(model.rowCount()):
+            if source != data[idx][QtCore.Qt.StatusTipRole]:
+                continue
+            data[idx][role] = v
+            self.update_row(idx)
+            break
 
 
 class BaseInlineIconWidget(BaseListWidget):
@@ -2415,11 +2247,9 @@ class BaseInlineIconWidget(BaseListWidget):
             return
 
         if self.multi_toggle_items:
-            for n in self.multi_toggle_items:
-                index = self.model().index(n, 0)
             self.reset_multitoggle()
-            self.model().invalidateFilter()
             super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+            self.model().invalidateFilter()
             return
 
         # Responding the click-events based on the position:
@@ -2430,26 +2260,16 @@ class BaseInlineIconWidget(BaseListWidget):
         self.reset_multitoggle()
 
         if rectangles[delegate.FavouriteRect].contains(cursor_position):
-            self.toggle_item_flag(
-                index,
-                common.MarkedAsFavourite
-            )
-            self.update(index)
-            self.model().invalidateFilter()
+            actions.toggle_favourite()
 
         if rectangles[delegate.ArchiveRect].contains(cursor_position):
-            self.toggle_item_flag(
-                index,
-                common.MarkedAsArchived
-            )
-            self.update(index)
-            self.model().invalidateFilter()
+            actions.toggle_archived()
 
         if rectangles[delegate.RevealRect].contains(cursor_position):
-            common.reveal(index.data(QtCore.Qt.StatusTipRole))
+            actions.reveal(index)
 
         if rectangles[delegate.TodoRect].contains(cursor_position):
-            self.show_todos()
+            actions.show_todos()
 
         super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
@@ -2461,6 +2281,8 @@ class BaseInlineIconWidget(BaseListWidget):
         """
         if not isinstance(event, QtGui.QMouseEvent):
             return
+        if self.verticalScrollBar().isSliderDown():
+            return
 
         cursor_position = self.mapFromGlobal(common.cursor.pos())
         app = QtWidgets.QApplication.instance()
@@ -2469,159 +2291,69 @@ class BaseInlineIconWidget(BaseListWidget):
             app.restoreOverrideCursor()
             return
 
-        rectangles = delegate.get_rectangles(
-            self.visualRect(index), self.inline_icons_count())
-        for k in (
-            delegate.PropertiesRect,
-            delegate.AddAssetRect,
-            delegate.DataRect,
-            delegate.TodoRect,
-            delegate.RevealRect,
-            delegate.ArchiveRect,
-            delegate.FavouriteRect
-        ):
-            if rectangles[k].contains(cursor_position):
-                self.update(index)
-
-        rect = self.itemDelegate().get_description_rect(rectangles, index)
-        if rect.contains(cursor_position):
-            self.update(index)
-            if app.overrideCursor():
-                app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-            else:
-                app.restoreOverrideCursor()
-                app.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
-        else:
-            app.restoreOverrideCursor()
-
         # Start multitoggle
         if self.multi_toggle_pos is None:
+            rectangles = delegate.get_rectangles(
+                self.visualRect(index), self.inline_icons_count())
+            for k in (
+                delegate.PropertiesRect,
+                delegate.AddAssetRect,
+                delegate.DataRect,
+                delegate.TodoRect,
+                delegate.RevealRect,
+                delegate.ArchiveRect,
+                delegate.FavouriteRect
+            ):
+                if rectangles[k].contains(cursor_position):
+                    self.update(index)
+
+            rect = self.itemDelegate().get_description_rect(rectangles, index)
+            if rect.contains(cursor_position):
+                self.update(index)
+                if app.overrideCursor():
+                    app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+                else:
+                    app.restoreOverrideCursor()
+                    app.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+            else:
+                app.restoreOverrideCursor()
             super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
 
-        try:
-            initial_index = self.indexAt(self.multi_toggle_pos)
-            idx = index.row()
+        initial_index = self.indexAt(self.multi_toggle_pos)
+        idx = index.row()
 
-            # Exclude the current item
-            if index == self.multi_toggle_item:
-                return
+        # Exclude the current item
+        if index == self.multi_toggle_item:
+            return
 
-            self.multi_toggle_item = index
+        self.multi_toggle_item = index
 
-            favourite = index.flags() & common.MarkedAsFavourite
-            archived = index.flags() & common.MarkedAsArchived
+        favourite = index.flags() & common.MarkedAsFavourite
+        archived = index.flags() & common.MarkedAsArchived
 
-            if idx not in self.multi_toggle_items:
-                if self.multi_toggle_idx == delegate.FavouriteRect:
-                    self.multi_toggle_items[idx] = favourite
-                    self.toggle_item_flag(
-                        index,
-                        common.MarkedAsFavourite,
-                        state=self.multi_toggle_state
-                    )
-
-                if self.multi_toggle_idx == delegate.ArchiveRect:
-                    self.multi_toggle_items[idx] = archived
-                    self.toggle_item_flag(
-                        index,
-                        common.MarkedAsArchived,
-                        state=self.multi_toggle_state
-                    )
-                return
-
-            if index == initial_index:
-                return
-
+        if idx not in self.multi_toggle_items:
             if self.multi_toggle_idx == delegate.FavouriteRect:
+                self.multi_toggle_items[idx] = favourite
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsFavourite,
-                    state=self.multi_toggle_items.pop(idx)
+                    state=self.multi_toggle_state,
+                    commit_now=False,
                 )
-            elif self.multi_toggle_idx == delegate.FavouriteRect:
+
+            if self.multi_toggle_idx == delegate.ArchiveRect:
+                self.multi_toggle_items[idx] = archived
                 self.toggle_item_flag(
                     index,
                     common.MarkedAsArchived,
-                    state=self.multi_toggle_items.pop(idx)
+                    state=self.multi_toggle_state,
+                    commit_now=False,
                 )
-        except:
-            log.error(u'Multitoggle failed')
-        finally:
-            self.update(index)
-
-    @common.debug
-    @common.error
-    @QtCore.Slot()
-    def show_todos(self):
-        if not self.selectionModel().hasSelection():
-            return
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
             return
 
-        from .. import notes
-
-        # Let's check if any other editors are open and close them if so
-        editors = [f for f in self.children() if isinstance(
-            f, notes.TodoEditorWidget)]
-        if editors:
-            for editor in editors:
-                editor.done(QtWidgets.QDialog.Rejected)
-
-        source_index = self.model().mapToSource(index)
-
-        widget = notes.TodoEditorWidget(source_index, parent=self)
-        self.resized.connect(widget.setGeometry)
-        widget.finished.connect(widget.deleteLater)
-        widget.open()
-
-    @common.debug
-    @common.error
-    @QtCore.Slot()
-    def show_preferences(self):
-        from ..properties import preference_properties_widget
-        widget = preference_properties_widget.PreferencesWidget()
-        widget.show()
-
-    @common.debug
-    @common.error
-    @QtCore.Slot()
-    def show_slack(self):
-        """Opens the Slack widget used to send messages using SlackAPI.
-
-        """
-        server = settings.ACTIVE[settings.ServerKey]
-        job = settings.ACTIVE[settings.JobKey]
-        root = settings.ACTIVE[settings.RootKey]
-
-        args = (server, job, root)
-        if not all(args):
+        if index == initial_index:
             return
-
-        try:
-            from .. import slack
-        except ImportError as e:
-            raise
-
-        with bookmark_db.transactions(*args) as db:
-            token = db.value(
-                u'/'.join(args),
-                u'slacktoken',
-                table=bookmark_db.BookmarkTable
-            )
-
-        if not token:
-            return
-
-        # Let's check what token the current slack widget was initiated with
-        if slack.instance is not None and slack.instance.token == token:
-            slack.instance.open()
-            slack.instance.raise_()
-            return
-
-        slack.instance = slack.SlackWidget(token)
-        slack.instance.open()
 
     @QtCore.Slot()
     def start_queue_timers(self, *args, **kwargs):
@@ -2966,50 +2698,3 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
     def showEvent(self, event):
         super(ThreadedBaseWidget, self).showEvent(event)
         self.start_queue_timers()
-
-
-class StackedWidget(QtWidgets.QStackedWidget):
-    """Stacked widget used to hold and toggle the list widgets containing the
-    bookmarks, assets, files and favourites."""
-
-    def __init__(self, parent=None):
-        super(StackedWidget, self).__init__(parent=parent)
-        self.setObjectName(u'BrowserStackedWidget')
-
-    def setCurrentIndex(self, idx):
-        """Sets the current index of the ``StackedWidget``.
-
-        Args:
-            idx (int): The index of the widget to set.
-
-        """
-        # Converting idx to int
-        idx = 0 if idx is None or False else idx
-        idx = idx if idx >= 0 else 0
-
-        # No active bookmark
-        def active_index(x):
-            return self.widget(x).model().sourceModel().active_index()
-        if not active_index(0).isValid() and idx in (1, 2):
-            idx = 0
-
-        # No active asset
-        if active_index(0).isValid() and not active_index(1).isValid() and idx == 2:
-            idx = 1
-
-        if idx <= 3:
-            settings.local_settings.setValue(
-                settings.UIStateSection,
-                settings.CurrentList,
-                idx
-            )
-
-        self._setCurrentIndex(idx)
-
-    def _setCurrentIndex(self, idx):
-        super(StackedWidget, self).setCurrentIndex(idx)
-        self.currentWidget().setFocus()
-
-    def showEvent(self, event):
-        if self.currentWidget():
-            self.currentWidget().setFocus()

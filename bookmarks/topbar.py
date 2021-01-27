@@ -12,47 +12,34 @@ from . import contextmenu
 from . import images
 from . import settings
 from . import bookmark_db
+from . import actions
+from . import shortcuts
 
 from .lists import tasks
+from .lists import base
 from .lists import delegate
 
 
 class QuickSwitchMenu(contextmenu.BaseContextMenu):
-    """Quick asset change menu."""
+    def stacked_widget(self):
+        return self.parent().parent().parent().stackedwidget
 
-    def __init__(self, parent=None):
-        super(QuickSwitchMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
+    @property
+    def index(self):
+        return self.stacked_widget().currentWidget().model().sourceModel().active_index()
 
-    def add_switch_bookmark_menu(self):
-        self.add_switch_menu(self.stacked_widget().widget(0), u'Change bookmark')
+    @index.setter
+    def index(self, v):
+        pass
 
-    def add_switch_asset_menu(self):
-        self.add_switch_menu(self.stacked_widget().widget(1), u'Change asset')
-        self.add_show_addasset_menu()
-
-    @contextmenu.contextmenu
-    def add_show_addasset_menu(self, menu_set):
-        add_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.MARGIN())
-
-        widget = self.stacked_widget().widget(0)
-        menu_set[u'add_asset'] = {
-            u'icon': add_pixmap,
-            u'text': u'Add Asset...',
-            u'action': lambda: widget.show_asset_property_widget(update=False)
-        }
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_switch_menu(self, menu_set, widget, label):
+    def add_switch_menu(self, widget, label):
         """Adds the items needed to quickly change bookmarks or assets."""
         off_pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.MARGIN())
         on_pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.MARGIN())
 
-        menu_set[label] = {
+        self.menu[label] = {
             u'disabled': True
         }
 
@@ -77,22 +64,50 @@ class QuickSwitchMenu(contextmenu.BaseContextMenu):
             pixmap = pixmap if pixmap else off_pixmap
             pixmap = on_pixmap if active else pixmap
             icon = QtGui.QIcon(pixmap)
-            menu_set[name.upper()] = {
+            self.menu[name.upper()] = {
                 u'icon': icon,
                 u'action': functools.partial(widget.activate, index)
             }
-        return menu_set
+        return
 
-    def stacked_widget(self):
-        return self.parent().parent().parent().stackedwidget
 
-    @property
-    def index(self):
-        return self.stacked_widget().currentWidget().model().sourceModel().active_index()
+class SwitchBookmarkMenu(QuickSwitchMenu):
+    def setup(self):
+        self.add_menu()
+        self.separator()
+        self.add_switch_menu(
+            self.stacked_widget().widget(base.BookmarkTab),
+            u'Change Bookmark'
+        )
 
-    @index.setter
-    def index(self, v):
-        pass
+    def add_menu(self):
+        self.menu[u'add'] = {
+            u'icon': self.get_icon(u'add', color=common.ADD),
+            u'text': u'Add Bookmark...',
+            u'action': actions.add_bookmark,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
+        }
+
+
+class SwitchAssetMenu(QuickSwitchMenu):
+    def setup(self):
+        self.add_menu()
+        self.separator()
+        self.add_switch_menu(
+            self.stacked_widget().widget(base.AssetTab),
+            u'Change Asset'
+        )
+
+    def add_menu(self):
+        self.menu[u'add'] = {
+            u'icon': self.get_icon(u'add', color=common.ADD),
+            u'text': u'Add Asset...',
+            u'action': actions.add_asset,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
+        }
+
 
 class BaseControlButton(common_ui.ClickableIconButton):
     """Base class with a few default values."""
@@ -361,11 +376,12 @@ class SlackButton(BaseControlButton):
             color=(None, None),
             parent=parent
         )
+        actions.signals.bookmarkValueUpdated.connect(self.check_token)
 
     @QtCore.Slot()
     def action(self):
         """Opens the set slack workspace."""
-        bookmarks_widget = self.stacked_widget().widget(0)
+        bookmarks_widget = self.stacked_widget().widget(base.BookmarkTab)
         index = bookmarks_widget.model().sourceModel().active_index()
         if not index.isValid():
             return
@@ -396,7 +412,6 @@ class SlackButton(BaseControlButton):
 
         self.setHidden(False)
         return True
-
 
 
 class GenerateThumbnailsButton(BaseControlButton):
@@ -607,7 +622,7 @@ class BookmarksTabButton(PaintedTextButton):
     def __init__(self, parent=None):
         super(BookmarksTabButton, self).__init__(
             u'Bookmarks',
-            0,
+            base.BookmarkTab,
             u'Click to see the list of added bookmarks',
             parent=parent
         )
@@ -619,8 +634,7 @@ class BookmarksTabButton(PaintedTextButton):
         return self.default_label
 
     def contextMenuEvent(self, event):
-        menu = QuickSwitchMenu(parent=self)
-        menu.add_switch_bookmark_menu()
+        menu = SwitchBookmarkMenu(QtCore.QModelIndex(), parent=self)
         pos = self.mapToGlobal(event.pos())
         menu.move(pos)
         menu.exec_()
@@ -633,7 +647,7 @@ class AssetsTabButton(PaintedTextButton):
     def __init__(self, parent=None):
         super(AssetsTabButton, self).__init__(
             u'Assets',
-            1,
+            base.AssetTab,
             u'Click to see the list of available assets',
             parent=parent
         )
@@ -645,8 +659,7 @@ class AssetsTabButton(PaintedTextButton):
         return settings.ACTIVE[settings.AssetKey]
 
     def contextMenuEvent(self, event):
-        menu = QuickSwitchMenu(parent=self)
-        menu.add_switch_asset_menu()
+        menu = SwitchAssetMenu(QtCore.QModelIndex(), parent=self)
         pos = self.mapToGlobal(event.pos())
         menu.move(pos)
         menu.exec_()
@@ -655,7 +668,7 @@ class AssetsTabButton(PaintedTextButton):
     def adjust_size(self):
         if not self.stacked_widget():
             return
-        index = self.stacked_widget().widget(0).model().sourceModel().active_index()
+        index = self.stacked_widget().widget(base.BookmarkTab).model().sourceModel().active_index()
         self.setHidden(not index.isValid())
         super(AssetsTabButton, self).adjust_size()
 
@@ -668,7 +681,7 @@ class FilesTabButton(PaintedTextButton):
     def __init__(self, parent=None):
         super(FilesTabButton, self).__init__(
             u'Tasks',
-            2,
+            base.FileTab,
             u'Click to see or change the current task folder',
             parent=parent)
 
@@ -744,7 +757,6 @@ class FilesTabButton(PaintedTextButton):
         self.view().move(0, 0)
         self.view().show()
         self.view().viewport().setFocus(QtCore.Qt.PopupFocusReason)
-        print '!'
 
         key = settings.ACTIVE[settings.TaskKey]
         if not key:
@@ -767,18 +779,10 @@ class FavouritesTabButton(PaintedTextButton):
     def __init__(self, parent=None):
         super(FavouritesTabButton, self).__init__(
             u'My Files',
-            3,
+            base.FavouriteTab,
             u'Click to see your saved favourites',
             parent=parent
         )
-
-    def contextMenuEvent(self, event):
-        menu = QuickSwitchMenu(parent=self)
-        menu.add_switch_bookmark_menu()
-        menu.add_switch_asset_menu()
-        pos = self.mapToGlobal(event.pos())
-        menu.move(pos)
-        menu.exec_()
 
 
 class SlackDropOverlayWidget(QtWidgets.QWidget):
@@ -856,7 +860,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
 
         message = u'\n'.join(message)
         parent = self.parent().parent().stackedwidget
-        index = parent.widget(0).model().sourceModel().active_index()
+        index = parent.widget(base.BookmarkTab).model().sourceModel().active_index()
         if not index.isValid():
             return
 
@@ -873,11 +877,12 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
 
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the stacked widget containing the main app control buttons.
-    """
 
+    """
     textChanged = QtCore.Signal(unicode)
     listChanged = QtCore.Signal(int)
     taskFolderChanged = QtCore.Signal(unicode)
+
     slackDragStarted = QtCore.Signal(QtCore.QModelIndex)
     slackDropFinished = QtCore.Signal(QtCore.QModelIndex)
 

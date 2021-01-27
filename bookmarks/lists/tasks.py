@@ -28,12 +28,9 @@ from . import delegate
 
 
 class TaskFolderContextMenu(contextmenu.BaseContextMenu):
-    """The context menu associated with the TaskFolderWidget."""
-
-    def __init__(self, index, parent=None):
-        super(TaskFolderContextMenu, self).__init__(index, parent=parent)
-        self.add_reveal_item_menu()
-        self.add_copy_menu()
+    def setup(self):
+        self.reveal_item_menu()
+        self.copy_menu()
 
 
 class TaskFolderWidgetDelegate(delegate.BaseDelegate):

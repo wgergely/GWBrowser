@@ -15,6 +15,7 @@ from .. import contextmenu
 from .. import templates
 from .. import log
 from .. import shortcuts
+from .. import actions
 
 from ..properties import base
 
@@ -160,52 +161,34 @@ class JobContextMenu(contextmenu.BaseContextMenu):
     """Custom context menu used to control the list of saved servers.
 
     """
+    def setup(self):
+        self.add_menu()
+        self.separator()
+        if isinstance(self.index, QtWidgets.QListWidgetItem) and self.index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.reveal_menu()
+        self.separator()
+        self.refresh_menu()
 
-    def __init__(self, index, parent=None):
-        super(JobContextMenu, self).__init__(index, parent=parent)
-        self.add_add_menu()
-        self.add_separator()
-        if isinstance(index, QtWidgets.QListWidgetItem) and index.flags() & QtCore.Qt.ItemIsEnabled:
-            self.add_reveal_menu()
-        self.add_separator()
-        self.add_refresh_menu()
-
-    @contextmenu.contextmenu
-    def add_add_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.MARGIN())
-
-        menu_set[u'Add Job...'] = {
+    def add_menu(self):
+        self.menu[u'Add Job...'] = {
             u'action': self.parent().add,
-            u'icon': pixmap
-        }
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_reveal_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'reveal_folder', common.SECONDARY_TEXT, common.MARGIN())
-
-        @QtCore.Slot()
-        def reveal():
-            common.reveal(self.index.data(QtCore.Qt.UserRole) + '/.')
-
-        menu_set[u'Reveal...'] = {
-            u'action': reveal,
-            u'icon': pixmap
-        }
-        return menu_set
-
-    @contextmenu.contextmenu
-    def add_refresh_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.SECONDARY_TEXT, common.MARGIN())
-        menu_set[u'Refresh'] = {
-            u'action': (self.parent().init_data, self.parent().restore_current),
-            u'icon': pixmap
+            u'icon': self.get_icon(u'add', color=common.ADD)
         }
 
-        return menu_set
+    def reveal_menu(self):
+        self.menu[u'Reveal...'] = {
+            u'action': lambda: actions.reveal(self.index.data(QtCore.Qt.UserRole) + u'/.'),
+            u'icon': self.get_icon(u'reveal_folder')
+        }
+
+    def add_refresh_menu(self):
+        self.menu[u'Refresh'] = {
+            u'action': (
+                self.parent().init_data,
+                self.parent().restore_current
+            ),
+            u'icon': self.get_icon(u'refresh')
+        }
 
 
 class JobListWidget(list_widget.ListWidget):
@@ -281,7 +264,7 @@ class JobListWidget(list_widget.ListWidget):
             self.jobChanged.emit(None, None)
             return
         self.jobChanged.emit(
-            self._server,
+            self.server,
             index.data(QtCore.Qt.DisplayRole)
         )
 
@@ -290,10 +273,10 @@ class JobListWidget(list_widget.ListWidget):
         """Open the widget used to add a new job to the server.
 
         """
-        if not self._server:
+        if not self.server:
             return
 
-        widget = AddJobWidget(self._server, parent=self)
+        widget = AddJobWidget(self.server, parent=self.window())
         widget.jobAdded.connect(self.init_data)
         widget.jobAdded.connect(lambda x: self.restore_current(name=x))
         widget.jobAdded.connect(widget.close)
@@ -354,10 +337,10 @@ class JobListWidget(list_widget.ListWidget):
             self.jobChanged.emit(None, None)
             return
 
-        if server == self._server:
+        if server == self.server:
             return
 
-        self._server = server
+        self.server = server
         self.init_data()
         self.restore_current()
 
@@ -368,11 +351,11 @@ class JobListWidget(list_widget.ListWidget):
         self.blockSignals(True)
         self.clear()
 
-        if not self._server or not QtCore.QFileInfo(self._server).exists():
+        if not self.server or not QtCore.QFileInfo(self.server).exists():
             self.blockSignals(False)
             return
 
-        for entry in _scandir.scandir(self._server):
+        for entry in _scandir.scandir(self.server):
             if not entry.is_dir():
                 continue
             file_info = QtCore.QFileInfo(entry.path)
