@@ -16,6 +16,7 @@ from . import settings
 from . import ffmpeg
 from . import rv
 from . import shortcuts
+from . import actions
 
 
 def key():
@@ -35,81 +36,49 @@ def show_event(widget, event):
         widget.setFixedWidth(max(w))
 
 
-
-def contextmenu(func):
-    """Decorator to create a menu set."""
-
-    @functools.wraps(func)
-    def func_wrapper(self, *args, **kwargs):
-        """Wrapper for function."""
-        menu_set = collections.OrderedDict()
-        menu_set = func(self, menu_set, *args, **kwargs)
-
-        if not isinstance(menu_set, collections.OrderedDict):
-            raise ValueError(
-                u'Invalid return type from context menu function, expected an OrderedDict, got {}'.format(type(menu_set)))
-
-        self.create_menu(menu_set)
-        return menu_set
-
-    return func_wrapper
-
-
 class BaseContextMenu(QtWidgets.QMenu):
-    """Custom context menu associated with the BaseListWidget.
-    The menu and the actions are always associated with a ``QModelIndex``
-    from the list widget.
+    """Base class containing the context menu definitions.
 
-    The menu structure is defined by key/value pares stored in an OrderedDict.
+    The menu structure is defined in `self.menu`, a `collections.OrderedDict` instance.
+    The data is expanded into a UI layout by `self.create_menu`. The menu is principally designed
+    to work with index-based views and as a result the default constructor takes
+    a QModelIndex, stored in `self.index`.
 
     Properties:
         index (QModelIndex): The index the context menu is associated with.
 
     Methods:
-        create_menu():  Populates the menu with actions based on the ``menu_set`` given.
+        create_menu():  Populates the menu with actions based on the ``self.menu`` given.
 
     """
 
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
+        self.menu = collections.OrderedDict()
+
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setTearOffEnabled(False)
+        self.setSeparatorsCollapsible(True)
 
-    @contextmenu
-    def add_separator(self, menu_set):
-        menu_set['separator' + key()] = None
-        return menu_set
+        self.setup()
+        self.create_menu(self.menu)
 
-    def _add_separator(self, menu_set):
-        menu_set['separator' + key()] = None
+    @common.debug
+    @common.error
+    def setup(self):
+        raise NotImplementedError('Abstract method must be overriden in subclass.')
 
-    def create_menu(self, menu_set, parent=None):
-        """This action populates the menu using the action-set dictionaries,
-        and it automatically connects the action with a corresponding method based
-        on the key/method-name.
-
-        Args:
-            menu_set (OrderedDict):    The set of menu items. See keys below.
-            parent (QMenu):
-
-        Implemented keys:
-            action_set[k]['action'] (bool): The action to execute when the item is clicked.
-            action_set[k]['text'] (str): The action's text
-            action_set[k]['data'] (object): User data stored in the action
-            action_set[k]['disabled'] (bool): Sets wheter the item is disabled.
-            action_set[k][u'tool_tip'] (str):The description of the action.
-            action_set[k][u'status_tip'] (str): The description of the action.
-            action_set[k]['icon'] (QPixmap): The action's icon.
-            action_set[k]['shortcut'] (QKeySequence): The action's icon.
-            action_set[k]['checkable'] (bool): Sets wheter the item is checkable.
-            action_set[k]['checked'] (bool): The state of the checkbox.
-            action_set[k]['visible'] (bool): The visibility of the action.
+    @common.debug
+    @common.error
+    def create_menu(self, menu, parent=None):
+        """Expands the given menu set into a UI layout.
 
         """
         if not parent:
             parent = self
 
-        for k, v in menu_set.iteritems():
+        for k, v in menu.iteritems():
             if u':' in k:
                 continue
 
@@ -118,15 +87,17 @@ class BaseContextMenu(QtWidgets.QMenu):
                 submenu.create_menu = self.create_menu
                 submenu.showEvent = functools.partial(show_event, submenu)
 
-                if k + u':icon' in menu_set:
-                    submenu.setIcon(QtGui.QIcon(menu_set[k + u':icon']))
-                if k + u':text' in menu_set:
-                    submenu.setTitle(menu_set[k + u':text'])
+                if k + u':icon' in menu:
+                    submenu.setIcon(QtGui.QIcon(menu[k + u':icon']))
+                if k + u':text' in menu:
+                    submenu.setTitle(menu[k + u':text'])
 
-                if k + u':action' in menu_set:
-                    name = menu_set[k + ':text'] if k + ':text' in menu_set else k
-                    icon = menu_set[k + ':icon'] if k + ':icon' in menu_set else QtGui.QPixmap()
-                    shortcut = menu_set[k + ':shortcut'] if k + ':shortcut' in menu_set else None
+                if k + u':action' in menu:
+                    name = menu[k + ':text'] if k + ':text' in menu else k
+                    icon = menu[k + ':icon'] if k + \
+                        ':icon' in menu else QtGui.QIcon()
+                    shortcut = menu[k + ':shortcut'] if k + \
+                        ':shortcut' in menu else None
 
                     action = submenu.addAction(name)
                     action.setIconVisibleInMenu(True)
@@ -135,10 +106,11 @@ class BaseContextMenu(QtWidgets.QMenu):
                     if shortcut:
                         action.setShortcutVisibleInContextMenu(True)
                         action.setShortcut(shortcut)
-                        action.setShortcutContext(QtCore.Qt.WidgetWithChildrenShortcut)
+                        action.setShortcutContext(
+                            QtCore.Qt.WidgetWithChildrenShortcut)
 
                     if isinstance(v, collections.Iterable):
-                        for func in menu_set[k + u':action']:
+                        for func in menu[k + u':action']:
                             action.triggered.connect(func)
                     else:
                         action.triggered.connect(v)
@@ -183,7 +155,8 @@ class BaseContextMenu(QtWidgets.QMenu):
                 if 'shortcut' in v and v['shortcut']:
                     action.setShortcutVisibleInContextMenu(True)
                     action.setShortcut(v['shortcut'])
-                    action.setShortcutContext(QtCore.Qt.WidgetWithChildrenShortcut)
+                    action.setShortcutContext(
+                        QtCore.Qt.WidgetWithChildrenShortcut)
                 if 'visible' in v:
                     action.setVisible(v['visible'])
                 else:
@@ -194,7 +167,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         pixmap = images.ImageCache.get_rsc_pixmap(name, color, size, opacity=opacity)
         icon.addPixmap(pixmap, mode=QtGui.QIcon.Normal)
-        pixmap = images.ImageCache.get_rsc_pixmap(name, common.TEXT_SELECTED, size, opacity=opacity)
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            name, common.TEXT_SELECTED, size, opacity=opacity)
         icon.addPixmap(pixmap, mode=QtGui.QIcon.Active)
         icon.addPixmap(pixmap, mode=QtGui.QIcon.Selected)
 
@@ -207,69 +181,82 @@ class BaseContextMenu(QtWidgets.QMenu):
         """Elides the action text to fit the size of the widget upon showing."""
         show_event(self, event)
 
-    @contextmenu
-    def add_window_menu(self, menu_set):
-        """Actions associated with the visibility of the widget."""
+    def separator(self, menu=None):
+        if menu is None:
+            menu = self.menu
+        menu['separator' + key()] = None
+
+    def window_menu(self):
         if not common.STANDALONE:
-            return menu_set
+            return
 
         w = self.parent().window()
         on_top_active = w.windowFlags() & QtCore.Qt.WindowStaysOnTopHint
         frameless_active = w.windowFlags() & QtCore.Qt.FramelessWindowHint
 
         on_icon = self.get_icon(u'check', color=common.ADD)
+        logo_icon = self.get_icon(u'logo', color=None)
 
         k = u'Window Options'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[k + u':icon'] = self.get_icon(u'logo', color=None)
+        self.menu[k] = collections.OrderedDict()
+        self.menu[k + u':icon'] = logo_icon
 
-        menu_set[k][key()] = {
+        try:
+            self.menu[k][key()] = {
+                'text': u'Open a New {} Instance...'.format(common.PRODUCT),
+                'icon': logo_icon,
+                'action': actions.exec_instance,
+                'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.OpenNewInstance).key(),
+                'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.OpenNewInstance),
+            }
+
+            self.separator(self.menu[k])
+        except:
+            pass
+
+        self.menu[k][key()] = {
             'text': u'Keep Window Always on Top',
             'icon': on_icon if on_top_active else None,
-            'action': functools.partial(common.toggle_on_top, w, on_top_active)
+            'action': actions.toggle_stays_on_top
         }
-        menu_set[k][key()] = {
+        self.menu[k][key()] = {
             'text': u'Frameless Window',
             'icon': on_icon if frameless_active else None,
-            'action': functools.partial(common.toggle_frameless, w, frameless_active)
+            'action': actions.toggle_frameless
         }
 
-        self._add_separator(menu_set[k])
+        self.separator()
 
         w = self.parent().window()
         try:
             maximised = w.isMaximized()
             minimised = w.isMinimized()
             full_screen = w.isFullScreen()
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Maximise',
                 'icon': on_icon if maximised else None,
-                'action': w.toggle_maximized,
+                'action': actions.toggle_maximized,
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.Maximize).key(),
                 'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.Maximize),
             }
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Minimise',
                 'icon': on_icon if minimised else None,
-                'action': w.toggle_minimized,
+                'action': actions.toggle_minimized,
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.Minimize).key(),
                 'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.Minimize),
             }
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Full Screen',
                 'icon': on_icon if full_screen else None,
-                'action': w.toggle_fullscreen,
+                'action': actions.toggle_fullscreen,
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.FullScreen).key(),
                 'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.FullScreen),
             }
         except:
             pass
 
-        return menu_set
-
-    @contextmenu
-    def add_sort_menu(self, menu_set):
-        """Creates the menu needed to set the sort-order of the list."""
+    def sort_menu(self):
         item_on_icon = self.get_icon(u'check', color=common.ADD)
 
         m = self.parent().model().sourceModel()
@@ -280,59 +267,71 @@ class BaseContextMenu(QtWidgets.QMenu):
         sort_modified = sortrole == common.SortByLastModifiedRole
         sort_size = sortrole == common.SortBySizeRole
 
-        k =u'Sort List'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[k + u':icon'] = self.get_icon(u'sort')
+        k = u'Sort List'
+        self.menu[k] = collections.OrderedDict()
+        self.menu[k + u':icon'] = self.get_icon(u'sort')
 
-        menu_set[k][key()] = {
+        self.menu[k][key()] = {
             'text': u'Ascending' if not sortorder else u'Descending',
             'icon': self.get_icon(u'arrow_down') if not sortorder else self.get_icon(u'arrow_up'),
-            'action': lambda: m.sortingChanged.emit(sortrole, not sortorder)
+            'action': functools.partial(
+                actions.change_sorting,
+                sortrole,
+                not sortorder
+            )
         }
 
-        self._add_separator(menu_set[k])
+        self.separator(self.menu[k])
 
-        menu_set[k][key()] = {
+        self.menu[k][key()] = {
             'text': u'Name',
             'icon': item_on_icon if sort_by_name else None,
-            'action': lambda: m.sortingChanged.emit(common.SortByNameRole, sortorder)
+            'action': functools.partial(
+                actions.change_sorting,
+                common.SortByNameRole,
+                sortorder
+            )
         }
-        menu_set[k][key()] = {
+        self.menu[k][key()] = {
             'text': u'Date Modified',
             'icon': item_on_icon if sort_modified else None,
-            'action': lambda: m.sortingChanged.emit(common.SortByLastModifiedRole, sortorder)
+            'action': functools.partial(
+                actions.change_sorting,
+                common.SortByLastModifiedRole,
+                sortorder
+            )
         }
-        menu_set[k][key()] = {
+        self.menu[k][key()] = {
             'text': u'Size',
             'icon': item_on_icon if sort_size else None,
-            'action': lambda: m.sortingChanged.emit(common.SortBySizeRole, sortorder)
+            'action': functools.partial(
+                actions.change_sorting,
+                common.SortBySizeRole,
+                sortorder
+            )
         }
-        return menu_set
 
-    @contextmenu
-    def add_reveal_item_menu(self, menu_set):
-        """Creates a menu containing"""
+    def reveal_item_menu(self):
         if not self.index.isValid():
-            return menu_set
+            return
 
         path = common.get_sequence_startpath(
             self.index.data(QtCore.Qt.StatusTipRole))
 
-        menu_set[key()] = {
+        self.menu[key()] = {
             'text': u'Show Item in File Manager',
             'icon': self.get_icon(u'folder'),
-            'action': functools.partial(common.reveal, path),
+            'action': functools.partial(actions.reveal, path),
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RevealItem).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.RevealItem),
         }
-        return menu_set
+        return
 
-    @contextmenu
-    def add_urls_menu(self, menu_set):
+    def urls_menu(self):
         if not self.index.isValid():
-            return menu_set
+            return
         if not self.index.data(QtCore.Qt.StatusTipRole):
-            return menu_set
+            return
 
         shotgun_icon = self.get_icon('shotgun')
         bookmark_icon = self.get_icon('bookmark')
@@ -365,61 +364,60 @@ class BaseContextMenu(QtWidgets.QMenu):
         )
 
         if not any((shotgun_domain, primary_url, secondary_url)):
-            return menu_set
+            return
 
         k = u'Open URL...'
-        menu_set[k] = collections.OrderedDict()
+        self.menu[k] = collections.OrderedDict()
+        self.menu[k + ':icon'] = bookmark_icon
+
         if shotgun_domain:
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Domain   |   {}'.format(shotgun_domain),
                 'icon': shotgun_icon,
                 'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(shotgun_domain))
             }
             if all((shotgun_id, shotgun_type)):
-                menu_set[k][key()] = {
+                self.menu[k][key()] = {
                     'text': u'{}   |   {}'.format(shotgun_type.title(), shotgun_entity_url),
                     'icon': shotgun_icon,
                     'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(shotgun_entity_url))
                 }
         if primary_url:
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Primary URL   |   {}'.format(primary_url),
                 'icon': bookmark_icon,
                 'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(primary_url))
             }
         if secondary_url:
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Secondary URL   |   {}'.format(secondary_url),
                 'icon': bookmark_icon,
                 'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(secondary_url))
             }
 
-        return menu_set
+        return
 
-    @contextmenu
-    def add_services_menu(self, menu_set):
-        """Creates a menu containing"""
+    def services_menu(self):
         if not self.index.isValid():
-            return menu_set
+            return
         if not self.index.data(QtCore.Qt.StatusTipRole):
-            return menu_set
+            return
 
         k = 'Services'
-        menu_set[k] = collections.OrderedDict()
-        path = common.get_sequence_startpath(self.index.data(QtCore.Qt.StatusTipRole))
+        self.menu[k] = collections.OrderedDict()
+        path = common.get_sequence_startpath(
+            self.index.data(QtCore.Qt.StatusTipRole))
 
         rv_path = settings.local_settings.value(
             settings.SettingsSection, settings.RVKey)
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
+        pixmap = self.get_icon(u'shotgun')
 
         if rv_path:
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Open with RV',
                 'icon': pixmap,
                 'action': functools.partial(rv.push, path)
             }
-
 
         @QtCore.Slot()
         def show_add_shot_task_widget():
@@ -435,7 +433,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 self.index.data(QtCore.Qt.StatusTipRole))
             w.open()
 
-        self._add_separator(menu_set[k])
+        self.separator()
 
         from .shotgun import shotgun
         sg_properties = shotgun.get_shotgun_properties(
@@ -443,205 +441,109 @@ class BaseContextMenu(QtWidgets.QMenu):
             asset=self.index.data(common.ParentPathRole)[3]
         )
         if all(sg_properties.values()):
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Create Version...',
                 'icon': pixmap,
                 'action': show_add_shot_task_widget
             }
 
-            menu_sechant[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Publish File...',
                 'icon': pixmap,
                 'action': show_publish_widget
             }
 
-        self._add_separator(menu_set[k])
+        self.separator()
 
         ffmpeg_path = settings.local_settings.value(
             settings.SettingsSection, settings.FFMpegKey)
         if ffmpeg_path:
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'file', common.SECONDARY_TEXT, common.MARGIN())
+            pixmap = self.get_icon(u'file')
 
             preset1 = functools.partial(
                 ffmpeg.launch_ffmpeg_command, path, ffmpeg.IMAGESEQ_TO_H264
             )
-            menu_set[k][key()] = {
+            self.menu[k][key()] = {
                 'text': u'Convert to H.264',
                 'icon': pixmap,
                 'action': preset1
             }
-        return menu_set
+        return
 
-    @contextmenu
-    def add_copy_menu(self, menu_set):
-        """Menu containing the subfolders of the selected item."""
-
+    def copy_menu(self):
         if not self.index.isValid():
-            return menu_set
+            return
 
-        copy_icon = images.ImageCache.get_rsc_pixmap(
-            u'copy', common.SECONDARY_TEXT, common.MARGIN())
-        copy_icon2 = images.ImageCache.get_rsc_pixmap(
-            u'copy', common.SEPARATOR, common.MARGIN())
-
-        key = u'Copy File Path'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = copy_icon
+        k = u'Copy File Path'
+        self.menu[k] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(k)] = self.get_icon(u'copy')
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
-        menu_set[key][u'windows1'] = {
-            'text': common.copy_path(path, mode=common.WindowsPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.WindowsPath
-            ),
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyItemPath).key(),
-            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyItemPath),
-        }
-        menu_set[key][u'unix'] = {
-            'text': common.copy_path(path, mode=common.UnixPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.UnixPath
-            ),
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyAltPath).key(),
-            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyAltPath),
-        }
-        menu_set[key][u'slack'] = {
-            'text': common.copy_path(path, mode=common.SlackPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.SlackPath
-            )
-        }
-        menu_set[key][u'macos'] = {
-            'text': common.copy_path(path, mode=common.MacOSPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.MacOSPath
-            )
-        }
+        for mode in (common.WindowsPath, common.MacOSPath, common.UnixPath, common.SlackPath):
+            m = u'{}'.format(mode)
+            self.menu[k][m] = {
+                'text': actions.copy_path(path, mode=mode, copy=False),
+                'icon': self.get_icon(u'copy', color=common.SEPARATOR),
+                'action': functools.partial(actions.copy_path, path, mode=mode),
+            }
+            if common.get_platform() == mode:
+                self.menu[k][m]['shortcut'] = shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyItemPath).key()
+                self.menu[k][m]['description'] = shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyItemPath)
+            elif mode == common.UnixPath:
+                self.menu[k][m]['shortcut'] = shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyAltItemPath).key()
+                self.menu[k][m]['description'] = shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyAltItemPath)
 
-        self._add_separator(menu_set[key])
+    def mode_toggles_menu(self):
+        if not self.index.isValid():
+            return
 
-        path = QtCore.QFileInfo(path).dir().path()
-        menu_set[key][u'parent_windows1'] = {
-            'text': common.copy_path(path, mode=common.WindowsPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.WindowsPath)
-        }
-        menu_set[key][u'parent_unix'] = {
-            'text': common.copy_path(path, mode=common.UnixPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.UnixPath
-            )
-        }
-        menu_set[key][u'parent_slack'] = {
-            'text': common.copy_path(path, mode=common.SlackPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.SlackPath
-            )
-        }
-        menu_set[key][u'parent_macos'] = {
-            'text': common.copy_path(path, mode=common.MacOSPath, copy=False),
-            'icon': copy_icon2,
-            'action': functools.partial(
-                common.copy_path,
-                path,
-                mode=common.MacOSPath
-            )
-        }
-        return menu_set
-
-    @contextmenu
-    def add_mode_toggles_menu(self, menu_set):
-        """Ads the menu-items needed to add set favourite or archived status."""
-        on_icon = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.MARGIN())
-        favourite_icon = images.ImageCache.get_rsc_pixmap(
-            u'favourite', common.SEPARATOR, common.MARGIN())
-        archived_icon = images.ImageCache.get_rsc_pixmap(
-            u'archived', common.SEPARATOR, common.MARGIN())
+        on_icon = self.get_icon(u'check', color=common.ADD)
+        favourite_icon = self.get_icon(u'favourite', color=common.SEPARATOR)
+        archived_icon = self.get_icon(u'archived', color=common.SEPARATOR)
 
         favourite = self.index.flags() & common.MarkedAsFavourite
         archived = self.index.flags() & common.MarkedAsArchived
 
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'remove', common.SECONDARY_TEXT, common.MARGIN())
             text = u'Remove Bookmark'
         else:
             text = u'Archived'
 
         k = 'Flags'
-        menu_set[k] = collections.OrderedDict()
+        self.menu[k] = collections.OrderedDict()
 
-        menu_set[k][u'archived'] = {
+        self.menu[k][u'archived'] = {
             'text': text,
             'icon': archived_icon if not archived else on_icon,
             'checkable': False,
-            'action': functools.partial(
-                self.parent().toggle_item_flag,
-                self.index,
-                common.MarkedAsArchived,
-                state=not archived
-            ),
+            'action': actions.toggle_archived,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleItemArchived).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleItemArchived),
         }
-        menu_set[k][u'favourite'] = {
+        self.menu[k][u'favourite'] = {
             'text': u'My File',
             'icon': favourite_icon if not favourite else on_icon,
             'checkable': False,
-            'action': functools.partial(
-                self.parent().toggle_item_flag,
-                self.index,
-                common.MarkedAsFavourite,
-                state=not favourite
-            ),
+            'action': actions.toggle_favourite,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleItemFavourite).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleItemFavourite),
         }
-        return menu_set
+        return
 
-    @contextmenu
-    def add_display_toggles_menu(self, menu_set):
-        """Ads the menu-items needed to add set favourite or archived status."""
+    def display_toggles_menu(self):
         item_on = self.get_icon(u'check', color=common.ADD)
         item_off = None
-        filter_icon = self.get_icon(u'filter')
 
         k = u'List Filters'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(k)] = filter_icon
+        self.menu[k] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(k)] = self.get_icon(u'filter')
 
-        menu_set[k][u'EditSearchFilter'] = {
+        self.menu[k][u'EditSearchFilter'] = {
             'text': u'Edit Search Filter...',
-            'icon': filter_icon,
-            'action': self.parent().parent().parent().topbar.filter_button.clicked,
+            'icon': self.get_icon(u'filter'),
+            'action': actions.toggle_search,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSearch).key(),
         }
-
-        self._add_separator(menu_set[k])
-
 
         proxy = self.parent().model()
         favourite = proxy.filter_flag(common.MarkedAsFavourite)
@@ -651,114 +553,95 @@ class BaseContextMenu(QtWidgets.QMenu):
         s = (favourite, archived, active)
         all_off = all([not f for f in s])
 
-        def toggle(flag, v):
-            proxy.set_filter_flag(flag, v)
-            proxy.filterFlagChanged.emit(flag, v)
-
         if active or all_off:
-            menu_set[k][u'active'] = {
+            self.menu[k][u'active'] = {
                 'text': u'Show Active Item',
                 'icon': item_on if active else item_off,
                 'disabled': favourite,
-                'action': functools.partial(toggle, common.MarkedAsActive, not active),
+                'action': functools.partial(actions.toggle_flag, common.MarkedAsActive, not active),
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleActive).key(),
             }
         if favourite or all_off:
-            menu_set[k][u'favourite'] = {
+            self.menu[k][u'favourite'] = {
                 'text': u'Show Favourites',
                 'icon': item_on if favourite else item_off,
                 'disabled': active,
-                'action': functools.partial(toggle, common.MarkedAsFavourite, not favourite),
+                'action': functools.partial(actions.toggle_flag, common.MarkedAsFavourite, not favourite),
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleFavourite).key(),
             }
         if archived or all_off:
-            menu_set[k][u'archived'] = {
+            self.menu[k][u'archived'] = {
                 'text': u'Show Archived',
                 'icon': item_on if archived else item_off,
                 'disabled': active if active else favourite,
-                'action': functools.partial(toggle, common.MarkedAsArchived, not archived),
+                'action': functools.partial(actions.toggle_flag, common.MarkedAsArchived, not archived),
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleArchived).key(),
             }
 
-        return menu_set
+    def row_size_menu(self):
+        k = u'Change Row Height'
+        self.menu[k] = collections.OrderedDict()
+        self.menu[k + u':icon'] = self.get_icon('expand')
 
-    @contextmenu
-    def add_row_size_menu(self, menu_set):
-        k = u'Adjust Row Height'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[k + u':icon'] = self.get_icon('expand')
-
-        menu_set[k]['increase_row_height'] = {
-            'icon': self.get_icon(u'arrow_up'),
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RowIncrease).key(),
+        self.menu[k][key()] = {
             'text': u'Increase',
-            'action': self.parent().increase_row_size,
+            'icon': self.get_icon(u'arrow_up'),
+            'action': actions.increase_row_size,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RowIncrease).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.RowIncrease),
         }
-        menu_set[k]['decrease_row_size'] = {
-            'icon': self.get_icon(u'arrow_down'),
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RowDecrease).key(),
+        self.menu[k][key()] = {
             'text': u'Decrease',
-            'action': self.parent().decrease_row_size,
+            'icon': self.get_icon(u'arrow_down'),
+            'action': actions.decrease_row_size,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RowDecrease).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.RowDecrease),
         }
-        menu_set[k]['reset_row_height'] = {
-            'icon': self.get_icon(u'minimize'),
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RowReset).key(),
+        self.menu[k][key()] = {
             'text': u'Reset',
-            'action': self.parent().reset_row_size,
+            'icon': self.get_icon(u'minimize'),
+            'action': actions.reset_row_size,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.RowReset).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.RowReset),
         }
-        return menu_set
 
-    @contextmenu
-    def add_refresh_menu(self, menu_set):
-        parent = self.parent()
-        refresh_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.SECONDARY_TEXT, common.MARGIN())
-        preferences_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'settings', common.SECONDARY_TEXT, common.MARGIN())
-        quit_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'close', common.SEPARATOR, common.MARGIN())
-
-        menu_set[u'RefreshMenu'] = {
+    def refresh_menu(self):
+        self.menu[u'RefreshMenu'] = {
             'text': u'Refresh List',
-            'action': parent.model().sourceModel().modelDataResetRequested.emit,
-            'icon': refresh_pixmap,
+            'action': actions.refresh,
+            'icon': self.get_icon(u'refresh'),
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.Refresh).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.Refresh),
         }
 
-        self._add_separator(menu_set)
-
-        menu_set[u'OpenPreferencesMenu'] = {
+    def preferences_menu(self):
+        self.menu[u'OpenPreferencesMenu'] = {
             'text': u'Preferences...',
-            'action': parent.show_preferences,
-            'icon': preferences_pixmap,
+            'action': actions.show_preferences,
+            'icon': self.get_icon(u'settings'),
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.OpenPreferences).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.OpenPreferences),
         }
 
-        if common.STANDALONE:
+    def quit_menu(self):
+        if not common.STANDALONE:
+            return
+        self.menu[u'QuitMenu'] = {
+            'text': u'Quit {}'.format(common.PRODUCT),
+            'action': actions.quit,
+            'icon': self.get_icon(u'close'),
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.Quit).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.Quit)
+        }
 
-            self._add_separator(menu_set)
-
-            menu_set[u'QuitMenu'] = {
-                'text': u'Quit {}'.format(common.PRODUCT),
-                'action': parent.parent().parent().shutdown,
-                'icon': quit_pixmap,
-                'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.Quit).key(),
-                'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.Quit)
-            }
-
-        return menu_set
-
-    @contextmenu
-    def add_set_generate_thumbnails_menu(self, menu_set):
+    def set_generate_thumbnails_menu(self):
         item_on_icon = self.get_icon(u'spinner_btn', color=common.ADD)
         item_off_icon = self.get_icon(u'spinner_btn', color=common.SEPARATOR)
 
         model = self.parent().model().sourceModel()
         enabled = model.generate_thumbnails_enabled()
 
-        menu_set['generate'] = {
+        self.menu['generate'] = {
             'text': u'Make Thumbnails',
             'icon': item_on_icon if enabled else item_off_icon,
             'action': self.parent().parent().parent().topbar.generate_thumbnails_button.clicked,
@@ -766,88 +649,103 @@ class BaseContextMenu(QtWidgets.QMenu):
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleGenerateThumbnails),
         }
 
-        return menu_set
-
-    @contextmenu
-    def add_thumbnail_menu(self, menu_set):
-        """Menu item resposible for general thumbnail operations."""
+    def title(self):
         if not self.index.isValid():
-            return menu_set
+            return
+        self.menu[u'item'] = {
+            'text': self.index.data(common.ParentPathRole)[-1],
+            'disabled': True,
+        }
 
-        capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'capture_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
-        pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
-        pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN())
-        remove_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, common.MARGIN())
-        show_thumbnail = images.ImageCache.get_rsc_pixmap(
-            u'active', common.SECONDARY_TEXT, common.MARGIN())
+    def thumbnail_menu(self):
+        if not self.index.isValid():
+            return
 
-        menu_set[u'header'] = {
+        capture_thumbnail_pixmap = self.get_icon(u'capture_thumbnail')
+        pick_thumbnail_pixmap = self.get_icon(u'pick_thumbnail')
+        pick_thumbnail_pixmap = self.get_icon(u'pick_thumbnail')
+        remove_thumbnail_pixmap = self.get_icon(u'remove', color=common.REMOVE)
+        show_thumbnail = self.get_icon(u'active')
+
+        self.menu[u'header'] = {
             'text': u'Thumbnail',
             'disabled': True,
         }
 
-        self._add_separator(menu_set)
+        self.separator()
 
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
         custom_thumbnail_path = images.get_thumbnail_path(
-            self.index.data(common.ParentPathRole)[0],
-            self.index.data(common.ParentPathRole)[1],
-            self.index.data(common.ParentPathRole)[2],
+            server,
+            job,
+            root,
             self.index.data(QtCore.Qt.StatusTipRole),
         )
-        menu_set[u'Show'] = {
+        thumbnail_path = images.get_thumbnail(
+            server,
+            job,
+            root,
+            self.index.data(QtCore.Qt.StatusTipRole),
+            int(images.THUMBNAIL_IMAGE_SIZE),
+            fallback_thumb=self.parent().itemDelegate().fallback_thumb,
+            get_path=True
+        )
+
+        self.menu[u'Show'] = {
             'icon': show_thumbnail,
             'action': self.parent().key_space
         }
 
-        self._add_separator(menu_set)
+        self.separator()
 
         source_index = self.index.model().mapToSource(self.index)
-        menu_set[u'capture'] = {
+        self.menu[u'capture'] = {
             'text': u'Capture Screen',
             'icon': capture_thumbnail_pixmap,
             'action': functools.partial(images.capture, source_index)}
 
-        menu_set[u'file'] = {
+        self.menu[u'file'] = {
             'text': u'Pick...',
             'icon': pick_thumbnail_pixmap,
             'action': functools.partial(
                 images.pick, source_index)
         }
 
-        menu_set[u'library'] = {
+        self.menu[u'library'] = {
             'text': u'Pick from library...',
             'icon': pick_thumbnail_pixmap,
             'action': functools.partial(
                 images.pick_from_library, source_index)
         }
 
-        self._add_separator(menu_set)
+        self.separator()
 
         if QtCore.QFileInfo(custom_thumbnail_path).exists():
-            menu_set[u'remove'] = {
+            self.menu[u'remove'] = {
                 'text': u'Remove thumbnail',
                 'action': functools.partial(
                     images.remove, source_index),
                 'icon': remove_thumbnail_pixmap
             }
-            menu_set[u'reveal'] = {
+            self.menu[u'reveal'] = {
                 'text': u'Reveal thumbnail...',
                 'action': functools.partial(
-                    common.reveal,
+                    actions.reveal,
                     custom_thumbnail_path,
                 )
             }
-        return menu_set
+        elif QtCore.QFileInfo(thumbnail_path).exists():
+            self.menu[u'reveal'] = {
+                'text': u'Reveal thumbnail...',
+                'action': functools.partial(
+                    actions.reveal,
+                    thumbnail_path,
+                )
+            }
 
-    @contextmenu
-    def add_sg_thumbnail_menu(self, menu_set):
-        """Menu item resposible for general thumbnail operations."""
+    def sg_thumbnail_menu(self):
         if not self.index.isValid():
-            return menu_set
+            return
 
         from .shotgun import shotgun
 
@@ -859,10 +757,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             asset=asset
         )
         if not all(sg_properties.values()):
-            return menu_set
+            return
 
-        shotgun_icon = images.ImageCache.get_rsc_pixmap(
-            u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
+        shotgun_icon = self.get_icon(u'shotgun')
 
         display_thumbnail_path = images.get_thumbnail(
             self.index.data(common.ParentPathRole)[0],
@@ -897,80 +794,64 @@ class BaseContextMenu(QtWidgets.QMenu):
                     raise
 
         k = u'Shotgun'
-        menu_set[k] = collections.OrderedDict()
-        menu_set['{}:icon'.format(k)] = shotgun_icon
+        self.menu[k] = collections.OrderedDict()
+        self.menu['{}:icon'.format(k)] = shotgun_icon
 
         if QtCore.QFileInfo(display_thumbnail_path).exists():
-            menu_set[k]['Upload thumbnail to Shotgun'] = {
+            self.menu[k]['Upload thumbnail to Shotgun'] = {
                 'action': _upload_thumbnail_to_shotgun,
                 'icon': shotgun_icon
             }
-        return menu_set
 
-    @contextmenu
-    def add_bookmark_editor_menu(self, menu_set):
-        pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.MARGIN())
-
-        menu_set[u'BookmarkEditor'] = {
-            'text': u'Bookmark Editor...',
-            'icon': pixmap,
-            'action': (self.parent().selectionModel().clearSelection, self.parent().show_add_widget),
+    def bookmark_editor_menu(self):
+        icon = self.get_icon('add', color=common.ADD)
+        self.menu[key()] = {
+            'text': u'Add Bookmark...',
+            'icon': icon,
+            'action': actions.add_bookmark,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
         }
-        menu_set[u'AddItem'] = {
+    def add_asset_to_bookmark_menu(self):
+        if not self.index.isValid():
+            return
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+        self.menu[key()] = {
             'text': u'Add Asset...',
-            'icon': pixmap,
-            'action': self.parent().show_add_widget,
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
-            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
+            'icon': self.get_icon('add'),
+            'action': functools.partial(actions.add_asset, server=server, job=job, root=root),
         }
 
-        self._add_separator(menu_set)
-
-
-        return menu_set
-
-    @contextmenu
-    def add_collapse_sequence_menu(self, menu_set):
-        """Adds the menu needed to change context"""
-        expand_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'expand', common.SECONDARY_TEXT, common.MARGIN())
-        collapse_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'collapse', common.ADD, common.MARGIN())
+    def collapse_sequence_menu(self):
+        expand_pixmap = self.get_icon(u'expand')
+        collapse_pixmap = self.get_icon(u'collapse', common.ADD)
 
         currenttype = self.parent().model().sourceModel().data_type()
         newtype = common.SequenceItem if currenttype == common.FileItem else common.FileItem
         groupped = currenttype == common.SequenceItem
 
-        menu_set[uuid.uuid1().get_hex()] = {
+        self.menu[uuid.uuid1().get_hex()] = {
             'text': u'Expand Sequences' if groupped else u'Group Sequences',
             'icon': expand_pixmap if groupped else collapse_pixmap,
             'checkable': False,
             'action': functools.partial(
                 self.parent().model().sourceModel().dataTypeChanged.emit, newtype)
         }
-        return menu_set
 
-    @contextmenu
-    def add_task_toggles_menu(self, menu_set):
-        """Adds the menu needed to change context"""
-        taskfolder_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.MARGIN())
-        item_on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.SECONDARY_TEXT, common.MARGIN())
-        item_off_pixmap = QtGui.QPixmap()
+    def task_toggles_menu(self):
+        taskfolder_pixmap = self.get_icon(u'folder')
+        item_on_pixmap = self.get_icon(u'check')
+        item_off_pixmap = QtGui.QIcon()
 
         k = u'Select Task Folder'
-        menu_set[k] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(k)] = taskfolder_pixmap
+        self.menu[k] = collections.OrderedDict()
+        self.menu[u'{}:icon'.format(k)] = taskfolder_pixmap
 
         model = self.parent().model().sourceModel()
 
         settings.local_settings.load_and_verify_stored_paths()
         if not settings.ACTIVE[settings.AssetKey]:
-            return menu_set
+            return
         parent_item = (
             settings.ACTIVE[settings.ServerKey],
             settings.ACTIVE[settings.JobKey],
@@ -979,9 +860,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         )
 
         if not parent_item:
-            return menu_set
+            return
         if not all(parent_item):
-            return menu_set
+            return
 
         dir_ = QtCore.QDir(u'/'.join(parent_item))
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
@@ -991,162 +872,180 @@ class BaseContextMenu(QtWidgets.QMenu):
                 checked = task == entry
             else:
                 checked = False
-            menu_set[k][entry] = {
+            self.menu[k][entry] = {
                 'text': entry.title(),
                 'icon': item_on_pixmap if checked else item_off_pixmap,
                 'action': functools.partial(model.taskFolderChanged.emit, entry)
             }
-        return menu_set
 
-    @contextmenu
-    def add_remove_favourite_menu(self, menu_set):
-        """Ads the menu-items needed to add set favourite or archived status."""
-        remove_icon = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, common.MARGIN())
-
-        favourite = self.index.flags() & common.MarkedAsFavourite
-
-        toggle = functools.partial(
-            self.parent().toggle_item_flag,
-            self.index,
-            common.MarkedAsFavourite,
-            state=not favourite
-        )
-        menu_set[key()] = {
+    def remove_favourite_menu(self):
+        self.menu[key()] = {
             'text': u'Remove from My Files',
-            'icon': remove_icon,
+            'icon': self.get_icon(u'remove', color=common.REMOVE),
             'checkable': False,
-            'action': (toggle, self.parent().favouritesChanged.emit)
+            'action': actions.toggle_favourite
         }
-        return menu_set
 
-    @contextmenu
-    def add_control_favourites_menu(self, menu_set):
-        """Ads the menu-items needed to add set favourite or archived status."""
-        remove_icon = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.SECONDARY_TEXT, common.MARGIN())
+    def control_favourites_menu(self):
+        remove_icon = self.get_icon(u'remove')
 
-        menu_set[key()] = {
+        self.menu[key()] = {
             'text': u'Export My Files...',
             'checkable': False,
             'action': self.parent().export_favourites
         }
-        menu_set[key()] = {
+        self.menu[key()] = {
             'text': u'Import My Files...',
             'checkable': False,
-            'action': (self.parent().import_favourites, self.parent().favouritesChanged.emit)
+            'action': self.parent().import_favourites,
         }
 
-        self._add_separator(menu_set)
+        self.separator()
 
-        menu_set[key()] = {
+        self.menu[key()] = {
             'text': u'Clear My Files',
             'icon': remove_icon,
             'checkable': False,
-            'action': (self.parent().clear_favourites, self.parent().favouritesChanged.emit)
+            'action': self.parent().clear_favourites
         }
 
-        return menu_set
-
-    @contextmenu
-    def add_add_file_menu(self, menu_set):
-        add_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add_file', common.ADD, common.MARGIN())
-
-        menu_set[u'add_file...'] = {
-            'text': u'Add File...',
-            'icon': add_pixmap,
-            'action': self.parent().show_add_widget
+    def add_file_menu(self):
+        self.menu[u'add_file...'] = {
+            'text': u'Add Template File...',
+            'icon': self.get_icon(u'add_file', color=common.ADD),
+            'action': actions.add_file,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
         }
-        return menu_set
 
-    @contextmenu
-    def add_notes_menu(self, menu_set):
+    def notes_menu(self):
         if not self.index.isValid():
             return
 
-        menu_set[u'add_file...'] = {
+        self.menu[u'add_file...'] = {
             'text': u'Show Notes...',
             'icon': self.get_icon('todo'),
-            'action': self.parent().show_todos,
+            'action': actions.show_todos,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.OpenTodo).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.OpenTodo),
         }
-        return menu_set
 
-    @contextmenu
-    def add_properties_menu(self, menu_set):
+    def edit_selected_bookmark_menu(self):
         if not self.index.isValid():
-            return menu_set
+            return
 
-        settings_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'settings', common.SECONDARY_TEXT, common.MARGIN())
-        clipboard_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'copy', common.SECONDARY_TEXT, common.MARGIN())
+        settings_icon = self.get_icon(u'settings')
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
 
         k = u'Properties'
-        menu_set[k] = collections.OrderedDict()
-        menu_set['{}:icon'.format(k)] = settings_pixmap
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = settings_icon
 
-        menu_set[k][u'Edit Properties...'] = {
-            'icon': settings_pixmap,
-            'action': self.parent().show_properties_widget,
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.OpenProperties).key(),
-            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.OpenProperties),
+        self.menu[k][key()] = {
+            'text': u'Edit Bookmark Properties...',
+            'icon': settings_icon,
+            'action': functools.partial(actions.edit_bookmark, server=server, job=job, root=root),
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.EditItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
         }
 
-        from .properties import base
+    def bookmark_clipboard_menu(self):
+        if not self.index.isValid():
+            return
 
-        menu_set[k][u'Copy Properties'] = {
+        settings_icon = self.get_icon(u'settings')
+        copy_icon = self.get_icon(u'copy')
+
+        k = u'Properties'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = settings_icon
+
+        from .properties import base
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+
+        self.separator(menu=self.menu[k])
+        self.menu[k][key()] = {
+            'text': u'Copy Properties',
             'action': functools.partial(
                 base.copy_properties,
-                self.index.data(common.ParentPathRole)[0],
-                self.index.data(common.ParentPathRole)[1],
-                self.index.data(common.ParentPathRole)[2]
+                server,
+                job,
+                root,
+                table=bookmark_db.BookmarkTable
             ),
-            'icon': clipboard_pixmap,
+            'icon': copy_icon,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyProperties).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyProperties),
         }
 
-        if not base.CLIPBOARD:
-            return menu_set
+        if not base.CLIPBOARD[bookmark_db.BookmarkTable]:
+            return
 
-        from .lists import bookmarks
-        menu_set[k][u'Paste Properties'] = {
-            'action': (
-                functools.partial(
-                    base.paste_properties,
-                    *self.index.data(common.ParentPathRole)[0:3]
-                ),
-                functools.partial(bookmarks.update_description, self.index),
+        self.menu[k][key()] = {
+            'text': u'Paste Properties',
+            'action': functools.partial(
+                base.paste_properties,
+                server,
+                job,
+                root,
+                table=bookmark_db.BookmarkTable
             ),
-            'icon': clipboard_pixmap,
+            'icon': copy_icon,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.PasteProperties).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.PasteProperties),
         }
 
-        return menu_set
+    def edit_active_bookmark_menu(self):
+        settings_icon = self.get_icon(u'settings')
 
-    @contextmenu
-    def add_show_addasset_menu(self, menu_set):
-        add_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.MARGIN())
-        widget = self.parent().parent().widget(0)
-        menu_set[u'add_asset'] = {
+        k = u'Properties'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = settings_icon
+
+        self.menu[k][key()] = {
+            'text': u'Edit Bookmark Properties...',
+            'icon': settings_icon,
+            'action': actions.edit_bookmark,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.EditItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
+        }
+
+    def edit_selected_asset_menu(self):
+        if not self.index.isValid():
+            return
+
+        settings_icon = self.get_icon(u'settings')
+        asset = self.index.data(common.ParentPathRole)[3]
+
+        k = u'Properties'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = settings_icon
+
+        self.menu[k][key()] = {
+            'text': u'Edit Asset Properties...',
+            'icon': settings_icon,
+            'action': functools.partial(actions.edit_asset, asset=asset),
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.EditItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
+        }
+
+    def show_addasset_menu(self):
+        add_pixmap = self.get_icon(u'add', color=common.ADD)
+        self.menu[u'add_asset'] = {
             'icon': add_pixmap,
             'text': u'Add Asset...',
-            'action': lambda: widget.show_asset_property_widget(update=False)
+            'action': actions.add_asset
         }
-        return menu_set
 
-    @contextmenu
-    def add_sg_bulk_link_menu(self, menu_set):
+    def sg_bulk_link_menu(self):
         if not self.parent().model().sourceModel().rowCount():
-            return menu_set
+            return
 
-        sg_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'shotgun', common.SECONDARY_TEXT, common.MARGIN())
+        sg_pixmap = self.get_icon(u'shotgun')
 
         from .shotgun import shotgun
 
@@ -1158,19 +1057,16 @@ class BaseContextMenu(QtWidgets.QMenu):
             sg_properties['shotgun_scriptname'],
             sg_properties['shotgun_api_key']
         )):
-            return menu_set
+            return
 
-
-        menu_set[u'sg_bulk_link'] = {
+        self.menu[u'sg_bulk_link'] = {
             'text': u'Link all assets with Shotgun...',
             'icon': sg_pixmap,
             'action': self.parent().show_shotgun_bulk_link_widget
         }
         if self.index.isValid():
-            menu_set[u'sg_link'] = {
+            self.menu[u'sg_link'] = {
                 'text': u'Link {} with Shotgun...'.format(self.index.data(common.ParentPathRole)[-1]),
                 'icon': sg_pixmap,
                 'action': lambda: self.parent().show_shotgun_bulk_link_widget(current_only=True)
             }
-
-        return menu_set
