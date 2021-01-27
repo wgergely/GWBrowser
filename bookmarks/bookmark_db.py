@@ -327,6 +327,18 @@ def sleep():
     QtCore.QThread.msleep(50)
 
 
+def set_flag(server, job, root, k, mode, flag):
+    """A utility method used by the base view to set an item flag to the database.
+
+    """
+    with transactions(server, job, root) as db:
+        f = db.value(k, u'flags', table=AssetTable)
+        f = 0 if f is None else f
+        f = f | flag if mode else f & ~flag
+        db.setValue(k, u'flags', f, table=AssetTable)
+
+
+
 def get_db(server, job, root, force=False):
     """Creates a database controller associated with a bookmark.
 

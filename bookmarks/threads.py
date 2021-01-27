@@ -33,6 +33,8 @@ FavouriteInfoQueue = FileInfoQueue + 1
 AssetInfoQueue = FavouriteInfoQueue + 1
 BookmarkInfoQueue = AssetInfoQueue + 1
 TaskFolderInfoQueue = BookmarkInfoQueue + 1
+QueuedDatabaseTransaction = TaskFolderInfoQueue + 1
+QueuedSettingsTransaction = QueuedDatabaseTransaction + 1
 
 
 QUEUES = {
@@ -45,9 +47,15 @@ QUEUES = {
     AssetInfoQueue: collections.deque([], common.MAXITEMS),
     BookmarkInfoQueue: collections.deque([], common.MAXITEMS),
     TaskFolderInfoQueue: collections.deque([], common.MAXITEMS),
+    QueuedDatabaseTransaction: collections.deque([], common.MAXITEMS),
+    QueuedSettingsTransaction: collections.deque([], common.MAXITEMS),
 }
 """Global thread queues."""
 
+
+def queue_database_transaction(*args):
+    if args not in QUEUES[QueuedDatabaseTransaction]:
+        QUEUES[QueuedDatabaseTransaction].append(args)
 
 
 def byte_to_string(num, suffix=u'B'):
@@ -59,7 +67,7 @@ def byte_to_string(num, suffix=u'B'):
 
     Returns:
         unicode:            Human readable byte value.
-        
+
     """
     for unit in [u'', u'K', u'M', u'G', u'T', u'P', u'E', u'Z']:
         if abs(num) < 1024.0:
@@ -194,7 +202,7 @@ class ThreadMonitor(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(ThreadMonitor, self).__init__(parent=parent)
         self.timer = QtCore.QTimer(parent=self)
-        self.timer.setInterval(500)
+        self.timer.setInterval(50)
         self.timer.setSingleShot(False)
         self.timer.timeout.connect(self.update)
         self.metrics = common.font_db.primary_font(common.SMALL_FONT_SIZE())[1]
@@ -543,10 +551,10 @@ class InfoWorker(BaseWorker):
                 flags = ref()[
                     common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
 
-                v = db.value(k, u'flags')
+                v = db.value(k, u'flags', table=bookmark_db.AssetTable)
                 if v:
                     flags = flags | v
-                v = db.value(proxy_k, u'flags')
+                v = db.value(proxy_k, u'flags', table=bookmark_db.AssetTable)
                 if v:
                     flags = flags | v
 
@@ -583,7 +591,7 @@ class InfoWorker(BaseWorker):
                     seq.group(4)
                 seqpath = \
                     seq.group(1) + \
-                    u'[' + rangestring + u']' + \
+                    common.SEQSTART + rangestring + common.SEQEND + \
                     seq.group(3) + \
                     u'.' + \
                     seq.group(4)
@@ -762,7 +770,7 @@ class ThumbnailWorker(BaseWorker):
             res = images.ImageCache.oiio_make_thumbnail(
                 source,
                 destination,
-                common.THUMBNAIL_IMAGE_SIZE,
+                images.THUMBNAIL_IMAGE_SIZE,
             )
             if res:
                 images.ImageCache.get_image(destination, int(size), force=True)
@@ -772,11 +780,11 @@ class ThumbnailWorker(BaseWorker):
             # We should never get here ideally, but if we do we'll mark the item
             # with a bespoke 'failed' thumbnail
             fpath = u'{}/../rsc/{}/{}.{}'.format(
-                __file__, images.GuiResource, u'failed', common.THUMBNAIL_FORMAT)
+                __file__, images.GuiResource, u'failed', images.THUMBNAIL_FORMAT)
             res = images.ImageCache.oiio_make_thumbnail(
                 fpath,
                 destination,
-                common.THUMBNAIL_IMAGE_SIZE
+                images.THUMBNAIL_IMAGE_SIZE
             )
             if res:
                 images.ImageCache.get_image(destination, int(size), force=True)
@@ -856,3 +864,17 @@ class TaskFolderWorker(BaseWorker):
             if not is_symlink:
                 for entry in cls._entry_iterator(entry.path):
                     yield entry
+
+
+class TransactionsWorker(BaseWorker):
+    def process_data(self):
+        verify_thread_affinity()
+        try:
+            if self.interrupt:
+                return
+
+            args = QUEUES[self.queue_type].pop()
+            bookmark_db.set_flag(*args)
+
+        except IndexError:
+            pass  # ignore index errors
