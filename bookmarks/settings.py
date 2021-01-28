@@ -26,10 +26,8 @@ from . import common
 
 
 
-local_settings = None
-ACTIVE = collections.OrderedDict()
 LOCAL_SETTINGS_FILE_NAME = u'local_settings.ini'
-
+local_settings = None
 
 
 ActiveSection = u'Active'
@@ -39,6 +37,16 @@ RootKey = u'Root'
 AssetKey = u'Asset'
 TaskKey = u'Task'
 FileKey = u'File'
+
+
+ACTIVE = collections.OrderedDict()
+ACTIVE[ServerKey] = None
+ACTIVE[JobKey] = None
+ACTIVE[RootKey] = None
+ACTIVE[AssetKey] = None
+ACTIVE[TaskKey] = None
+ACTIVE[FileKey] = None
+
 
 CurrentUserPicksSection = u'UserPicks'
 ServersKey = u'Servers'
@@ -114,6 +122,10 @@ def strip(s):
 def _bookmark_key(*args):
     k = u'/'.join([strip(f) for f in args]).rstrip(u'/')
     return k
+
+
+def active(k):
+    return ACTIVE[k]
 
 
 def set_active(k, v):

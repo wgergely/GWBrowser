@@ -127,7 +127,7 @@ class AssetModel(base.BaseModel):
                 flags = flags | common.MarkedAsFavourite
 
             # Is the item currently active?
-            active_asset = settings.ACTIVE[settings.AssetKey]
+            active_asset = settings.active(settings.AssetKey)
             if active_asset:
                 if active_asset == filename:
                     flags = flags | common.MarkedAsActive
@@ -161,7 +161,9 @@ class AssetModel(base.BaseModel):
                 common.SortByLastModifiedRole: 0,
                 common.SortBySizeRole: 0,
                 #
-                common.IdRole: idx
+                common.IdRole: idx,
+                #
+                common.SGConfiguredRole: False,
             })
 
         # Explicitly emit `activeChanged` to notify other dependent models
@@ -175,9 +177,9 @@ class AssetModel(base.BaseModel):
 
         """
         return (
-            settings.ACTIVE[settings.ServerKey],
-            settings.ACTIVE[settings.JobKey],
-            settings.ACTIVE[settings.RootKey],
+            settings.active(settings.ServerKey),
+            settings.active(settings.JobKey),
+            settings.active(settings.RootKey),
         )
 
     def _entry_iterator(self, path):
@@ -195,7 +197,7 @@ class AssetModel(base.BaseModel):
         return common.FileItem
 
     def local_settings_key(self):
-        v = [settings.ACTIVE[k] for k in (settings.JobKey, settings.RootKey)]
+        v = [settings.active(k) for k in (settings.JobKey, settings.RootKey)]
         if not all(v):
             return None
         return u'/'.join(v)
@@ -265,11 +267,11 @@ class AssetsWidget(base.ThreadedBaseWidget):
         rectangles = delegate.get_rectangles(rect, self.inline_icons_count())
 
         if rectangles[delegate.AddAssetRect].contains(cursor_position):
-            self.show_add_widget()
+            actions.add_file(asset=index.data(common.ParentPathRole)[-1])
             return
 
         if rectangles[delegate.PropertiesRect].contains(cursor_position):
-            self.show_properties_widget()
+            actions.edit_asset(index.data(common.ParentPathRole)[-1])
             return
 
     def get_hint_string(self):

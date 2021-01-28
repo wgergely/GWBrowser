@@ -219,10 +219,10 @@ class TaskFolderModel(base.BaseModel):
 
         """
         return (
-            settings.ACTIVE[settings.ServerKey],
-            settings.ACTIVE[settings.JobKey],
-            settings.ACTIVE[settings.RootKey],
-            settings.ACTIVE[settings.AssetKey],
+            settings.active(settings.ServerKey),
+            settings.active(settings.JobKey),
+            settings.active(settings.RootKey),
+            settings.active(settings.AssetKey),
         )
 
     def data_type(self):
@@ -303,7 +303,7 @@ class TaskFolderModel(base.BaseModel):
         """Slot used to verify the current task folder.
 
         """
-        v = settings.ACTIVE[settings.TaskKey]
+        v = settings.active(settings.TaskKey)
         if not v:
             self.taskFolderChangeRequested.emit()
             return

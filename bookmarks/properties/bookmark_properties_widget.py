@@ -22,6 +22,12 @@ from .. import log
 from .. import common
 from .. import common_ui
 from .. import bookmark_db
+from .. import settings
+
+from .. import actions
+from ..shotgun import actions as sg_actions
+
+from ..shotgun import shotgun
 from . import base
 from . import asset_config_widget
 
@@ -161,7 +167,7 @@ SECTIONS = {
                 0: {
                     'name': u'Domain',
                     'key': u'shotgun_domain',
-                    'validator': base.domainvalidator,
+                    'validator': None,
                     'widget': common_ui.LineEdit,
                     'placeholder': u'Domain, eg. https://mystudio.shotgunstudio.com',
                     'description': u'The domain, including http:// or https://, used by shotgun. Eg. \'https://mystudio.shotgunstudio.com\'',
@@ -201,8 +207,8 @@ SECTIONS = {
                     'validator': None,
                     'widget': None,
                     'placeholder': None,
-                    'description': u'Link with Shotgun',
-                    'button': u'Link',
+                    'description': u'Link with an existing Shotgun Project',
+                    'button': u'Link with Shotgun Entity',
                 },
                 1: {
                     'name': u'Type',
@@ -345,6 +351,7 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
 
         self.asset_config_editor = None
         self._add_asset_config()
+        sg_actions.signals.bookmarkLinked.connect(self.update_sg_entity)
 
     def db_source(self):
         return u'{}/{}/{}'.format(self.server, self.job, self.root)
@@ -357,6 +364,7 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
             self._save_db_data()
             v = self.description_editor.text()
             self.valueUpdated.emit(self.db_source(), common.DescriptionRole, v)
+            self.emit_shotgun_status()
         except:
             s = u'Could not save properties to the database.'
             log.error(s)
@@ -383,6 +391,16 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         self.itemUpdated.emit(self.db_source())
         return True
 
+    def emit_shotgun_status(self):
+        sg_properties = self.shotgun_properties()
+        if not all((sg_properties[shotgun.SGDomain], sg_properties[shotgun.SGKey], sg_properties[shotgun.SGScript])):
+            self.valueUpdated.emit(self.db_source(), common.SGConfiguredRole, False)
+            return
+        if not all((sg_properties[shotgun.SGBookmarkEntityType], sg_properties[shotgun.SGBookmarkEntityID], sg_properties[shotgun.SGBookmarkEntityName])):
+            self.valueUpdated.emit(self.db_source(), common.SGConfiguredRole, False)
+            return
+        self.valueUpdated.emit(self.db_source(), common.SGConfiguredRole, True)
+
     def _add_asset_config(self):
         parent = self.scrollarea.widget()
         self.asset_config_editor = asset_config_widget.AssetConfigEditor(
@@ -398,20 +416,9 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         """Suggest a prefix based on the job's name.
 
         """
-        k = 'prefix'
-        if not hasattr(self, k + '_editor'):
-            return
-
-        substrings = re.sub(ur'[\_\-\s]+', u';', self.job).split(u';')
-
-        prefix = u''
-        if (not substrings or len(substrings) < 2) and len(self.job) > 3:
-            prefix = self.job[0:3].upper()
-        else:
-            prefix = u''.join([f[0] for f in substrings]).upper()
-
-        getattr(self, k + '_editor').setText(prefix)
-        getattr(self, k + '_editor').textEdited.emit(prefix)
+        prefix = actions.suggest_prefix(self.job)
+        self.prefix_editor.setText(prefix)
+        self.prefix_editor.textEdited.emit(prefix)
 
     @QtCore.Slot()
     def slacktoken_button_clicked(self):
@@ -422,114 +429,64 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         """Verifies the entered Slack API token.
 
         """
-        k = 'slacktoken'
-        if not hasattr(self, k + '_editor'):
-            return
+        token = self.slacktoken_editor.text()
+        actions.test_slack_token(token)
 
-        v = getattr(self, k + '_editor').text()
-        if not v:
-            return
-
-        try:
-            from .. import slack
-        except ImportError as err:
-            common_ui.ErrorBox(
-                u'Could not import SlackClient',
-                u'The Slack API python module was not loaded:\n{}'.format(err),
-            ).open()
-            log.error('Slack: import error.')
-            raise
-        except:
-            raise
-
-        client = slack.SlackClient(v)
-        client.verify_token(silent=False)
-
+    @QtCore.Slot()
     def link_button_clicked(self):
-        if self._db_table is not None:
-            self.save_changes()
-        self.show_link_entity_widget()
+        sg_properties = self.shotgun_properties()
+        sg_actions.link_bookmark_entity(sg_properties)
 
     @QtCore.Slot()
     def shotgun_domain_button_clicked(self):
         """Opens the shotgun base domain in the browser.
 
         """
-        k = u'shotgun_domain'
-        if not hasattr(self, k + '_editor'):
-            return
-        v = getattr(self, k + '_editor').text()
+        v = self.shotgun_domain_editor.text()
         if v:
             QtGui.QDesktopServices.openUrl(v)
 
     def _get_name(self):
         return self.job
 
-    def _get_shotgun_attrs(self):
+    def shotgun_properties(self):
         """Returns the properties needed to connect to shotgun.
 
         """
-        k = u'shotgun_domain'
-        if not hasattr(self, k + '_editor'):
-            return None, None, None
-        domain = getattr(self, k + '_editor').text()
+        sg_properties = shotgun.SGProperties.copy()
 
-        k = u'shotgun_api_key'
-        if not hasattr(self, k + '_editor'):
-            return None, None, None
-        key = getattr(self, k + '_editor').text()
+        sg_properties[settings.ServerKey] = self.server
+        sg_properties[settings.JobKey] = self.job
+        sg_properties[settings.RootKey] = self.root
 
-        k = u'shotgun_scriptname'
-        if not hasattr(self, k + '_editor'):
-            return None, None, None
-        script = getattr(self, k + '_editor').text()
+        sg_properties[shotgun.SGDomain] = self.shotgun_domain_editor.text()
+        sg_properties[shotgun.SGKey] = self.shotgun_api_key_editor.text()
+        sg_properties[shotgun.SGScript] = self.shotgun_scriptname_editor.text()
 
-        if not all((domain, key, script)):
-            common_ui.ErrorBox(
-                u'Missing value.',
-                u'Must enter a valid domain, script name and API key.'
-            ).open()
-            raise RuntimeError(u'Missing value.')
+        sg_properties[shotgun.SGBookmarkEntityType] = self.shotgun_type_editor.currentText()
+        sg_properties[shotgun.SGBookmarkEntityID] = self.shotgun_id_editor.text()
+        sg_properties[shotgun.SGBookmarkEntityName] = self.shotgun_name_editor.text()
 
-        return domain, key, script
+        return sg_properties
 
     @QtCore.Slot()
     def shotgun_domain_button2_clicked(self):
         """Check the validity of the Shotgun token.
 
         """
-        from ..shotgun import shotgun
-
-        domain, key, script = self._get_shotgun_attrs()
-        with shotgun.connection(None, None, None, domain=domain, script=script, key=key) as sg:
-            sg.find_projects()
-
-            info = u''
-            for k, v in sg.info().iteritems():
-                info += u'{}: {}'.format(k, v)
-                info += u'\n'
-
-            common_ui.MessageBox(
-                u'Successfully connected to Shotgun.',
-                info
-            ).open()
+        sg_properties = self.shotgun_properties()
+        sg_actions.test_shotgun_connection(sg_properties)
 
     @QtCore.Slot()
     def url1_button_clicked(self):
-        k = 'url1'
-        if not hasattr(self, k + '_editor'):
-            return
-        v = getattr(self, k + '_editor').text()
+        v = self.url1_editor.text()
         if not v:
             return
         QtGui.QDesktopServices.openUrl(v)
 
     @QtCore.Slot()
     def url2_button_clicked(self):
-        k = 'url2'
-        if not hasattr(self, k + '_editor'):
-            return
-        v = getattr(self, k + '_editor').text()
+        v = self.url2_editor.text()
         if not v:
             return
         QtGui.QDesktopServices.openUrl(v)

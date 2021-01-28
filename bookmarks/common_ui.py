@@ -81,7 +81,7 @@ def add_row(label, color=common.SECONDARY_TEXT, parent=None, padding=common.MARG
             parent=parent
         )
         l.setFixedWidth(common.MARGIN() * 8.6667)
-        w.layout().addWidget(l)
+        w.layout().addWidget(l, 1)
 
     if parent:
         parent.layout().addWidget(w, 1)
@@ -604,12 +604,12 @@ class DescriptionEditorWidget(LineEdit):
 
     def __init__(self, parent=None):
         super(DescriptionEditorWidget, self).__init__(parent=parent)
-        self._connect_signals()
-
         self.installEventFilter(self)
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.setPlaceholderText(u'Edit description...')
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        self._connect_signals()
 
     def _connect_signals(self):
         """Connects signals."""
@@ -619,7 +619,6 @@ class DescriptionEditorWidget(LineEdit):
             self.parent().resized.connect(self.update_editor)
 
     def action(self):
-        """Save the entered text to the BookmarkDB."""
         index = self.parent().selectionModel().currentIndex()
         text = u'{}'.format(index.data(common.DescriptionRole))
         if text.lower() == self.text().lower():
@@ -648,6 +647,10 @@ class DescriptionEditorWidget(LineEdit):
 
     def update_editor(self):
         """Sets the editor widget's size, position and text contents."""
+        if not self.parent().selectionModel().hasSelection():
+            self.hide()
+            return
+
         index = self.parent().selectionModel().currentIndex()
         if not index.isValid():
             self.hide()
@@ -656,33 +659,37 @@ class DescriptionEditorWidget(LineEdit):
         rect = self.parent().visualRect(index)
         rectangles = delegate.get_rectangles(
             rect, self.parent().inline_icons_count())
-        description_rect = self.parent().itemDelegate(
-        ).get_description_rect(rectangles, index)
+        description_rect = self.parent().itemDelegate().get_description_rect(rectangles, index)
 
         # Won't be showing the editor if there's no appropiate description area
         # provided by the delegate (eg. the bookmark items don't have this)
         if not description_rect:
             self.hide()
+            return
 
-        # Let's set the size based on the size provided by the delegate but
-        # center it instead
-        o = common.INDICATOR_WIDTH() * 2.0
-        rect = description_rect.marginsAdded(QtCore.QMargins(0, o, 0, o))
-        rect.moveCenter(rectangles[delegate.DataRect].center())
-        self.setGeometry(rect)
+        # Let's set the size based on the size provided by the delegate
+        self.setGeometry(rectangles[delegate.DataRect])
 
         # Set the text and select it
         self.setText(u'{}'.format(index.data(common.DescriptionRole)))
         self.selectAll()
 
     def showEvent(self, event):
+        if not self.parent().selectionModel().hasSelection():
+            self.hide()
+            return
+
         index = self.parent().selectionModel().currentIndex()
         if not index.isValid():
             self.hide()
+            return
+
         if not index.data(common.FileInfoLoaded):
             self.hide()
+            return
+
         self.update_editor()
-        self.setFocus(QtCore.Qt.PopupFocusReason)
+        self.setFocus()
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the

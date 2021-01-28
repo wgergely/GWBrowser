@@ -1993,23 +1993,21 @@ class MayaMainWidget(mayaMixin.MayaQWidgetDockableMixin, QtWidgets.QWidget):
             return val
 
 
-        server = settings.ACTIVE[settings.ServerKey]
-        job = settings.ACTIVE[settings.JobKey]
-        root = settings.ACTIVE[settings.RootKey]
-        asset = settings.ACTIVE[settings.AssetKey]
+        server = settings.active(settings.ServerKey)
+        job = settings.active(settings.JobKey)
+        root = settings.active(settings.RootKey)
+        asset = settings.active(settings.AssetKey)
         if not all((server, job, root, asset)):
             return
 
         try:
             v = {}
             with bookmark_db.transactions(server, root, job) as db:
-                _source = u'{}/{}/{}'.format(server, job, root)
-                source = u'{}/{}/{}/{}'.format(server, job, root, asset)
+                source = db.source(asset)
                 for _k in bookmark_db.TABLES[bookmark_db.BookmarkTable]:
-                    v[_k] = db.value(_source, _k, table=bookmark_db.BookmarkTable)
+                    v[_k] = db.value(db.source(), _k, table=bookmark_db.BookmarkTable)
                 startframe = _get_cut_value('startframe', 'cut_in', db, v)
                 duration = _get_cut_value('duration', 'cut_duration', db, v)
-
         except Exception as e:
             log.error(e)
             raise

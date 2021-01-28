@@ -53,6 +53,30 @@ QUEUES = {
 """Global thread queues."""
 
 
+
+def count_assets(path, ASSET_IDENTIFIER):
+    n = 0
+    for entry in _scandir.scandir(path):
+        if entry.name.startswith(u'.'):
+            continue
+        if not entry.is_dir():
+            continue
+
+        filepath = entry.path.replace(u'\\', u'/')
+
+        if not ASSET_IDENTIFIER:
+            n += 1
+            continue
+
+        identifier = u'/'.join((filepath, ASSET_IDENTIFIER))
+        if not QtCore.QFileInfo(identifier).exists():
+            continue
+        n += 1
+    return n
+
+
+
+
 def queue_database_transaction(*args):
     if args not in QUEUES[QueuedDatabaseTransaction]:
         QUEUES[QueuedDatabaseTransaction].append(args)
@@ -531,6 +555,22 @@ class InfoWorker(BaseWorker):
 
             # Issues SQLite "BEGIN"
             with bookmark_db.transactions(pp[0], pp[1], pp[2]) as db:
+                # Asset count
+                if len(pp) == 3:
+                    v = db.value(
+                        db.source(),
+                        u'identifier',
+                        table=bookmark_db.BookmarkTable
+                    )
+                    count = count_assets(db.source(), v)
+                    if not is_valid():
+                        return False
+                    ref()[common.AssetCountRole] = count
+
+                # Shotgun status
+                from .shotgun import actions as sg_actions
+                sg_actions.update_shotgun_configured(pp, db, ref())
+
                 # Description
                 v = db.value(k, u'description')
                 if v:

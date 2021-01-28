@@ -75,26 +75,6 @@ def get_description(server, job, root, db=None):
         return u''
 
 
-
-def count_assets(bookmark_path, ASSET_IDENTIFIER):
-    n = 0
-    for entry in _scandir.scandir(bookmark_path):
-        if entry.name.startswith(u'.'):
-            continue
-        if not entry.is_dir():
-            continue
-
-        filepath = entry.path.replace(u'\\', u'/')
-
-        if ASSET_IDENTIFIER:
-            identifier = u'{}/{}'.format(
-                filepath, ASSET_IDENTIFIER)
-            if not QtCore.QFileInfo(identifier).exists():
-                continue
-        n += 1
-    return n
-
-
 class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
     """Context menu associated with the BookmarksWidget.
 
@@ -113,14 +93,19 @@ class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
         self.bookmark_editor_menu()
 
         self.separator()
-
         self.title()
+
+        self.bookmark_url_menu()
+        self.asset_url_menu()
+        self.sg_url_menu()
+        self.reveal_item_menu()
+
+        self.separator()
+
         self.add_asset_to_bookmark_menu()
         self.edit_selected_bookmark_menu()
         self.bookmark_clipboard_menu()
         self.notes_menu()
-        self.urls_menu()
-        self.reveal_item_menu()
         self.mode_toggles_menu()
 
         self.separator()
@@ -134,7 +119,7 @@ class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
         self.separator()
 
         self.preferences_menu()
-        
+
         self.separator()
 
         self.quit_menu()
@@ -206,9 +191,9 @@ class BookmarksModel(base.BaseModel):
             # Item flags. Active and favourite flags will be only set if the
             # bookmark exist
             if all((
-                server == settings.ACTIVE[settings.ServerKey],
-                job == settings.ACTIVE[settings.JobKey],
-                root == settings.ACTIVE[settings.RootKey]
+                server == settings.active(settings.ServerKey),
+                job == settings.active(settings.JobKey),
+                root == settings.active(settings.RootKey)
             )) and exists:
                 flags = flags | common.MarkedAsActive
 
@@ -236,6 +221,7 @@ class BookmarksModel(base.BaseModel):
                 common.ParentPathRole: (server, job, root),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
+                common.AssetCountRole: 0,
                 common.FileDetailsRole: None,
                 common.SequenceRole: None,
                 common.EntryRole: [],
@@ -251,7 +237,9 @@ class BookmarksModel(base.BaseModel):
                 common.SortByLastModifiedRole: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySizeRole: file_info.size(),
                 #
-                common.IdRole: idx
+                common.IdRole: idx,
+                #
+                common.SGConfiguredRole: False,
             })
 
             if not exists:
@@ -376,7 +364,7 @@ class BookmarksWidget(base.ThreadedBaseWidget):
             super(BookmarksWidget, self).toggle_item_flag(
                 index,
                 common.MarkedAsArchived,
-                state=False
+                state=False,
             )
             self.update(index)
             self.reset_multitoggle()
@@ -419,7 +407,7 @@ class BookmarksWidget(base.ThreadedBaseWidget):
         settings.set_active(settings.JobKey, job)
         settings.set_active(settings.RootKey, root)
 
-    def toggle_item_flag(self, index, flag, state=None):
+    def toggle_item_flag(self, index, flag, state=None, commit_now=True):
         if flag == common.MarkedAsArchived:
             if hasattr(index.model(), 'sourceModel'):
                 index = self.model().mapToSource(index)
@@ -431,9 +419,10 @@ class BookmarksWidget(base.ThreadedBaseWidget):
 
             self.bookmarks_to_remove.append(index.data(common.ParentPathRole))
             self.remove_bookmark_timer.start()
-        else:
-            super(BookmarksWidget, self).toggle_item_flag(
-                index, flag, state=state)
+            return
+
+        super(BookmarksWidget, self).toggle_item_flag(
+            index, flag, state=state, commit_now=commit_now)
 
     def get_hint_string(self):
         return u'Right-click -> Bookmark Editor to add a new bookmark'

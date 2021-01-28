@@ -231,7 +231,9 @@ class FilesModel(base.BaseModel):
                 common.SortByLastModifiedRole: 0,
                 common.SortBySizeRole: 0,
                 #
-                common.IdRole: idx  # non-mutable
+                common.IdRole: idx,  # non-mutable
+                #
+                common.SGConfiguredRole: False,
             })
 
             # If the file in question is a sequence, we will also save a reference
@@ -270,7 +272,9 @@ class FilesModel(base.BaseModel):
                         common.SortByLastModifiedRole: 0,
                         common.SortBySizeRole: 0,  # Initializing with null-size
                         #
-                        common.IdRole: 0
+                        common.IdRole: 0,
+                        #
+                        common.SGConfiguredRole: False,
                     })
 
                 SEQUENCE_DATA[seqpath][common.FramesRole].append(seq.group(2))
@@ -320,10 +324,10 @@ class FilesModel(base.BaseModel):
 
         """
         return (
-            settings.ACTIVE[settings.ServerKey],
-            settings.ACTIVE[settings.JobKey],
-            settings.ACTIVE[settings.RootKey],
-            settings.ACTIVE[settings.AssetKey]
+            settings.active(settings.ServerKey),
+            settings.active(settings.JobKey),
+            settings.active(settings.RootKey),
+            settings.active(settings.AssetKey)
         )
 
     def _entry_iterator(self, path):
@@ -339,7 +343,7 @@ class FilesModel(base.BaseModel):
 
     def task(self):
         """Current key to the data dictionary."""
-        return settings.ACTIVE[settings.TaskKey]
+        return settings.active(settings.TaskKey)
 
     @QtCore.Slot(unicode)
     def set_task(self, val):
@@ -420,7 +424,7 @@ class FilesModel(base.BaseModel):
             self.endResetModel()
 
     def local_settings_key(self):
-        if settings.ACTIVE[settings.TaskKey] is None:
+        if settings.active(settings.TaskKey) is None:
             return None
 
         keys = (
@@ -429,7 +433,7 @@ class FilesModel(base.BaseModel):
             settings.AssetKey,
             settings.TaskKey,
         )
-        v = [settings.ACTIVE[k] for k in keys]
+        v = [settings.active(k) for k in keys]
         if not all(v):
             return None
 
@@ -754,6 +758,9 @@ class FilesWidget(base.ThreadedBaseWidget):
 
         if model.data_type() != common.FileItem:
             model.set_data_type(common.FileItem)
+
+
+        actions.change_tab(base.FileTab)
 
         model = self.model()
         if update and model.rowCount() < limit:

@@ -140,7 +140,7 @@ class AddJobWidget(base.PropertiesWidget):
             path = u'{}/{}'.format(self.server, name)
             self.jobAdded.emit(path)
 
-            path += u'/thumbnail.{}'.format(common.THUMBNAIL_FORMAT)
+            path += u'/thumbnail.{}'.format(images.THUMBNAIL_FORMAT)
             self.thumbnail_editor.save_image(destination=path)
 
             common_ui.OkBox(

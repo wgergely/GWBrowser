@@ -309,6 +309,7 @@ class StandaloneMainWidget(main.MainWidget):
         connect(shortcuts.Minimize, actions.toggle_minimized)
         connect(shortcuts.Maximize, actions.toggle_maximized)
         connect(shortcuts.FullScreen, actions.toggle_fullscreen)
+        connect(shortcuts.OpenNewInstance, actions.exec_instance)
 
     def init_tray(self):
         pixmap = images.ImageCache.get_rsc_pixmap(

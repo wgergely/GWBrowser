@@ -296,9 +296,9 @@ def get_property(key, server=None, job=None, root=None, asset=None, asset_proper
     """
     from . import settings
     if not all((server, root, job)):
-        server = settings.ACTIVE[settings.ServerKey]
-        job = settings.ACTIVE[settings.JobKey]
-        root = settings.ACTIVE[settings.RootKey]
+        server = settings.active(settings.ServerKey)
+        job = settings.active(settings.JobKey)
+        root = settings.active(settings.RootKey)
     if not all((server, root, job)):
         raise RuntimeError(u'No bookmarks specified.')
 
@@ -307,7 +307,7 @@ def get_property(key, server=None, job=None, root=None, asset=None, asset_proper
             if not asset_property:
                 return db.value(db.source(), key, table=BookmarkTable)
             if not asset:
-                asset = settings.ACTIVE[settings.AssetKey]
+                asset = settings.active(settings.AssetKey)
                 if not asset:
                     raise RuntimeError(u'Asset not specified.')
             return db.value(db.source(asset), key, table=AssetTable)
@@ -642,7 +642,7 @@ class BookmarkDB(QtCore.QObject):
 
         If the database is new or empty, we will create the tables.
         If the database has tables already, we'll check the columns against
-        `bookmark_db.json` and add any missing ones.
+        the table definitions and add any missing ones.
 
         """
         for table in TABLES:

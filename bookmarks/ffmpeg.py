@@ -42,11 +42,11 @@ def launch_ffmpeg_command(input, preset, server=None, job=None, root=None, asset
     if not QtCore.QFileInfo(FFMPEG_BIN).exists():
         return
 
-    server = server if server else settings.ACTIVE[settings.ServerKey]
-    job = job if job else settings.ACTIVE[settings.JobKey]
-    root = root if root else settings.ACTIVE[settings.RootKey]
-    asset = asset if asset else settings.ACTIVE[settings.AssetKey]
-    task = task if task else settings.ACTIVE[settings.TaskKey]
+    server = server if server else settings.active(settings.ServerKey)
+    job = job if job else settings.active(settings.JobKey)
+    root = root if root else settings.active(settings.RootKey)
+    asset = asset if asset else settings.active(settings.AssetKey)
+    task = task if task else settings.active(settings.TaskKey)
 
     input = input.replace(u'\\', u'/')
 

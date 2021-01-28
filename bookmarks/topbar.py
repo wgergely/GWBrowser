@@ -124,8 +124,6 @@ class BaseControlButton(common_ui.ClickableIconButton):
     def stacked_widget(self):
         if not self.parent():
             return None
-        if not self.parent():
-            return None
         try:
             return self.parent().parent().stackedwidget
         except:

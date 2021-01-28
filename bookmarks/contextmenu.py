@@ -17,6 +17,8 @@ from . import ffmpeg
 from . import rv
 from . import shortcuts
 from . import actions
+from .shotgun import actions as sg_actions
+from .shotgun import shotgun
 
 
 def key():
@@ -274,11 +276,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.menu[k][key()] = {
             'text': u'Ascending' if not sortorder else u'Descending',
             'icon': self.get_icon(u'arrow_down') if not sortorder else self.get_icon(u'arrow_up'),
-            'action': functools.partial(
-                actions.change_sorting,
-                sortrole,
-                not sortorder
-            )
+            'action': actions.toggle_sort_order,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSortOrder).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSortOrder),
         }
 
         self.separator(self.menu[k])
@@ -327,75 +327,76 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
         return
 
-    def urls_menu(self):
+    def bookmark_url_menu(self):
         if not self.index.isValid():
             return
         if not self.index.data(QtCore.Qt.StatusTipRole):
             return
 
-        shotgun_icon = self.get_icon('shotgun')
-        bookmark_icon = self.get_icon('bookmark')
+        k = u'Visit Website...'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu[k + ':icon'] = self.get_icon('bookmark')
 
-        parent_path = self.index.data(common.ParentPathRole)
-        if len(parent_path) == 3:
-            table = bookmark_db.BookmarkTable
-        else:
-            table = bookmark_db.AssetTable
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+        with bookmark_db.transactions(server, job, root) as db:
+            primary_url = db.value(db.source(), 'url1', table=bookmark_db.BookmarkTable)
+            secondary_url = db.value(db.source(), 'url2', table=bookmark_db.BookmarkTable)
 
-        source = u'/'.join(parent_path)
-        with bookmark_db.transactions(*parent_path[0:3]) as db:
-            primary_url = db.value(source, 'url1', table=table)
-            secondary_url = db.value(source, 'url2', table=table)
-
-            # Shotgun properties
-            shotgun_domain = db.value(
-                u'/'.join(parent_path[0:3]),
-                u'shotgun_domain',
-                table=bookmark_db.BookmarkTable
-            )
-            shotgun_id = db.value(source, u'shotgun_id', table=table)
-            shotgun_type = db.value(source, u'shotgun_type', table=table)
-
-        from .shotgun import shotgun
-        shotgun_entity_url = shotgun.ENTITY_URL.format(
-            domain=shotgun_domain,
-            shotgun_type=shotgun_type,
-            shotgun_id=shotgun_id
-        )
-
-        if not any((shotgun_domain, primary_url, secondary_url)):
+        if not any((primary_url, secondary_url)):
             return
 
-        k = u'Open URL...'
-        self.menu[k] = collections.OrderedDict()
-        self.menu[k + ':icon'] = bookmark_icon
-
-        if shotgun_domain:
-            self.menu[k][key()] = {
-                'text': u'Domain   |   {}'.format(shotgun_domain),
-                'icon': shotgun_icon,
-                'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(shotgun_domain))
-            }
-            if all((shotgun_id, shotgun_type)):
-                self.menu[k][key()] = {
-                    'text': u'{}   |   {}'.format(shotgun_type.title(), shotgun_entity_url),
-                    'icon': shotgun_icon,
-                    'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(shotgun_entity_url))
-                }
         if primary_url:
             self.menu[k][key()] = {
-                'text': u'Primary URL   |   {}'.format(primary_url),
-                'icon': bookmark_icon,
-                'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(primary_url))
+                'text': primary_url,
+                'icon': self.get_icon('bookmark'),
+                'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(primary_url)),
             }
         if secondary_url:
             self.menu[k][key()] = {
-                'text': u'Secondary URL   |   {}'.format(secondary_url),
-                'icon': bookmark_icon,
+                'text': secondary_url,
+                'icon': self.get_icon('bookmark'),
                 'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(secondary_url))
             }
 
-        return
+        self.separator(self.menu[k])
+
+    def asset_url_menu(self):
+        if not self.index.isValid():
+            return
+        if not self.index.data(QtCore.Qt.StatusTipRole):
+            return
+        if len(self.index.data(common.ParentPathRole)) < 4:
+            return
+
+        k = u'Visit Website...'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu[k + ':icon'] = self.get_icon('bookmark')
+
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+        asset = self.index.data(common.ParentPathRole)[3]
+        with bookmark_db.transactions(server, job, root) as db:
+            primary_url = db.value(db.source(asset), 'url1')
+            secondary_url = db.value(db.source(asset), 'url2')
+
+        if not any((primary_url, secondary_url)):
+            return
+
+        if primary_url:
+            self.menu[k][key()] = {
+                'text': primary_url,
+                'icon': self.get_icon('bookmark'),
+                'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(primary_url)),
+            }
+        if secondary_url:
+            self.menu[k][key()] = {
+                'text': secondary_url,
+                'icon': self.get_icon('bookmark'),
+                'action': lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl(secondary_url))
+            }
+
+        self.separator(self.menu[k])
 
     def services_menu(self):
         if not self.index.isValid():
@@ -419,38 +420,23 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'action': functools.partial(rv.push, path)
             }
 
-        @QtCore.Slot()
-        def show_add_shot_task_widget():
-            from .shotgun import task_version
-            w = task_version.CreateTaskVersion(
-                self.index.data(QtCore.Qt.StatusTipRole))
-            w.open()
-
-        @QtCore.Slot()
-        def show_publish_widget():
-            from .shotgun import task_publish
-            w = task_publish.CreateTaskPublish(
-                self.index.data(QtCore.Qt.StatusTipRole))
-            w.open()
-
         self.separator()
 
-        from .shotgun import shotgun
-        sg_properties = shotgun.get_shotgun_properties(
-            *self.index.data(common.ParentPathRole)[0:3],
-            asset=self.index.data(common.ParentPathRole)[3]
-        )
-        if all(sg_properties.values()):
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+        asset = self.index.data(common.ParentPathRole)[3]
+
+        sg_properties = shotgun.get_properties(server, job, root, asset)
+        if shotgun.is_valid(sg_properties):
             self.menu[k][key()] = {
                 'text': u'Create Version...',
                 'icon': pixmap,
-                'action': show_add_shot_task_widget
+                'action': actions.show_add_shot_task_widget
             }
 
             self.menu[k][key()] = {
                 'text': u'Publish File...',
                 'icon': pixmap,
-                'action': show_publish_widget
+                'action': actions.show_publish_widget
             }
 
         self.separator()
@@ -743,66 +729,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 )
             }
 
-    def sg_thumbnail_menu(self):
-        if not self.index.isValid():
-            return
-
-        from .shotgun import shotgun
-
-        parent_path = self.index.data(common.ParentPathRole)
-        asset = parent_path[3] if len(parent_path) > 3 else None
-
-        sg_properties = shotgun.get_shotgun_properties(
-            *self.index.data(common.ParentPathRole)[0:3],
-            asset=asset
-        )
-        if not all(sg_properties.values()):
-            return
-
-        shotgun_icon = self.get_icon(u'shotgun')
-
-        display_thumbnail_path = images.get_thumbnail(
-            self.index.data(common.ParentPathRole)[0],
-            self.index.data(common.ParentPathRole)[1],
-            self.index.data(common.ParentPathRole)[2],
-            self.index.data(QtCore.Qt.StatusTipRole),
-            common.MARGIN(),
-            fallback_thumb=self.parent().itemDelegate().fallback_thumb,
-            get_path=True
-        )
-
-        @QtCore.Slot()
-        def _upload_thumbnail_to_shotgun():
-            """Private slot used to upload the current thumbnail to shotgun.
-
-            """
-            from . import common_ui
-            with shotgun.connection(*self.index.data(common.ParentPathRole)[0:3]) as sg:
-                try:
-                    sg.upload_thumbnail(
-                        sg_properties[u'shotgun_type'],
-                        sg_properties[u'shotgun_id'],
-                        display_thumbnail_path
-                    )
-                    common_ui.OkBox(u'Shotgun thumbnail updated.', u'').open()
-                    log.success(u'Thumbnail updated.')
-                except Exception as e:
-                    common_ui.ErrorBox(
-                        u'Upload failed', u'{}'.format(e)
-                    ).open()
-                    log.error(e)
-                    raise
-
-        k = u'Shotgun'
-        self.menu[k] = collections.OrderedDict()
-        self.menu['{}:icon'.format(k)] = shotgun_icon
-
-        if QtCore.QFileInfo(display_thumbnail_path).exists():
-            self.menu[k]['Upload thumbnail to Shotgun'] = {
-                'action': _upload_thumbnail_to_shotgun,
-                'icon': shotgun_icon
-            }
-
     def bookmark_editor_menu(self):
         icon = self.get_icon('add', color=common.ADD)
         self.menu[key()] = {
@@ -812,6 +738,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
         }
+
     def add_asset_to_bookmark_menu(self):
         if not self.index.isValid():
             return
@@ -850,13 +777,13 @@ class BaseContextMenu(QtWidgets.QMenu):
         model = self.parent().model().sourceModel()
 
         settings.local_settings.load_and_verify_stored_paths()
-        if not settings.ACTIVE[settings.AssetKey]:
+        if not settings.active(settings.AssetKey):
             return
         parent_item = (
-            settings.ACTIVE[settings.ServerKey],
-            settings.ACTIVE[settings.JobKey],
-            settings.ACTIVE[settings.RootKey],
-            settings.ACTIVE[settings.AssetKey],
+            settings.active(settings.ServerKey),
+            settings.active(settings.JobKey),
+            settings.active(settings.RootKey),
+            settings.active(settings.AssetKey),
         )
 
         if not parent_item:
@@ -1046,12 +973,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             return
 
         sg_pixmap = self.get_icon(u'shotgun')
-
-        from .shotgun import shotgun
-
         parent_path = self.parent().model().sourceModel().parent_path()
 
-        sg_properties = shotgun.get_shotgun_properties(*parent_path[0:3])
+        sg_properties = shotgun.get_properties(*parent_path[0:3])
         if not all((
             sg_properties['shotgun_domain'],
             sg_properties['shotgun_scriptname'],
@@ -1069,4 +993,62 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'text': u'Link {} with Shotgun...'.format(self.index.data(common.ParentPathRole)[-1]),
                 'icon': sg_pixmap,
                 'action': lambda: self.parent().show_shotgun_bulk_link_widget(current_only=True)
+            }
+
+    def sg_thumbnail_menu(self):
+        if not self.index.isValid():
+            return
+
+        p = self.index.data(common.ParentPathRole)
+        server, job, root = p[0:3]
+        asset = p[3] if len(p) > 3 else None
+
+        sg_properties = shotgun.get_properties(server, job, root, asset)
+        if not shotgun.is_valid(sg_properties):
+            return
+
+        shotgun_icon = self.get_icon(u'shotgun')
+        display_thumbnail_path = images.get_thumbnail(
+            self.index.data(common.ParentPathRole)[0],
+            self.index.data(common.ParentPathRole)[1],
+            self.index.data(common.ParentPathRole)[2],
+            self.index.data(QtCore.Qt.StatusTipRole),
+            common.MARGIN(),
+            fallback_thumb=self.parent().itemDelegate().fallback_thumb,
+            get_path=True
+        )
+
+        k = u'Shotgun'
+        self.menu[k] = collections.OrderedDict()
+        self.menu['{}:icon'.format(k)] = shotgun_icon
+
+        if QtCore.QFileInfo(display_thumbnail_path).exists():
+            self.menu[k]['Upload thumbnail to Shotgun'] = {
+                'action': sg_actions.upload_thumbnail,
+                'icon': shotgun_icon
+            }
+
+    def sg_url_menu(self):
+        if not self.index.isValid():
+            return
+        if not self.index.data(QtCore.Qt.StatusTipRole):
+            return
+
+        k = u'Visit Website...'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu[k + ':icon'] = self.get_icon('bookmark')
+
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+        if len(self.index.data(common.ParentPathRole)) >= 4:
+            asset = self.index.data(common.ParentPathRole)[3]
+        else:
+            asset = None
+
+        sg_properties = shotgun.get_properties(server, job, root, asset)
+        for url in shotgun.get_urls(sg_properties):
+            self.menu[k][key()] = {
+                'text': url,
+                'icon': self.get_icon('shotgun'),
+                'action': functools.partial(QtGui.QDesktopServices.openUrl, QtCore.QUrl(url))
             }

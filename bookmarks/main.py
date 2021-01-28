@@ -563,14 +563,8 @@ class MainWidget(QtWidgets.QWidget):
     def init_shortcuts(self):
         connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
 
-        shortcuts.add_shortcuts(
-            self,
-            shortcuts.MainWidgetShortcuts
-        )
-        connect(
-            shortcuts.OpenNewInstance,
-            actions.exec_instance
-        )
+        # Adding shortcuts to the MainWidget
+        shortcuts.add_shortcuts(self, shortcuts.MainWidgetShortcuts)
 
         connect(shortcuts.RowIncrease, actions.increase_row_size)
         connect(shortcuts.RowDecrease, actions.decrease_row_size)
@@ -588,6 +582,10 @@ class MainWidget(QtWidgets.QWidget):
         connect(shortcuts.EditItem, actions.edit_item)
 
         connect(shortcuts.Refresh, actions.refresh)
+        connect(shortcuts.ToggleSortOrder, actions.toggle_sort_order)
+        connect(shortcuts.RevealItem, actions.reveal_selected)
+        connect(shortcuts.RevealAltItem, actions.reveal_url)
+
 
 
     def widget(self):

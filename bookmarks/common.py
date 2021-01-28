@@ -60,7 +60,8 @@ FlagsRole = QtCore.Qt.UserRole + 1
 ParentPathRole = FlagsRole + 1
 DescriptionRole = ParentPathRole + 1
 TodoCountRole = DescriptionRole + 1
-FileDetailsRole = TodoCountRole + 1
+AssetCountRole = TodoCountRole + 1
+FileDetailsRole = AssetCountRole + 1
 SequenceRole = FileDetailsRole + 1  # SRE Match object
 FramesRole = SequenceRole + 1  # List of frame names
 FileInfoLoaded = FramesRole + 1
@@ -74,6 +75,7 @@ SortByNameRole = IdRole + 1
 SortByLastModifiedRole = SortByNameRole + 1
 SortBySizeRole = SortByLastModifiedRole + 1
 TextSegmentRole = SortBySizeRole + 1
+SGConfiguredRole = TextSegmentRole + 1
 
 FileItem = 1100
 SequenceItem = 1200

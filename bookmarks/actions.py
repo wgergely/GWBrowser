@@ -12,9 +12,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 from . import settings
 from . import bookmark_db
 from . import common
-from . import threads
 from . import images
-
 
 
 class Signals(QtCore.QObject):
@@ -48,6 +46,7 @@ def selection(func):
             return None
         return func(index)
     return func_wrapper
+
 
 def instance():
     from . import main
@@ -97,7 +96,6 @@ def reset_row_size():
     widget.reset_row_layout()
 
 
-
 @common.error
 @common.debug
 def add_bookmark():
@@ -111,9 +109,9 @@ def add_bookmark():
 @common.debug
 def add_asset(server=None, job=None, root=None):
     if not all((server, job, root)):
-        server = settings.ACTIVE[settings.ServerKey]
-        job = settings.ACTIVE[settings.JobKey]
-        root = settings.ACTIVE[settings.RootKey]
+        server = settings.active(settings.ServerKey)
+        job = settings.active(settings.JobKey)
+        root = settings.active(settings.RootKey)
 
     if not all((server, job, root)):
         return None
@@ -126,11 +124,13 @@ def add_asset(server=None, job=None, root=None):
 
 @common.error
 @common.debug
-def add_file(extension=None):
-    server = settings.ACTIVE[settings.ServerKey]
-    job = settings.ACTIVE[settings.JobKey]
-    root = settings.ACTIVE[settings.RootKey]
-    asset = settings.ACTIVE[settings.AssetKey]
+def add_file(asset=None, extension=None):
+    server = settings.active(settings.ServerKey)
+    job = settings.active(settings.JobKey)
+    root = settings.active(settings.RootKey)
+
+    if asset is None:
+        asset = settings.active(settings.AssetKey)
 
     args = (server, job, root, asset)
     if not all(args):
@@ -158,9 +158,9 @@ def add_favourite():
 @common.debug
 def edit_bookmark(server=None, job=None, root=None):
     if not all((server, job, root)):
-        server = settings.ACTIVE[settings.ServerKey]
-        job = settings.ACTIVE[settings.JobKey]
-        root = settings.ACTIVE[settings.RootKey]
+        server = settings.active(settings.ServerKey)
+        job = settings.active(settings.JobKey)
+        root = settings.active(settings.RootKey)
 
     if not all((server, job, root)):
         return None
@@ -179,14 +179,14 @@ def edit_bookmark(server=None, job=None, root=None):
 @common.error
 @common.debug
 def edit_asset(asset=None):
-    server = settings.ACTIVE[settings.ServerKey]
-    job = settings.ACTIVE[settings.JobKey]
-    root = settings.ACTIVE[settings.RootKey]
+    server = settings.active(settings.ServerKey)
+    job = settings.active(settings.JobKey)
+    root = settings.active(settings.RootKey)
 
     if not all((server, job, root)):
         return None
     if asset is None:
-        asset = settings.ACTIVE[settings.AssetKey]
+        asset = settings.active(settings.AssetKey)
     if asset is None:
         return
 
@@ -208,10 +208,10 @@ def edit_asset(asset=None):
 @common.error
 @common.debug
 def edit_file(f):
-    server = settings.ACTIVE[settings.ServerKey]
-    job = settings.ACTIVE[settings.JobKey]
-    root = settings.ACTIVE[settings.RootKey]
-    asset = settings.ACTIVE[settings.AssetKey]
+    server = settings.active(settings.ServerKey)
+    job = settings.active(settings.JobKey)
+    root = settings.active(settings.RootKey)
+    asset = settings.active(settings.AssetKey)
 
     if not all((server, job, root, asset)):
         return
@@ -251,9 +251,9 @@ def show_slack():
     """Opens the Slack widget used to send messages using SlackAPI.
 
     """
-    server = settings.ACTIVE[settings.ServerKey]
-    job = settings.ACTIVE[settings.JobKey]
-    root = settings.ACTIVE[settings.RootKey]
+    server = settings.active(settings.ServerKey)
+    job = settings.active(settings.JobKey)
+    root = settings.active(settings.RootKey)
 
     args = (server, job, root)
     if not all(args):
@@ -279,6 +279,7 @@ def show_slack():
 @common.error
 @common.debug
 def quit():
+    from . import threads
     instance().statusbar.showMessage(u'Closing down...')
     instance().destroy_ui()
 
@@ -288,7 +289,6 @@ def quit():
 
     if common.STANDALONE:
         QtWidgets.QApplication.instance().quit()
-
 
 
 @common.error
@@ -383,6 +383,9 @@ def toggle_minimized():
 @common.error
 @common.debug
 def toggle_stays_on_top():
+    if not common.STANDALONE:
+        return
+
     from . import standalone
 
     w = standalone.instance()
@@ -403,6 +406,9 @@ def toggle_stays_on_top():
 @common.error
 @common.debug
 def toggle_frameless():
+    if not common.STANDALONE:
+        return
+
     from . import standalone
 
     w = standalone.instance()
@@ -422,7 +428,6 @@ def toggle_frameless():
     w.showNormal()
 
 
-
 @common.error
 @common.debug
 def exec_instance():
@@ -430,7 +435,7 @@ def exec_instance():
         if common.BOOKMARK_ROOT_KEY not in os.environ:
             s = u'Bookmarks does not seem to be installed correctly:\n'
             s += u'"{}" environment variable is not set'.format(
-            common.BOOKMARK_ROOT_KEY)
+                common.BOOKMARK_ROOT_KEY)
             raise RuntimeError(s)
         p = os.environ[common.BOOKMARK_ROOT_KEY] + \
             os.path.sep + 'bookmarks.exe'
@@ -439,7 +444,6 @@ def exec_instance():
         raise NotImplementedError(u'Not yet implemented.')
     elif common.get_platform() == common.PlatformUnsupported:
         raise NotImplementedError(u'Not yet implemented.')
-
 
 
 @common.error
@@ -481,6 +485,16 @@ def change_sorting(role, order):
 
 @common.error
 @common.debug
+def toggle_sort_order():
+    model = instance().widget().model().sourceModel()
+    order = model.sort_order()
+    role = model.sort_role()
+
+    model.sortingChanged.emit(role, not order)
+
+
+@common.error
+@common.debug
 @selection
 def copy_selected_path(index):
     if not index.data(common.FileInfoLoaded):
@@ -496,6 +510,7 @@ def copy_selected_path(index):
         mode=mode,
         first=False
     )
+
 
 @common.error
 @common.debug
@@ -592,6 +607,26 @@ def reveal_selected(index):
 @common.debug
 @common.error
 @selection
+def reveal_url(index):
+    parent_path = index.data(common.ParentPathRole)
+    if len(parent_path) == 3:
+        table = bookmark_db.BookmarkTable
+    else:
+        table = bookmark_db.AssetTable
+
+    source = u'/'.join(index.data(common.ParentPathRole))
+    with bookmark_db.transactions(*index.data(common.ParentPathRole)[0:3]) as db:
+        v = db.value(source, 'url1', table=table)
+
+    if not v:
+        return
+
+    QtGui.QDesktopServices.openUrl(QtCore.QUrl(v)),
+
+
+@common.debug
+@common.error
+@selection
 def toggle_favourite(index):
     instance().widget().save_selection()
     instance().widget().toggle_item_flag(index, common.MarkedAsFavourite)
@@ -649,7 +684,6 @@ def reveal(item):
             QtCore.QSysInfo().productType()))
 
 
-
 @common.debug
 @common.error
 def copy_path(path, mode=common.WindowsPath, first=True, copy=True):
@@ -703,7 +737,10 @@ def copy_path(path, mode=common.WindowsPath, first=True, copy=True):
 @common.debug
 @common.error
 def execute(index, first=False):
-    """Given the model index, executes the index's path using `QDesktopServices`."""
+    """Given the model index, executes the index's path using
+    `QDesktopServices`.
+
+    """
     if not index.isValid():
         return
     path = index.data(QtCore.Qt.StatusTipRole)
@@ -714,3 +751,23 @@ def execute(index, first=False):
 
     url = QtCore.QUrl.fromLocalFile(path)
     QtGui.QDesktopServices.openUrl(url)
+
+
+@common.debug
+@common.error
+def test_slack_token(token):
+    from . import slack
+    client = slack.SlackClient(token)
+    client.verify_token(silent=False)
+
+
+@common.debug
+@common.error
+def suggest_prefix(job):
+    substrings = re.sub(ur'[\_\-\s]+', u';', job).split(u';')
+    if (not substrings or len(substrings) < 2) and len(job) > 3:
+        prefix = job[0:3].upper()
+    else:
+        prefix = u''.join([f[0] for f in substrings]).upper()
+    return prefix
+    

@@ -19,28 +19,25 @@ from . import shotgun
 from . import task_tree
 
 
-__instsance = None
+instance = None
 
 
 class CreateTaskPublish(QtWidgets.QDialog):
     """Widget used to add a new version to a task.
 
     """
-    def __init__(self, path, parent=None):
-        global __instsance
-        __instsance = self
+    def __init__(self, sg_properties, path, parent=None):
+        global instance
+        instance = self
 
         super(CreateTaskPublish, self).__init__(parent=parent)
         if not self.parent():
             common.set_custom_stylesheet(self)
 
-        if not path:
-            log.error('Path not specified.')
-            raise RuntimeError('Path not specified.')
-
         self.setWindowTitle(u'Shotgun: Publish File')
 
         self.path = path
+        self.sg_properties = sg_properties
 
         self.task_picker = None
         self.name_editor = None
@@ -197,214 +194,200 @@ class CreateTaskPublish(QtWidgets.QDialog):
         self.layout().addStretch(1)
         self.layout().addWidget(self.add_button, 1)
 
-    @QtCore.Slot()
+    @common.error
+    @common.debug
     def init_values(self):
-        try:
-            project_id = bookmark_db.get_property(u'shotgun_id')
-            if project_id is None:
-                raise RuntimeError('Project ID is not set.')
+        if not shotgun.is_valid(self.sg_properties):
+            raise RuntimeError('Shotgun not configured properly.')
 
-            sg_id = bookmark_db.get_property(u'shotgun_id', asset_property=True)
-            if sg_id is None:
-                raise RuntimeError('ID is not set.')
-            entity_type = bookmark_db.get_property(u'shotgun_type', asset_property=True)
-            if entity_type is None:
-                raise RuntimeError('Shotgun entity type is not set.')
+        server = self.sg_properties[settings.ServerKey]
+        job = self.sg_properties[settings.JobKey]
+        root = self.sg_properties[settings.RootKey]
 
-            domain = bookmark_db.get_property(u'shotgun_domain')
-            script = bookmark_db.get_property(u'shotgun_scriptname')
-            key = bookmark_db.get_property(u'shotgun_key')
+        with shotgun.connection(server, job, root) as sg:
+            try:
+                tasks = sg.find_tasks(
+                    self.sg_properties[shotgun.SGAssetEntityType],
+                    self.sg_properties[shotgun.SGAssetEntityID],
+                )
+                self._add_tasks(tasks)
+                self._restore_previous_task()
+            except:
+                log.error('Failed to get Shotgun tasks')
 
-            # Get task data
+            try:
+                users = sg.find_users()
+                self._add_users(users)
+                self._restore_previous_user()
+            except:
+                log.error('Failed to get Shotgun users')
 
-            with shotgun.init_sg(domain, script, key) as _:
-
-                tasks = []
-                try:
-                    tasks = shotgun.find_tasks(
-                        entity_type,
-                        sg_id
-                    )
-                except:
-                    log.error('Failed to get Shotgun tasks')
-
-
-                users = []
-                try:
-                    users = shotgun.find_users()
-                except:
-                    log.error('Failed to get Shotgun users')
-
-
+            try:
+                storage = sg.find_storage()
+                self._add_users(storage)
+                self._restore_previous_storage()
+            except:
                 storage = []
-                try:
-                    storage = shotgun.find_storage()
-                except:
-                    log.error('Failed to get Shotgun storage')
+                log.error('Failed to get Shotgun storage')
 
-
+            try:
+                types = sg.find_published_file_types()
+            except:
                 types = []
-                try:
-                    types = shotgun.find_published_file_types()
-                except:
-                    log.error('Failed to get Shotgun published file types')
+                log.error('Failed to get Shotgun published file types')
 
-            if tasks:
-                self.task_picker.set_data(tasks)
+    def _add_tasks(self, tasks):
+        self.task_picker.blockSignals(True)
+        try:
+            self.task_picker.set_data(tasks)
+        finally:
+            self.task_picker.blockSignals(False)
 
-            self.user_picker.blockSignals(True)
+    def _restore_previous_task(self):
+        pass
+
+    def _add_users(self, users):
+        if not users:
+            return
+
+        self.user_picker.blockSignals(True)
+        try:
             self.user_picker.addItem(u'Select name...', userData=None)
-            if users:
-
-                try:
-                    users = sorted(users, key=lambda x: x['name'])
-                except:
-                    pass
-
+            try:
+                users = sorted(users, key=lambda x: x[shotgun.NameColumn])
+            except:
                 try:
                     users = sorted(users, key=lambda x: x[shotgun.IdColumn])
                 except:
                     pass
 
-
-                for user in users:
-                    if 'name' in user:
-                        self.user_picker.addItem(user['name'], userData=user[shotgun.IdColumn])
-                    elif shotgun.IdColumn in user:
-                        name = 'HumanUser{}'.format(user[shotgun.IdColumn])
-                        self.user_picker.addItem(name, userData=user[shotgun.IdColumn])
-                    else:
-                        continue
-
-
-                prev = settings.local_settings.value(
-                    settings.UIStateSection,
-                    settings.SGUserKey
-                )
-                if prev:
-                    self.user_picker.setCurrentText(prev)
-            else:
-                self.user_picker.addItem(u'Error loading users', userData=None)
+            for user in users:
+                if shotgun.NameColumn in user:
+                    self.user_picker.addItem(user['name'], userData=user[shotgun.IdColumn])
+                elif shotgun.IdColumn in user:
+                    name = 'HumanUser{}'.format(user[shotgun.IdColumn])
+                    self.user_picker.addItem(name, userData=user[shotgun.IdColumn])
+                else:
+                    continue
+        finally:
             self.user_picker.blockSignals(False)
 
+    def _restore_previous_user(self):
+        prev = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.SGUserKey
+        )
+        if prev:
+            self.user_picker.setCurrentText(prev)
 
-            self.storage_picker.blockSignals(True)
+    def _add_storage(self, storage):
+        if not storage:
+            return
+
+        self.storage_picker.blockSignals(True)
+        try:
             self.storage_picker.addItem(u'Select Local Storage...', userData=None)
-            if storage:
-                try:
-                    storage = sorted(storage, key=lambda x: x[shotgun.CodeColumn])
-                except:
-                    pass
-
+            try:
+                storage = sorted(storage, key=lambda x: x[shotgun.CodeColumn])
+            except:
                 try:
                     storage = sorted(storage, key=lambda x: x[shotgun.IdColumn])
                 except:
                     pass
 
-
-                for store in storage:
-                    name = None
-                    if 'code' in store:
-                        name = store['code']
-                    elif 'description' in store:
-                        name = store['description']
-                    elif shotgun.IdColumn in store:
-                        name = 'LocalStorage{}'.format(store[shotgun.IdColumn])
-                    else:
-                        continue
-
-                    if not name:
-                        continue
-
-                    self.storage_picker.addItem(name, userData=store[shotgun.IdColumn])
-
-                prev = settings.local_settings.value(
-                    settings.UIStateSection,
-                    settings.SGStorageKey
-                )
-                if prev:
-                    self.storage_picker.setCurrentText(prev)
-            else:
-                self.storage_picker.addItem(u'Error loading storage list', userData=None)
-
+            for store in storage:
+                name = None
+                if 'code' in store:
+                    name = store['code']
+                elif 'description' in store:
+                    name = store['description']
+                elif shotgun.IdColumn in store:
+                    name = u'LocalStorage{}'.format(store[shotgun.IdColumn])
+                else:
+                    continue
+                if not name:
+                    continue
+                self.storage_picker.addItem(name, userData=store[shotgun.IdColumn])
+        finally:
             self.storage_picker.blockSignals(False)
 
+    def _restore_previous_storage(self):
+        prev = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.SGStorageKey
+        )
+        if prev:
+            self.storage_picker.setCurrentText(prev)
+        self.storage_picker.addItem(u'Error loading storage list', userData=None)
+
+    def _add_types(self, types):
+        if not types:
+            return
+
+        self.type_picker.blockSignals(True)
+        try:
             self.type_picker.addItem(u'Select type...', userData=None)
-            self.type_picker.blockSignals(True)
-            if types:
+            try:
+                types = sorted(types, key=lambda x: x[shotgun.CodeColumn])
+            except:
                 try:
-                    storage = sorted(storage, key=lambda x: x['code'])
+                    types = sorted(types, key=lambda x: x[shotgun.IdColumn])
                 except:
                     pass
 
-                try:
-                    storage = sorted(storage, key=lambda x: x[shotgun.IdColumn])
-                except:
-                    pass
-
-
-                for type in types:
-                    name = None
-                    if 'code' in type:
-                        name = type['code']
-                    elif 'short_name' in type:
-                        name = type['short_name']
-                    elif shotgun.IdColumn in type:
-                        name = 'PublishedFileType{}'.format(type[shotgun.IdColumn])
-                    else:
-                        continue
-
-                    if not name:
-                        continue
-
-                    self.type_picker.addItem(name, userData=store[shotgun.IdColumn])
-
-                prev = settings.local_settings.value(
-                    settings.UIStateSection,
-                    settings.SGTypeKey
-                )
-                if prev:
-                    self.type_picker.setCurrentText(prev)
-            else:
-                self.type_picker.addItem(u'Error loading types list', userData=None)
+            for _type in types:
+                name = None
+                if shotgun.CodeColumn in _type:
+                    name = _type[shotgun.CodeColumn]
+                elif 'short_name' in _type:
+                    name = _type['short_name']
+                elif shotgun.IdColumn in _type:
+                    name = u'PublishedFileType{}'.format(_type[shotgun.IdColumn])
+                if not name:
+                    continue
+                self.type_picker.addItem(name, userData=_type[shotgun.IdColumn])
+        finally:
             self.type_picker.blockSignals(False)
 
+    def _restore_previous_type(self):
+        v = settings.local_settings.value(
+            settings.UIStateSection,
+            settings.SGTypeKey
+        )
+        if not v:
+            return
+        self.type_picker.setCurrentText(v)
 
-            # Path
-            if common.is_collapsed(self.path):
-                path = common.get_sequence_endpath(self.path)
-            else:
-                path = self.path
+    def _init_sequence(self):
+        # Path
+        if common.is_collapsed(self.path):
+            path = common.get_sequence_endpath(self.path)
+        else:
+            path = self.path
 
-            file_info = QtCore.QFileInfo(path)
-            if not file_info.exists():
-                raise RuntimeError(u'Path does not exist')
+        file_info = QtCore.QFileInfo(path)
+        if not file_info.exists():
+            raise RuntimeError(u'Path does not exist')
 
-            self.path_to_file_editor.setText(path)
+        self.path_to_file_editor.setText(path)
 
-            seq = common.get_sequence(self.path)
-            if not seq:
-                name = file_info.baseName().strip('.').strip('_')
-                version = '0'
-            else:
-                version = seq.group(2)
-                name = u'{}_{}'.format(
-                    seq.group(1).strip('.').strip('_').strip(' '),
-                    seq.group(3).strip('.').strip('_').strip(' '),
-                )
-                name = QtCore.QFileInfo(name).baseName().strip('.').strip('_')
+        seq = common.get_sequence(self.path)
+        if not seq:
+            name = file_info.baseName().strip('.').strip('_')
+            version = '0'
+        else:
+            version = seq.group(2)
+            name = u'{}_{}'.format(
+                seq.group(1).strip('.').strip('_').strip(' '),
+                seq.group(3).strip('.').strip('_').strip(' '),
+            )
+            name = QtCore.QFileInfo(name).baseName().strip('.').strip('_')
 
-            # Strip version indicator
-            name = name.strip('.').strip('_').rstrip('_v')
+        # Strip version indicator
+        name = name.strip('.').strip('_').rstrip('_v')
 
-            self.name_editor.setText(name)
-            self.version_editor.setText(version)
-
-
-        except Exception as e:
-            common_ui.ErrorBox('An error occured', unicode(e)).open()
-            log.error('An error occured.')
-            raise
+        self.name_editor.setText(name)
+        self.version_editor.setText(version)
 
     @QtCore.Slot()
     def action(self):

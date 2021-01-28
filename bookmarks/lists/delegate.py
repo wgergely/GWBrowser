@@ -401,124 +401,177 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(HOVER_COLOR)
             painter.drawRect(rect)
 
-    @paintmethod
-    def paint_inline_icons(self, *args):
+
+    def _paint_inline_background(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         c = self.parent().inline_icons_count()
         if c:
-            o = (common.MARGIN() + (common.INDICATOR_WIDTH() * 2)) * \
-                c + common.MARGIN()
-            bg_rect = QtCore.QRect(rectangles[BackgroundRect])
-            bg_rect.setLeft(bg_rect.right() - o)
+            o = (common.MARGIN() + (common.INDICATOR_WIDTH() * 2)) * c + common.MARGIN()
+            rect = QtCore.QRect(rectangles[BackgroundRect])
+            rect.setLeft(rect.right() - o)
             painter.setBrush(common.SEPARATOR)
             painter.setOpacity(0.3)
-            painter.drawRect(bg_rect)
-
+            painter.drawRect(rect)
         painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+
+    @paintmethod
+    def paint_inline_icons(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        _ = painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+        self._paint_inline_background(*args)
+        self._paint_inline_favourite(*args)
+        self._paint_inline_archived(*args)
+        self._paint_inline_reveal(*args)
+        self._paint_inline_todo(*args)
+        self._paint_inline_add(*args)
+        self._paint_inline_properties(*args)
+
+
+    @paintmethod
+    def _paint_inline_favourite(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[FavouriteRect]
-        if rect and not archived:
-            if rect.contains(cursor_position) or favourite:
-                painter.setOpacity(1.0)
+        if not rect or archived:
+            return
 
-            color = common.TEXT_DISABLED if rect.contains(
-                cursor_position) else common.SEPARATOR
-            color = common.TEXT_SELECTED if favourite else color
+        if rect.contains(cursor_position) or favourite:
+            painter.setOpacity(1.0)
 
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'favourite', color, common.MARGIN())
-            painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+        sunken = option.state & QtWidgets.QStyle.State_Sunken
 
+        color = QtGui.QColor(255,255,255, 150) if rect.contains(cursor_position) else common.SEPARATOR
+        color = common.TEXT_SELECTED if favourite else color
+        color = QtGui.QColor(0, 0, 0, 150) if sunken else color
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'favourite', color, common.MARGIN())
+        painter.drawPixmap(rect, pixmap)
+
+    @paintmethod
+    def _paint_inline_archived(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[ArchiveRect]
-        if rect:
-            if rect.contains(cursor_position):
-                painter.setOpacity(1.0)
-            color = common.ADD if archived else common.REMOVE
-            color = color if rect.contains(
-                cursor_position) else common.SEPARATOR
+        if not rect:
+            return
 
-            if archived:
-                pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'check', common.ADD, common.MARGIN())
-            else:
-                pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'remove', color, common.MARGIN())
-            painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+        if rect.contains(cursor_position):
+            painter.setOpacity(1.0)
 
+        color = common.ADD if archived else common.REMOVE
+        color = color if rect.contains(
+            cursor_position) else common.SEPARATOR
+        if archived:
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                u'check', common.ADD, common.MARGIN())
+        else:
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                u'close', color, common.MARGIN())
+        painter.drawPixmap(rect, pixmap)
+
+    @paintmethod
+    def _paint_inline_reveal(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[RevealRect]
-        if rect and not archived:
-            if rect.contains(cursor_position):
-                painter.setOpacity(1.0)
-            color = common.TEXT_SELECTED if rect.contains(
-                cursor_position) else common.SEPARATOR
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'reveal_folder', color, common.MARGIN())
-            painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+        if not rect or archived:
+            return
+        if rect.contains(cursor_position):
+            painter.setOpacity(1.0)
+        color = common.TEXT_SELECTED if rect.contains(
+            cursor_position) else common.SEPARATOR
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'reveal_folder', color, common.MARGIN())
+        painter.drawPixmap(rect, pixmap)
 
+    @paintmethod
+    def _paint_inline_todo(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[TodoRect]
-        if rect and not archived:
-            if rect.contains(cursor_position):
-                painter.setOpacity(1.0)
+        if not rect or archived:
+            return
 
-            color = common.TEXT_SELECTED if rect.contains(
-                cursor_position) else common.SEPARATOR
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'todo', color, common.MARGIN())
-            painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+        if rect.contains(cursor_position):
+            painter.setOpacity(1.0)
 
-            # Circular background
-            size = common.LARGE_FONT_SIZE()
-            count_rect = QtCore.QRect(0, 0, size, size)
-            count_rect.moveCenter(rect.bottomRight())
+        color = common.TEXT_SELECTED if rect.contains(
+            cursor_position) else common.SEPARATOR
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'todo', color, common.MARGIN())
+        painter.drawPixmap(rect, pixmap)
 
-            if index.data(common.TodoCountRole):
-                painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
-                if rect.contains(cursor_position):
-                    color = common.TEXT_SELECTED
-                    pixmap = images.ImageCache.get_rsc_pixmap(
-                        u'add', color, size)
-                    painter.drawPixmap(count_rect, pixmap)
-                else:
-                    color = common.FAVOURITE
-                    painter.setBrush(color)
-                    painter.drawRoundedRect(
-                        count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
+        count = index.data(common.TodoCountRole)
+        self.draw_count(painter, rect, cursor_position, count, u'add')
 
-                    text = unicode(index.data(common.TodoCountRole))
-                    _font, _metrics = common.font_db.primary_font(
-                        font_size=common.SMALL_FONT_SIZE())
-                    x = count_rect.center().x() - (_metrics.width(text) / 2.0) + common.ROW_SEPARATOR()
-                    y = count_rect.center().y() + (_metrics.ascent() / 2.0)
-
-                    painter.setBrush(common.TEXT)
-                    path = get_painter_path(x, y, _font, text)
-                    painter.drawPath(path)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
-
+    @paintmethod
+    def _paint_inline_add(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[AddAssetRect]
-        if rect and not archived:
-            if rect.contains(cursor_position):
-                painter.setOpacity(1.0)
-            color = common.TEXT_SELECTED if rect.contains(
-                cursor_position) else common.SEPARATOR
-            pixmap = images.ImageCache.get_rsc_pixmap(
-                u'add', color, common.MARGIN())
-            painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+        if not rect or archived:
+            return
+
+        if rect.contains(cursor_position):
+            painter.setOpacity(1.0)
+
+        color = common.TEXT_SELECTED if rect.contains(
+            cursor_position) else common.SEPARATOR
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'add', color, common.MARGIN())
+        painter.drawPixmap(rect, pixmap)
+
+        if len(index.data(common.ParentPathRole)) == 3:
+            count = index.data(common.AssetCountRole)
+            self.draw_count(painter, rect, cursor_position, count, 'assets')
+
+
+    @paintmethod
+    def _paint_inline_properties(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
 
         rect = rectangles[PropertiesRect]
-        if rect and not archived:
-            if rect.contains(cursor_position):
-                painter.setOpacity(1.0)
-            color = common.TEXT_SELECTED if rect.contains(
-                cursor_position) else common.SEPARATOR
+        if not rect or archived:
+            return
+
+        if rect.contains(cursor_position):
+            painter.setOpacity(1.0)
+        color = common.TEXT_SELECTED if rect.contains(
+            cursor_position) else common.SEPARATOR
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'settings', color, common.MARGIN())
+        painter.drawPixmap(rect, pixmap)
+
+
+    def draw_count(self, painter, rect, cursor_position, count, icon):
+        if not isinstance(count, (int, float, long)):
+            return
+
+        size = common.LARGE_FONT_SIZE()
+        count_rect = QtCore.QRect(0, 0, size, size)
+        count_rect.moveCenter(rect.bottomRight())
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
+
+        if rect.contains(cursor_position):
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'settings', color, common.MARGIN())
-            painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+                icon, common.ADD, size)
+            painter.drawPixmap(count_rect, pixmap)
+            return
+
+        if count < 1:
+            return
+
+        color = common.FAVOURITE
+        painter.setBrush(color)
+        painter.drawRoundedRect(
+            count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
+
+        text = u'{}'.format(count)
+        _font, _metrics = common.font_db.primary_font(
+            font_size=common.SMALL_FONT_SIZE())
+        x = count_rect.center().x() - (_metrics.width(text) / 2.0) + common.ROW_SEPARATOR()
+        y = count_rect.center().y() + (_metrics.ascent() / 2.0)
+
+        painter.setBrush(common.TEXT)
+        path = get_painter_path(x, y, _font, text)
+        painter.drawPath(path)
+
 
     @paintmethod
     def paint_selection_indicator(self, *args):
@@ -606,10 +659,32 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_file_shadow(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_drop_indicator(*args)
+        self.paint_shotgun_status(*args)
 
     def get_description_rect(self, *args):
         """We don't have editable descriptions for bookmark items."""
         return QtCore.QRect()
+
+    @paintmethod
+    def paint_shotgun_status(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        if not index.isValid():
+            return
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
+        if not index.data(common.ParentPathRole):
+            return
+        if not index.data(common.SGConfiguredRole):
+            return
+
+        rect = QtCore.QRect(0, 0, common.MARGIN(), common.MARGIN())
+
+        offset = QtCore.QPoint(common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
+        rect.moveBottomRight(
+            rectangles[ThumbnailRect].bottomRight() - offset)
+        painter.setOpacity(0.9) if hover else painter.setOpacity(0.8)
+        pixmap = images.ImageCache.get_rsc_pixmap('shotgun', common.TEXT, common.MARGIN())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     @paintmethod
     def paint_name(self, *args):

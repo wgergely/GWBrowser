@@ -108,8 +108,13 @@ class BulkLinkWidget(QtWidgets.QDialog):
         """Loads data from Shotgun.
 
         """
-        sg_properties = shotgun.get_shotgun_properties(self.server, self.job, self.root)
-        if not all(sg_properties.values()):
+        sg_properties = shotgun.get_properties(
+            server=self.server,
+            job=self.job,
+            root=self.root,
+            asset=None
+        )
+        if not shotgun.is_valid(sg_properties=sg_properties):
             return
 
         model = QtGui.QStandardItemModel()

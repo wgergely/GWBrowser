@@ -1081,67 +1081,24 @@ class PropertiesWidget(QtWidgets.QDialog):
 
         return super(PropertiesWidget, self).done(result)
 
-    @QtCore.Slot(unicode)
-    @QtCore.Slot(int)
-    def set_shotgun_id(self, sg_name, sg_id):
-        if sg_id is None:
-            return
-        if sg_name == u'No items found' or sg_name == u'Error':
-            return
-
-        k = u'shotgun_id'
-        if not hasattr(self, k + '_editor'):
-            return
-        editor = getattr(self, k + '_editor')
-        editor.setText(unicode(sg_id))
-
-        k = u'shotgun_name'
-        if not hasattr(self, k + '_editor'):
-            return
-        editor = getattr(self, k + '_editor')
-        editor.setText(sg_name)
-
-    @QtCore.Slot()
-    def shotgun_type_button_clicked(self):
-        self.show_link_entity_widget()
-
-    def show_link_entity_widget(self):
-        """Opens the widget used to link a local asset with a shotgun entity.
-
-        """
-        entity_type = self.shotgun_type_editor.currentText()
-        if not entity_type:
-            return
-
-        if self.db_source() is not None:
-            self.save_changes()
-
-        from ..shotgun import link_entity_widget
-        widget = link_entity_widget.LinkEntityWidget(
-            self.server,
-            self.job,
-            self.root,
-        )
-        widget.entitySelected.connect(self.set_shotgun_entity)
-        widget.open()
-
-        return widget
-
-    @QtCore.Slot(int)
-    @QtCore.Slot(unicode)
-    def set_shotgun_entity(self, entity_id, entity_name):
-        """Slot used to set and set the shotgun entity name and id.
-
-        """
-        self.shotgun_id_editor.setText(u'{}'.format(entity_id))
-        self.shotgun_name_editor.setText(entity_name)
-
-        if self.db_source() is not None:
-            self.save_changes()
-
     def showEvent(self, event):
         self.init_timer.start()
         self.center_window()
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH() * 1.33, common.HEIGHT() * 1.5)
+
+    @QtCore.Slot(int)
+    @QtCore.Slot(unicode)
+    def update_sg_entity(self, sg_entity_id, sg_entity_name):
+        """Slot used updat the shotgun entity id and name.
+
+        """
+        self.current_data['shotgun_id'] = sg_entity_id
+        sg_entity_id = u'{}'.format(sg_entity_id)
+        self.shotgun_id_editor.setText(sg_entity_id)
+        self.shotgun_id_editor.textEdited.emit(sg_entity_id)
+
+        self.current_data['shotgun_name'] = sg_entity_name
+        self.shotgun_name_editor.setText(sg_entity_name)
+        self.shotgun_name_editor.textEdited.emit(sg_entity_name)

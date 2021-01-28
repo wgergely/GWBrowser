@@ -16,7 +16,9 @@ RowIncrease = OpenNewInstance + 1
 RowDecrease = RowIncrease + 1
 RowReset = RowDecrease + 1
 
-ShowBookmarksTab = RowReset + 1
+ToggleSortOrder = RowReset + 1
+
+ShowBookmarksTab = ToggleSortOrder + 1
 ShowAssetsTab = ShowBookmarksTab + 1
 ShowFilesTab = ShowAssetsTab + 1
 ShowFavouritesTab = ShowFilesTab + 1
@@ -30,8 +32,9 @@ Refresh = AddItem + 1
 CopyItemPath = Refresh + 1
 CopyAltItemPath = CopyItemPath + 1
 RevealItem = CopyAltItemPath + 1
+RevealAltItem = RevealItem + 1
 
-EditItem = RevealItem + 1
+EditItem = RevealAltItem + 1
 CopyProperties = EditItem + 1
 PasteProperties = CopyProperties + 1
 
@@ -99,6 +102,13 @@ MainWidgetShortcuts = {
         'default': u'Ctrl+0',
         'repeat': False,
         'description': u'Reset row size to its default height',
+        'shortcut': None,
+    },
+    ToggleSortOrder: {
+        'value': u'Ctrl+Down',
+        'default': u'Ctrl+Down',
+        'repeat': False,
+        'description': u'Toggle sort order',
         'shortcut': None,
     },
     ShowBookmarksTab: {
@@ -175,7 +185,14 @@ MainWidgetShortcuts = {
         'value': u'Ctrl+O',
         'default': u'Ctrl+O',
         'repeat': False,
-        'description': u'Reveal item in the file explorer',
+        'description': u'Reveal item in the file explorer...',
+        'shortcut': None,
+    },
+    RevealAltItem: {
+        'value': u'Ctrl+Shift+O',
+        'default': u'Ctrl+Shift+O',
+        'repeat': False,
+        'description': u'Reveal primary URL...',
         'shortcut': None,
     },
     EditItem: {

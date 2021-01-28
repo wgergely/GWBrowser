@@ -11,6 +11,8 @@ import shotgun_api3
 from PySide2 import QtCore, QtWidgets
 
 from .. import bookmark_db
+from .. import settings
+from .. import common
 from .. import common_ui
 from .. import log
 
@@ -51,6 +53,40 @@ CutDurationRole = NameRole + 1
 CutInRole = CutDurationRole + 1
 CutOutRole = CutInRole + 1
 DescriptionRole = CutOutRole + 1
+
+
+SGDomain = QtCore.Qt.UserRole + 1
+SGKey = SGDomain + 1
+SGScript = SGKey + 1
+
+SGBookmarkEntityType = SGScript + 1
+SGBookmarkEntityName = SGBookmarkEntityType + 1
+SGBookmarkEntityID = SGBookmarkEntityName + 1
+
+SGAssetEntityType = SGBookmarkEntityID + 1
+SGAssetEntityName = SGAssetEntityType + 1
+SGAssetEntityID = SGBookmarkEntityName + 1
+
+
+SGProperties = {
+    settings.ServerKey: None,
+    settings.JobKey: None,
+    settings.RootKey: None,
+    settings.AssetKey: None,
+
+    SGDomain: None,
+    SGKey: None,
+    SGScript: None,
+
+    SGBookmarkEntityType: None,
+    SGBookmarkEntityName: None,
+    SGBookmarkEntityID: None,
+
+    SGAssetEntityType: None,
+    SGAssetEntityName: None,
+    SGAssetEntityID: None,
+}
+
 
 ENTITY_URL = u'{domain}/detail/{shotgun_type}/{shotgun_id}'
 
@@ -120,8 +156,57 @@ def name_key(entity):
     return u'Unknown entity'
 
 
+def get_urls(sg_properties):
+    """Returns a list of available urls based on the sg_properties provided.
 
-def get_shotgun_properties(server, job, root, asset=None):
+    Returns:
+        list:   A list of urls.
+        
+    """
+    if not sg_properties[SGDomain]:
+        return []
+
+    urls = []
+    urls.append(sg_properties[SGDomain])
+    if all((sg_properties[SGBookmarkEntityID], sg_properties[SGBookmarkEntityType])):
+        urls.append(
+            ENTITY_URL.format(
+                domain=sg_properties[SGDomain],
+                shotgun_type=sg_properties[SGBookmarkEntityType],
+                shotgun_id=sg_properties[SGBookmarkEntityID]
+            )
+        )
+    if all((sg_properties[SGAssetEntityID], sg_properties[SGAssetEntityType])):
+        urls.append(
+            ENTITY_URL.format(
+                domain=sg_properties[SGDomain],
+                shotgun_type=sg_properties[SGAssetEntityType],
+                shotgun_id=sg_properties[SGAssetEntityID]
+            )
+        )
+    return urls
+
+
+def is_valid(sg_properties, connection_only=False):
+    if sg_properties is None:
+        sg_properties = get_properties()
+
+    if not all([sg_properties[k] for k in (SGDomain, SGKey, SGScript)]):
+        return False
+    if connection_only:
+        return True
+    if not all([sg_properties[k] for k in (SGBookmarkEntityType, SGBookmarkEntityName, SGBookmarkEntityID)]):
+        return False
+    if not sg_properties[settings.AssetKey]:
+        return True
+    if not all([sg_properties[k] for k in (SGAssetEntityType, SGAssetEntityName, SGAssetEntityID)]):
+        return False
+    return True
+
+
+@common.debug
+@common.error
+def get_properties(server, job, root, asset, db=None):
     """Returns all saved Shotgun properties in the specified
     bookmark database.
 
@@ -135,63 +220,73 @@ def get_shotgun_properties(server, job, root, asset=None):
         dict: A series of key/value pairs.
 
     """
-    kwargs = {}
-    args = (server, job, root)
+    from .. import settings
+    if not all((server, job, root)):
+        return SGProperties.copy()
 
-    with bookmark_db.transactions(*args) as db:
-        # Shotgun Connection Properties
-        for k in (u'shotgun_domain', u'shotgun_scriptname', u'shotgun_api_key'):
-            kwargs[k] = db.value(u'/'.join(args), k, table=bookmark_db.BookmarkTable)
+    sg_properties = SGProperties.copy()
+    sg_properties[settings.ServerKey] = server
+    sg_properties[settings.JobKey] = job
+    sg_properties[settings.RootKey] = root
 
-        # Shotgun Entity Properties
-        source = u'/'.join(args + (asset, )) if asset else u'/'.join(args)
-        table = bookmark_db.AssetTable if asset else bookmark_db.BookmarkTable
-        for k in (u'shotgun_type', u'shotgun_id', u'shotgun_name'):
-            kwargs[k] = db.value(source, k, table=table)
+    if db is None:
+        with bookmark_db.transactions(server, job, root) as db:
+            sg_properties = _load_properties(db, asset, sg_properties)
+    else:
+        sg_properties = _load_properties(db, asset, sg_properties)
+    return sg_properties
 
-    return kwargs
+
+def _load_properties(db, asset, sg_properties):
+    t = bookmark_db.BookmarkTable
+    s = db.source()
+    sg_properties[SGDomain] = db.value(s, 'shotgun_domain', table=t)
+    sg_properties[SGKey] = db.value(s, 'shotgun_api_key', table=t)
+    sg_properties[SGScript] = db.value(s, 'shotgun_scriptname', table=t)
+
+    sg_properties[SGBookmarkEntityType] = db.value(s, 'shotgun_type', table=t)
+    sg_properties[SGBookmarkEntityID] = db.value(s, 'shotgun_id', table=t)
+    sg_properties[SGBookmarkEntityName] = db.value(s, 'shotgun_name', table=t)
+
+    if not asset:
+        return sg_properties
+
+    t = bookmark_db.AssetTable
+    s = db.source(asset)
+    sg_properties[settings.AssetKey] = asset
+    sg_properties[SGAssetEntityType] = db.value(s, 'shotgun_type', table=t)
+    sg_properties[SGAssetEntityID] = db.value(s, 'shotgun_id', table=t)
+    sg_properties[SGAssetEntityName] = db.value(s, 'shotgun_name', table=t)
+    return sg_properties
 
 
 @contextlib.contextmanager
-def connection(server, job, root, domain=None, script=None, key=None):
+def connection(sg_properties):
     """Context manager for connecting to Shotgun using an API Script.
 
     The context manager will connect to shotgun on entering and close the
     connection when exiting.
 
     Args:
-        server (unicode): The server's name.
-        job (unicode): The job's name.
-        root (unicode):  The bookmark's root folder.
+        sg_properties (dict): The shotgun properties saved in the bookmark database.
 
     Yields:
         SGScriptConnection: A connected shotgun connection instance
 
     """
+    if not is_valid(sg_properties, connection_only=True):
+        s = u'Bookmark not yet configured to use Shotgun. You must enter a valid domain name, script name and api key before connecting.'
+        raise ValueError(s)
+
     try:
-        if not all((domain, key, script)):
-            source = u'{}/{}/{}'.format(server, job, root)
-            with bookmark_db.transactions(server, job, root) as db:
-                domain = db.value(source, u'shotgun_domain', table=bookmark_db.BookmarkTable)
-                script = db.value(source, u'shotgun_scriptname', table=bookmark_db.BookmarkTable)
-                key = db.value(source, u'shotgun_api_key', table=bookmark_db.BookmarkTable)
-
-        if not all((domain, script, key)):
-            log.error(u'Bookmark not yet configured to use Shotgun. You must enter a valid domain name, script name and api key before connecting.')
-            yield
-            return
-
-        sg = _get_sg(domain, script, key)
+        sg = _get_sg(
+            sg_properties[SGDomain],
+            sg_properties[SGScript],
+            sg_properties[SGKey]
+        )
         sg.connect()
         yield sg
-    except Exception as e:
-        app = QtWidgets.QApplication.instance()
-        if app:
-            common_ui.ErrorBox(
-                u'Error connecting to shotgun.',
-                u'{}'.format(e)
-            ).open()
-        log.error(e)
+    except:
         raise
     else:
         sg.close()
@@ -257,7 +352,6 @@ def catcherror(func):
     return func_wrapper
 
 
-
 class SGScriptConnection(shotgun_api3.Shotgun):
     """Customised `shotgun_api3.Shotgun` class used to authenticate via
     Shotgun API Scripts.
@@ -303,7 +397,8 @@ class SGScriptConnection(shotgun_api3.Shotgun):
                 StorageEntity,
                 PublishedFileTypeEntity
             ):
-                self.schema[entity_type] = self.schema_field_read(entity_type, field_name=None, project_entity=None)
+                self.schema[entity_type] = self.schema_field_read(
+                    entity_type, field_name=None, project_entity=None)
         return self.schema
 
     @catcherror
@@ -346,7 +441,7 @@ class SGScriptConnection(shotgun_api3.Shotgun):
                 u'Invalid type, expected <type \'unicode\'>, got {}'.format(type(project_name)))
 
         _filter = [NameColumn, 'is', project_name]
-        data = self.find_one(ProjectEntity, [_filter,], columns)
+        data = self.find_one(ProjectEntity, [_filter, ], columns)
         if not data:
             data = []
         return data
@@ -370,7 +465,7 @@ class SGScriptConnection(shotgun_api3.Shotgun):
                 u'Invalid ID type, expected <type \'int\'>, got {}'.format(type(project_id)))
 
         _filter = ['project.Project.id', 'is', project_id]
-        data = self.find(entity_type, [_filter,], columns)
+        data = self.find(entity_type, [_filter, ], columns)
         if not data:
             data = []
         return data
@@ -380,7 +475,7 @@ class SGScriptConnection(shotgun_api3.Shotgun):
 
         """
         _filter = [u'entity', u'is', {u'type': entity_type, u'id': entity_id}]
-        data = self.find(TaskEntity, [_filter,], columns)
+        data = self.find(TaskEntity, [_filter, ], columns)
         if not data:
             data = []
         return data

@@ -2011,9 +2011,9 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         if event.angleDelta().y() > 0:
-            self.increase_row_size()
+            actions.increase_row_size()
         else:
-            self.decrease_row_size()
+            actions.decrease_row_size()
 
     def contextMenuEvent(self, event):
         """Custom context menu event."""
