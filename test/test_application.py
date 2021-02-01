@@ -511,16 +511,16 @@ class TestImages(BaseCase):
 
         self.assertNotEqual(image, ext_image)
 
-    def test_get_thumbnail_path(self):
+    def test_get_cached_thumbnail_path(self):
         import bookmarks.images as images
 
-        a = images.get_thumbnail_path(
+        a = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',
             u'server/job/root/folder/file.png')
         self.assertIsInstance(a, unicode)
-        b = images.get_thumbnail_path(
+        b = images.get_cached_thumbnail_path(
             u'server'.upper(),
             u'job'.upper(),
             u'root'.upper(),
@@ -529,36 +529,36 @@ class TestImages(BaseCase):
 
         self.assertEqual(a, b)
 
-        a = images.get_thumbnail_path(
+        a = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',
             u'server/job/root/folder/file_0001.exr')
-        b = images.get_thumbnail_path(
+        b = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',
             u'server/job/root/folder/file_0002.exr')
         self.assertNotEqual(a, b)
 
-        a = images.get_thumbnail_path(
+        a = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',
             u'server/job/root/folder/file_[1-2].exr')
-        b = images.get_thumbnail_path(
+        b = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',
             u'server/job/root/folder/file_[1-55].exr')
         self.assertEqual(a, b)
 
-        a = images.get_thumbnail_path(
+        a = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',
             u'server/job/root/folder/file_[1000,1001].exr')
-        b = images.get_thumbnail_path(
+        b = images.get_cached_thumbnail_path(
             u'server',
             u'job',
             u'root',

@@ -3,8 +3,9 @@
 
 """
 from PySide2 import QtWidgets, QtGui, QtCore
-from . import common
-from . import common_ui
+
+from .. import common
+from .. import common_ui
 
 
 class FilterEditor(QtWidgets.QDialog):
@@ -17,19 +18,18 @@ class FilterEditor(QtWidgets.QDialog):
         super(FilterEditor, self).__init__(parent=parent)
 
         self.editor = None
-
         self.context_menu_open = False
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
         self.setWindowFlags(QtCore.Qt.Widget)
-        self._create_UI()
+        self._create_ui()
         self._connect_signals()
 
         self.setFocusProxy(self.editor)
 
-    def _create_UI(self):
+    def _create_ui(self):
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN() * 2
         self.layout().setContentsMargins(o, o, o, o)

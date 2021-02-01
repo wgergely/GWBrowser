@@ -42,10 +42,11 @@ from .. import bookmark_db
 from .. import contextmenu
 from .. import settings
 from .. import images
-from .. import alembicpreview
 from .. import threads
-from .. import filtereditor
 from .. import actions
+
+from ..editors import filter_editor
+from ..editors import description_editor
 
 from . import delegate
 
@@ -227,7 +228,6 @@ class FilterOnOverlayWidget(ProgressWidget):
     """Adds a bottom and top bar to indicate the list has hidden items.
 
     """
-
     def paintEvent(self, event):
         """Custom message painted here."""
         model = self.parent().model()
@@ -937,7 +937,7 @@ class BaseModel(QtCore.QAbstractListModel):
         source = data.urls()[0].toLocalFile()
         if not images.oiio_get_buf(source):
             return False
-        images.set_from_source(
+        images.load_thumbnail_from_image(
             self.index(row, 0),
             source
         )
@@ -974,7 +974,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
 
 class BaseListWidget(QtWidgets.QListView):
-    """The base class of all subsequent Bookmark, asset andf files list views.
+    """The base class of all subsequent Bookmark, asset and files list views.
 
     """
     customContextMenuRequested = QtCore.Signal(
@@ -1009,13 +1009,15 @@ class BaseListWidget(QtWidgets.QListView):
         self._thumbnail_drop = (-1, False)  # row, accepted
         self._background_icon = u'icon_bw'
         self._generate_thumbnails_enabled = True
-        self.progress_widget = ProgressWidget(parent=self)
-        self.progress_widget.setHidden(True)
-        self.filter_active_widget = FilterOnOverlayWidget(parent=self)
-        self.filter_editor = filtereditor.FilterEditor(parent=self)
+
+        self.progress_indicator_widget = ProgressWidget(parent=self)
+        self.progress_indicator_widget.setHidden(True)
+
+        self.filter_indicator_widget = FilterOnOverlayWidget(parent=self)
+        self.filter_editor = filter_editor.FilterEditor(parent=self)
         self.filter_editor.setHidden(True)
 
-        self.description_editor_widget = common_ui.DescriptionEditorWidget(
+        self.description_editor_widget = description_editor.DescriptionEditorWidget(
             parent=self)
         self.description_editor_widget.setHidden(True)
 
@@ -1052,8 +1054,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.set_model(self.SourceModel(parent=self))
         self.setItemDelegate(self.Delegate(parent=self))
 
-        self.resized.connect(self.filter_active_widget.setGeometry)
-        self.resized.connect(self.progress_widget.setGeometry)
+        self.resized.connect(self.filter_indicator_widget.setGeometry)
+        self.resized.connect(self.progress_indicator_widget.setGeometry)
         self.resized.connect(self.filter_editor.setGeometry)
 
         self.init_buttons_state()
@@ -1237,15 +1239,6 @@ class BaseListWidget(QtWidgets.QListView):
 
     def activate(self, index):
         """Marks the given index by adding the ``MarkedAsActive`` flag.
-
-        If the item has already been activated it will emit the activated signal.
-        This is used to switch tabs. If the item is not active yet, it will
-        apply the active flag and emit the ``activeChanged`` signal.
-
-        Note:
-            The method emits the ``activeChanged`` signal but itself does not
-            save the change to the settings.local_settings. That is handled by connections
-            to the signal.
 
         """
         if not index.isValid():
@@ -2624,10 +2617,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         if not isinstance(DataRole, (int, long)):
             raise TypeError(
-                u'Invalid `DataRole`, expected <type \'int\', got {}'.format(type(DataRole)))
+                u'Invalid `DataRole`, expected {}, got {}'.format(int, type(DataRole)))
         if not isinstance(thread_type, int):
-            raise TypeError(u'Invalid `thread_type`, expected <type \'int\', got {}'.format(
-                type(thread_type)))
+            raise TypeError(u'Invalid `thread_type`, expected {}, got {}'.format(
+                int, type(thread_type)))
 
         proxy = self.model()
         if not proxy.rowCount():
@@ -2673,7 +2666,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                 index = _next(index_rect)
                 continue
 
-            # We will skip the time if it has alrady been loaded
+            # We will skip if the item has alrady been loaded
             skip = data[idx][DataRole]
             if skip:
                 index = _next(index_rect)

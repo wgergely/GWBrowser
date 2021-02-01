@@ -27,6 +27,47 @@ from . import base
 from . import delegate
 
 
+
+class OverlayWidget(QtWidgets.QWidget):
+
+    def __init__(self, parent=None):
+        super(OverlayWidget, self).__init__(parent=parent)
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'gradient', None, common.MARGIN(), opacity=0.5)
+        rect = QtCore.QRect(self.rect())
+        rect.setWidth(common.MARGIN())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'gradient2', None, common.MARGIN(), opacity=1.0)
+        rect = QtCore.QRect(self.rect())
+        rect.setHeight(common.MARGIN())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'gradient2', None, common.MARGIN() * 2, opacity=1.0)
+        rect = QtCore.QRect(self.rect())
+        rect.setHeight(common.MARGIN() * 2)
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+
+        painter.end()
+
+
+
 class TaskFolderContextMenu(contextmenu.BaseContextMenu):
     def setup(self):
         self.reveal_item_menu()
@@ -327,52 +368,56 @@ class TaskFolderWidget(QtWidgets.QListView):
     """The view responsonsible for displaying the available data-keys."""
     ContextMenu = TaskFolderContextMenu
 
-    def __init__(self, parent=None, altparent=None):
+    def __init__(self, parent=None):
         super(TaskFolderWidget, self).__init__(parent=parent)
-        self.altparent = altparent
         self._context_menu_active = False
-
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding)
+        self.overlay = OverlayWidget(parent=self)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-        self.clicked.connect(self.activated)
-        self.clicked.connect(self.hide)
+        self.setResizeMode(QtWidgets.QListView.Adjust)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setUniformItemSizes(True)
 
-        if self.altparent:
-            self.clicked.connect(self.altparent.signal_dispatcher)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setMouseTracking(True)
 
-        if self.parent():
-            @QtCore.Slot(QtCore.QRect)
-            def set_width(rect):
-                """Resizes the view to the size of the"""
-                rect = browser_widget.stackedwidget.widget(
-                    2).viewport().geometry()
-                rect.setLeft(0)
-                rect.setTop(0)
-                self.setGeometry(rect)
+        self.setWordWrap(False)
+        self.setLayoutMode(QtWidgets.QListView.Batched)
+        self.setBatchSize(100)
 
-            browser_widget = self.parent().parent().parent()
-            browser_widget.stackedwidget.widget(2).resized.connect(set_width)
-
-        model = TaskFolderModel()
-        model.view = self
-        self.setModel(model)
         self.setItemDelegate(TaskFolderWidgetDelegate(parent=self))
         self.installEventFilter(self)
 
-    def sizeHint(self):
-        """The default size of the widget."""
-        if self.parent():
-            return QtCore.QSize(self.parent().width(), self.parent().height())
-        else:
-            return QtCore.QSize(common.WIDTH() * 0.6, common.HEIGHT() * 0.6)
+        model = TaskFolderModel(parent=self)
+        model.view = self
+        self.setModel(model)
+
+    def connect_signals(self):
+        self.clicked.connect(self.activated)
+        self.clicked.connect(self.hide)
+
+        p = self.parent().parent().parent()
+        p.topbar.listChanged.connect(self.hide_widget)
+        self.clicked.connect(lambda x: p.topbar.listChanged.emit(base.FileTab))
+        self.clicked.connect(lambda x: p.topbar.taskFolderChanged.emit(x.data(QtCore.Qt.DisplayRole)))
+        self.clicked.connect(lambda x: p.topbar.textChanged.emit(x.data(QtCore.Qt.DisplayRole)))
+
+        self.parent().resized.connect(self.resize_widget)
+
+    def hide_widget(self, idx):
+        if idx != base.FileTab:
+            self.hide()
+
+    def resize_widget(self, rect):
+        self.setGeometry(rect)
+        self.overlay.setGeometry(rect)
+        # if not self.isHidden():
+            # self.hide()
+            # self.show()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def activate(self, index):
@@ -389,13 +434,29 @@ class TaskFolderWidget(QtWidgets.QListView):
         if self.parent():
             self.parent().verticalScrollBar().setHidden(False)
             self.parent().removeEventFilter(self)
-            self.altparent.files_button.update()
+            self.parent().parent().parent().topbar.files_button.update()
 
     def showEvent(self, event):
         """TaskFolderWidget show event."""
-        if self.parent():
-            self.parent().verticalScrollBar().setHidden(True)
-            self.parent().installEventFilter(self)
+        self.parent().verticalScrollBar().setHidden(True)
+        self.parent().installEventFilter(self)
+
+        key = settings.ACTIVE[settings.TaskKey]
+        if not key:
+            return
+
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            if key == index.data(QtCore.Qt.DisplayRole):
+                self.selectionModel().setCurrentIndex(
+                    index,
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                self.scrollTo(
+                    index,
+                    QtWidgets.QAbstractItemView.PositionAtCenter
+                )
+                break
 
     def eventFilter(self, widget, event):
         """We're stopping events propagating back to the parent."""

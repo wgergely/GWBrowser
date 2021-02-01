@@ -275,7 +275,7 @@ class FavouritesWidget(files.FilesWidget):
             with zipfile.ZipFile(zip_path, 'a') as z:
                 # Adding thumbnail to zip
                 for favourite in favourites:
-                    thumbnail_path = images.get_thumbnail_path(
+                    thumbnail_path = images.get_cached_thumbnail_path(
                         server,
                         job,
                         root,
@@ -346,7 +346,7 @@ class FavouritesWidget(files.FilesWidget):
                 server, job, root = _parent_path()
 
                 for favourite in favourites:
-                    thumbnail_path = images.get_thumbnail_path(
+                    thumbnail_path = images.get_cached_thumbnail_path(
                         server,
                         job,
                         root,

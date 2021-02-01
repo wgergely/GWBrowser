@@ -102,18 +102,19 @@ class BookmarksWidgetContextMenu(contextmenu.BaseContextMenu):
 
         self.separator()
 
+        self.sg_link_bookmark_menu()
         self.add_asset_to_bookmark_menu()
         self.edit_selected_bookmark_menu()
         self.bookmark_clipboard_menu()
         self.notes_menu()
-        self.mode_toggles_menu()
+        self.toggle_item_flags_menu()
 
         self.separator()
 
         self.set_generate_thumbnails_menu()
         self.row_size_menu()
         self.sort_menu()
-        self.display_toggles_menu()
+        self.list_filter_menu()
         self.refresh_menu()
 
         self.separator()
@@ -337,7 +338,8 @@ class BookmarksWidget(base.ThreadedBaseWidget):
 
         actions.signals.bookmarksChanged.connect(
             self.model().sourceModel().__resetdata__)
-        actions.signals.bookmarkValueUpdated.connect(self.update_model_value)
+        actions.signals.bookmarkModelValueUpdated.connect(
+            self.update_model_value)
 
     @QtCore.Slot()
     def remove_queued_bookmarks(self):

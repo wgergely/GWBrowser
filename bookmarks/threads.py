@@ -19,6 +19,7 @@ from . import log
 from . import common
 from . import images
 from . import bookmark_db
+from .shotgun import shotgun
 
 
 THREADS = {}
@@ -52,6 +53,20 @@ QUEUES = {
 }
 """Global thread queues."""
 
+
+
+def update_shotgun_configured(parent_paths, db, data):
+    server, job, root = parent_paths[0:3]
+    asset = None if len(parent_paths) == 3 else parent_paths[3]
+
+    sg_properties = shotgun.get_properties(
+        server=server,
+        job=job,
+        root=root,
+        asset=asset,
+        db=db
+    )
+    data[common.SGConfiguredRole] = shotgun.is_valid(sg_properties)
 
 
 def count_assets(path, ASSET_IDENTIFIER):
@@ -568,8 +583,7 @@ class InfoWorker(BaseWorker):
                     ref()[common.AssetCountRole] = count
 
                 # Shotgun status
-                from .shotgun import actions as sg_actions
-                sg_actions.update_shotgun_configured(pp, db, ref())
+                update_shotgun_configured(pp, db, ref())
 
                 # Description
                 v = db.value(k, u'description')
@@ -770,7 +784,7 @@ class ThumbnailWorker(BaseWorker):
         source = ref()[QtCore.Qt.StatusTipRole]
 
         # Resolve the thumbnail's path...
-        destination = images.get_thumbnail_path(
+        destination = images.get_cached_thumbnail_path(
             _p[0],
             _p[1],
             _p[2],

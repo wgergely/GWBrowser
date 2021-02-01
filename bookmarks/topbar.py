@@ -53,7 +53,7 @@ class QuickSwitchMenu(contextmenu.BaseContextMenu):
                 n = active_index.data(QtCore.Qt.DisplayRole)
                 active = n.lower() == name.lower()
 
-            thumbnail_path = images.get_thumbnail_path(
+            thumbnail_path = images.get_cached_thumbnail_path(
                 index.data(common.ParentPathRole)[0],
                 index.data(common.ParentPathRole)[1],
                 index.data(common.ParentPathRole)[2],
@@ -85,7 +85,7 @@ class SwitchBookmarkMenu(QuickSwitchMenu):
             u'icon': self.get_icon(u'add', color=common.ADD),
             u'text': u'Add Bookmark...',
             u'action': actions.add_bookmark,
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
+            'shortcut': shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
         }
 
@@ -104,13 +104,13 @@ class SwitchAssetMenu(QuickSwitchMenu):
             u'icon': self.get_icon(u'add', color=common.ADD),
             u'text': u'Add Asset...',
             u'action': actions.add_asset,
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
+            'shortcut': shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
         }
 
 
 class BaseControlButton(common_ui.ClickableIconButton):
-    """Base class with a few default values."""
+    """Base-class used for control buttons on the top bar."""
 
     def __init__(self, pixmap, description, color=(common.TEXT_SELECTED, common.SECONDARY_BACKGROUND), parent=None):
         super(BaseControlButton, self).__init__(
@@ -144,14 +144,14 @@ class BaseControlButton(common_ui.ClickableIconButton):
 
 
 class FilterButton(BaseControlButton):
-    """Button for showing the filter editor."""
-
     def __init__(self, parent=None):
         super(FilterButton, self).__init__(
             u'filter',
-            u'Edit search filter',
+            u'Search  -  {}'.format(shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSearch)),
             parent=parent
         )
+        self.clicked.connect(actions.signals.toggleFilterButton)
+        actions.signals.toggleFilterButton.connect(self.update)
 
     def state(self):
         if not self.current_widget():
@@ -162,15 +162,6 @@ class FilterButton(BaseControlButton):
         if filter_text == u'/':
             return False
         return True
-
-    def action(self):
-        """The action to perform when finished editing the filter text."""
-        if not self.current_widget():
-            return
-        if self.current_widget().filter_editor.isHidden():
-            self.current_widget().filter_editor.open()
-            return
-        self.current_widget().filter_editor.done(QtWidgets.QDialog.Rejected)
 
     def mouseReleaseEvent(self, event):
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
@@ -186,18 +177,16 @@ class FilterButton(BaseControlButton):
         super(FilterButton, self).mouseReleaseEvent(event)
 
 
-class CollapseSequenceButton(BaseControlButton):
-    """The buttons responsible for collapsing/expanding the sequences of the
-    current list.
-
-    """
-
+class ToggleSequenceButton(BaseControlButton):
     def __init__(self, parent=None):
-        super(CollapseSequenceButton, self).__init__(
+        super(ToggleSequenceButton, self).__init__(
             u'collapse',
-            u'Group sequences together',
+            u'Show Files or Sequences  -  {}'.format(shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSequence)),
             parent=parent
         )
+
+        self.clicked.connect(actions.signals.toggleSequenceButton)
+        actions.signals.toggleSequenceButton.connect(self.update)
 
     def pixmap(self):
         if self.state():
@@ -212,37 +201,24 @@ class CollapseSequenceButton(BaseControlButton):
             return False
         return True
 
-    @QtCore.Slot()
-    def action(self):
-        """Only lists containing sequences can be collapsed."""
-        if self.current_index() not in (2, 3):
-            return
-        if not self.current_widget():
-            return
-        datatype = self.current_widget().model().sourceModel().data_type()
-        if datatype == common.FileItem:
-            self.current_widget().model().sourceModel(
-            ).dataTypeChanged.emit(common.SequenceItem)
-        else:
-            self.current_widget().model().sourceModel().dataTypeChanged.emit(common.FileItem)
-
     def update(self):
-        super(CollapseSequenceButton, self).update()
-        if self.current_index() in (2, 3):
+        super(ToggleSequenceButton, self).update()
+        if self.current_index() in (base.FileTab, base.FavouriteTab):
             self.show()
         else:
             self.hide()
 
 
 class ToggleArchivedButton(BaseControlButton):
-    """Custom QLabel with a `clicked` signal."""
-
     def __init__(self, parent=None):
         super(ToggleArchivedButton, self).__init__(
             u'collapse',
-            u'Show archived items',
+            u'Show/Hide Archived Items  -  {}'.format(shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.ToggleArchived)),
             parent=parent
         )
+
+        self.clicked.connect(actions.signals.toggleArchivedButton)
+        actions.signals.toggleArchivedButton.connect(self.update)
 
     def pixmap(self):
         if self.state():
@@ -252,35 +228,26 @@ class ToggleArchivedButton(BaseControlButton):
     def state(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filter_flag(common.MarkedAsArchived)
-        return val
-
-    @QtCore.Slot()
-    def action(self):
-        if not self.current_widget():
-            return
-        proxy = self.current_widget().model()
-        val = proxy.filter_flag(common.MarkedAsArchived)
-        proxy.set_filter_flag(common.MarkedAsArchived, not val)
-        proxy.filterFlagChanged.emit(common.MarkedAsArchived, not val)
+        return self.current_widget().model().filter_flag(common.MarkedAsArchived)
 
     def update(self):
         super(ToggleArchivedButton, self).update()
-        if self.current_index() < 3:
+        if self.current_index() < base.FavouriteTab:
             self.show()
         else:
             self.hide()
 
 
 class SimpleModeButton(BaseControlButton):
-    """Custom QLabel with a `clicked` signal."""
-
     def __init__(self, parent=None):
         super(SimpleModeButton, self).__init__(
             u'showbuttons',
-            u'Show or hide list buttons',
+            u'Show/Hide List Buttons  -  {}'.format(shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.HideInlineButtons)),
             parent=parent
         )
+
+        self.clicked.connect(actions.signals.toggleSimpleButton)
+        actions.signals.toggleSimpleButton.connect(self.update)
 
     def state(self):
         if not self.current_widget():
@@ -310,51 +277,23 @@ class SimpleModeButton(BaseControlButton):
     def hideEvent(self, event):
         common.SORT_WITH_BASENAME = False
 
-    @QtCore.Slot()
-    def action(self):
-        if not self.current_widget():
-            return
-        val = self.state()
-        common.SORT_WITH_BASENAME = not val
-
-        widget = self.current_widget()
-        widget.set_buttons_hidden(not val)
-        widget.model().sourceModel().sort_data()
-        widget.reset()
-
-        widget.model().sourceModel().set_local_setting(
-            settings.SortByBaseNameKey,
-            not val,
-            key=widget.__class__.__name__,
-            section=settings.UIStateSection
-        )
-
 
 class ToggleFavouriteButton(BaseControlButton):
-    """Toggle the visibility of items marked as favourites."""
-
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(
             u'favourite',
-            u'Show Favourites only',
+            u'Show/Hide My Files Only  -  {}'.format(shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.ToggleFavourite)),
             parent=parent
         )
+        self.clicked.connect(actions.signals.toggleFavouritesButton)
+        actions.signals.toggleFavouritesButton.connect(self.update)
+
 
     def state(self):
         if not self.current_widget():
             return
         val = self.current_widget().model().filter_flag(common.MarkedAsFavourite)
         return val
-
-    @QtCore.Slot()
-    def action(self):
-        if not self.current_widget():
-            return
-
-        proxy = self.current_widget().model()
-        val = proxy.filter_flag(common.MarkedAsFavourite)
-        proxy.set_filter_flag(common.MarkedAsFavourite, not val)
-        proxy.filterFlagChanged.emit(common.MarkedAsFavourite, not val)
 
     def update(self):
         super(ToggleFavouriteButton, self).update()
@@ -365,8 +304,6 @@ class ToggleFavouriteButton(BaseControlButton):
 
 
 class SlackButton(BaseControlButton):
-    """The button used to open slack."""
-
     def __init__(self, parent=None):
         super(SlackButton, self).__init__(
             u'slack_color',
@@ -379,11 +316,7 @@ class SlackButton(BaseControlButton):
     @QtCore.Slot()
     def action(self):
         """Opens the set slack workspace."""
-        bookmarks_widget = self.stacked_widget().widget(base.BookmarkTab)
-        index = bookmarks_widget.model().sourceModel().active_index()
-        if not index.isValid():
-            return
-        self.current_widget().show_slack()
+        actions.show_slack()
 
     def state(self):
         return True
@@ -395,14 +328,18 @@ class SlackButton(BaseControlButton):
         If the value is set we'll show the button, otherwise it will stay hidden.
 
         """
-        args = [settings.ACTIVE[f] for f in (settings.ServerKey, settings.JobKey, settings.RootKey)]
+        args = [settings.active(f) for f in (settings.ServerKey, settings.JobKey, settings.RootKey)]
         if not all(args):
             self.setHidden(True)
             return False
 
         with bookmark_db.transactions(*args) as db:
             source = u'/'.join(args)
-            slacktoken = db.value(source, u'slacktoken', table=bookmark_db.BookmarkTable)
+            slacktoken = db.value(
+                source,
+                u'slacktoken',
+                table=bookmark_db.BookmarkTable
+            )
 
         if not slacktoken:
             self.setHidden(True)
@@ -413,14 +350,15 @@ class SlackButton(BaseControlButton):
 
 
 class GenerateThumbnailsButton(BaseControlButton):
-    """Custom QLabel with a `clicked` signal."""
-
     def __init__(self, parent=None):
         super(GenerateThumbnailsButton, self).__init__(
             u'spinner_btn',
-            u'Toggle thumbnail generation. If experiencing performance issues, turn this off!',
+            u'Enable/Disable Generating Thumbnails  -  {}'.format(shortcuts.string(shortcuts.MainWidgetShortcuts, shortcuts.ToggleGenerateThumbnails)),
             parent=parent
         )
+        self.clicked.connect(actions.signals.toggleMakeThumbnailsButton)
+        actions.signals.toggleMakeThumbnailsButton.connect(self.update)
+
 
     def state(self):
         """The state of the auto-thumbnails"""
@@ -432,13 +370,7 @@ class GenerateThumbnailsButton(BaseControlButton):
     @QtCore.Slot()
     def action(self):
         """Toggles thumbnail generation."""
-        if not self.current_widget():
-            return
 
-        model = self.current_widget().model().sourceModel()
-        model.set_generate_thumbnails_enabled(
-            not model.generate_thumbnails_enabled())
-        self.update()
 
 
 class CollapseSequenceMenu(contextmenu.BaseContextMenu):
@@ -451,6 +383,7 @@ class CollapseSequenceMenu(contextmenu.BaseContextMenu):
 class PaintedTextButton(QtWidgets.QLabel):
     """Baseclass for text-based control buttons."""
     icon = u'assets'
+
     clicked = QtCore.Signal()
     doubleClicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
@@ -683,15 +616,15 @@ class FilesTabButton(PaintedTextButton):
             u'Click to see or change the current task folder',
             parent=parent)
 
-
-        self.clicked.connect(self.show_view)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
+        self.clicked.connect(self.toggle_view)
+
     def contextMenuEvent(self, event):
-        self.show_view()
+        self.toggle_view()
 
     def view(self):
-        return self.parent().task_view
+        return self.parent().taskswidget
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -737,37 +670,9 @@ class FilesTabButton(PaintedTextButton):
             super(FilesTabButton, self).paintEvent(event)
 
     @QtCore.Slot()
-    def show_view(self):
+    def toggle_view(self):
         """Shows the ``TaskFolderWidget`` widget for browsing."""
-        if not self.view():
-            return
-
-        if not self.view().isHidden():
-            self.view().setHidden(True)
-            return
-
-        stackedwidget = self.view().altparent.parent().stackedwidget
-        if stackedwidget.currentIndex() != 2:
-            return  # We're not showing the widget when files are not tyhe visible list
-
-        geo = self.view().parent().geometry()
-        self.view().setGeometry(geo)
-        self.view().move(0, 0)
-        self.view().show()
-        self.view().viewport().setFocus(QtCore.Qt.PopupFocusReason)
-
-        key = settings.ACTIVE[settings.TaskKey]
-        if not key:
-            return
-        key = key.lower()
-
-        for n in xrange(self.view().model().rowCount()):
-            index = self.view().model().index(n, 0)
-            if key == index.data(QtCore.Qt.DisplayRole).lower():
-                self.view().selectionModel().setCurrentIndex(
-                    index, QtCore.QItemSelectionModel.ClearAndSelect)
-                self.view().scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
-                break
+        self.view().setHidden(not self.view().isHidden())
 
 
 class FavouritesTabButton(PaintedTextButton):
@@ -886,12 +791,13 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
-        self._create_UI()
-        self._connect_signals()
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-    def _create_UI(self):
+        self._create_ui()
+        self._connect_signals()
+
+    def _create_ui(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -906,13 +812,13 @@ class ListControlWidget(QtWidgets.QWidget):
         self.files_button = FilesTabButton(parent=self)
         self.favourites_button = FavouritesTabButton(parent=self)
 
-        self.task_view = tasks.TaskFolderWidget(
-            parent=self.parent().fileswidget, altparent=self)
-        self.task_view.setHidden(True)
+        self.taskswidget = tasks.TaskFolderWidget(
+            parent=self.parent().stackedwidget.widget(base.FileTab))
+        self.taskswidget.setHidden(True)
 
         self.generate_thumbnails_button = GenerateThumbnailsButton(parent=self)
         self.filter_button = FilterButton(parent=self)
-        self.collapse_button = CollapseSequenceButton(parent=self)
+        self.collapse_button = ToggleSequenceButton(parent=self)
         self.archived_button = ToggleArchivedButton(parent=self)
         self.favourite_button = ToggleFavouriteButton(parent=self)
         self.slack_button = SlackButton(parent=self)
@@ -922,7 +828,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.bookmarks_button, 1)
         self.layout().addWidget(self.assets_button, 1)
         self.layout().addWidget(self.files_button, 1)
+
         self.layout().addStretch()
+
         self.layout().addWidget(self.simple_mode_button)
         self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.generate_thumbnails_button)
@@ -936,12 +844,15 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.favourite_button)
         self.layout().addSpacing(common.INDICATOR_WIDTH())
         self.layout().addWidget(self.slack_button)
-        #
+
         self.layout().addWidget(self.favourites_button, 1)
         self.layout().addSpacing(common.INDICATOR_WIDTH() * 2)
 
         self.drop_overlay = SlackDropOverlayWidget(parent=self)
         self.drop_overlay.setHidden(True)
+
+    def _connect_signals(self):
+        actions.signals.assetAdded.connect(lambda x: self.listChanged.emit(base.AssetTab))
 
     @QtCore.Slot()
     def update_buttons(self):
@@ -957,17 +868,8 @@ class ListControlWidget(QtWidgets.QWidget):
         self.slack_button.update()
         self.simple_mode_button.update()
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def signal_dispatcher(self, index):
-        self.taskFolderChanged.emit(index.data(QtCore.Qt.DisplayRole))
-        self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
-        self.listChanged.emit(2)
-
-    def _connect_signals(self):
-        pass
-
     def control_view(self):
-        return self.task_view
+        return self.taskswidget
 
     def control_button(self):
         return self.findChild(FilesTabButton)

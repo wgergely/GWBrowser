@@ -228,6 +228,66 @@ TABLES = {
 
 __DB_CONNECTIONS = {}
 
+CLIPBOARD = {
+    BookmarkTable: {},
+    AssetTable: {},
+}
+
+
+@common.debug
+@common.error
+def copy_properties(server, job, root, asset=None, table=BookmarkTable):
+    """Copies the given bookmark's properties from the database to `CLIPBOARD`.
+
+    Args:
+        server (unicode):   The server's name.
+        job (unicode):   The job's name.
+        root (unicode):   The root's name.
+
+    """
+    data = {}
+    source = u'/'.join((server, job, root)) if not asset else u'/'.join((server, job, root, asset))
+    with transactions(server, job, root) as db:
+        for k in TABLES[table]:
+            if k == 'id':
+                continue
+            v = db.value(source, k, table=table)
+            if v is None:
+                continue
+            data[k] = v
+
+    if data:
+        global CLIPBOARD
+        CLIPBOARD[table] = data
+        log.success(u'{} copied.'.format(table.title()))
+
+    return data
+
+
+@common.debug
+@common.error
+def paste_properties(server, job, root, asset=None, table=BookmarkTable):
+    """Pastes the saved bookmark properties from `CLIPBOARD` to the given
+    bookmark's properties.
+
+    """
+    if not CLIPBOARD[table]:
+        return
+
+    source = u'/'.join((server, job, root)) if not asset else u'/'.join((server, job, root, asset))
+    with transactions(server, job, root) as db:
+        for k in CLIPBOARD[table]:
+            db.setValue(source, k, CLIPBOARD[table][k], table=table)
+    from .shotgun import actions as sg_actions
+
+    if asset:
+        sg_actions.asset_configuration_changed(server, job, root, asset)
+    else:
+        sg_actions.bookmark_configuration_changed(server, job, root)
+
+    log.success(u'{} data pasted.'.format(table.title()))
+
+
 
 def b64encode(v):
     """base64.b64encode() only takes bytes, not characters, hence We have to

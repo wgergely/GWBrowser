@@ -11,7 +11,11 @@ from .. import log
 from .. import common
 from .. import common_ui
 from .. import bookmark_db
+from .. import settings
 from .. import templates
+from .. import actions
+from ..shotgun import shotgun
+from ..shotgun import actions as sg_actions
 from . import base
 
 
@@ -89,8 +93,8 @@ SECTIONS = {
                     'validator': None,
                     'widget': None,
                     'placeholder': None,
-                    'description': u'Sync the current asset with a Shotgun Entity',
-                    'button': u'Link or Update',
+                    'description': u'Link with an existing Shotgun Asset, Sequence or Shot',
+                    'button': u'Link with Shotgun Entity',
                     },
                 1: {
                     'name': u'Type',
@@ -98,7 +102,7 @@ SECTIONS = {
                     'validator': base.intvalidator,
                     'widget': functools.partial(base.ShotgunTypeWidget, base.ShotgunTypeWidget.AssetTypes),
                     'placeholder': None,
-                    'description': u'Select a Shotgun asset type',
+                    'description': u'Select a Shotgun type',
                 },
                 2: {
                     'name': u'ID',
@@ -191,7 +195,6 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         update (bool=False): Enables the update mode, if the widget is used to edit an existing asset.
 
     """
-    assetUpdated = QtCore.Signal(unicode)
 
     def __init__(self, server, job, root, asset=None, parent=None):
         if asset:
@@ -212,16 +215,27 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         )
 
         if asset:
-            # When `asset` is set, the template_editor is no longer needed
+            # When `asset` is set, the template_editor is no longer used so
+            # we're hiding it:
             self.name_editor.setText(asset)
             self.name_editor.setDisabled(True)
             self.template_editor.parent().parent().setHidden(True)
-            self.setWindowTitle(
-                u'{}/{}/{}/{}'.format(server, job, root, asset))
+            self.setWindowTitle(u'/'.join((server, job, root, asset)))
         else:
             self.setWindowTitle(
                 u'{}/{}/{}: Create Asset'.format(server, job, root))
             self.name_editor.setFocus()
+
+    def _connect_signals(self):
+        super(AssetPropertiesWidget, self)._connect_signals()
+
+        self.thumbnailUpdated.connect(actions.signals.thumbnailUpdated)
+        self.valueUpdated.connect(actions.signals.assetValueUpdated)
+        self.itemUpdated.connect(actions.signals.assetUpdated)
+
+        actions.signals.assetValueUpdated.connect(self.update_editor_value)
+
+        self.itemCreated.connect(actions.signals.assetAdded)
 
     def name(self):
         """Returns the name of the asset.
@@ -237,12 +251,12 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         """
         if not self.name():
             return None
-        return u'{}/{}/{}/{}'.format(
+        return u'/'.join((
             self.server,
             self.job,
             self.root,
             self.name()
-        )
+        ))
 
     def init_data(self):
         """Load the current data from the database.
@@ -253,24 +267,14 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         self._disable_shotgun()
 
     def _disable_shotgun(self):
-        args = (self.server, self.job, self.root)
-        with bookmark_db.transactions(*args) as db:
-            source = u'/'.join(args)
-
-            shotgun_api_key = db.value(
-                source,
-                u'shotgun_api_key',
-                table=bookmark_db.BookmarkTable
-            )
-            shotgun_scriptname = db.value(
-                source,
-                u'shotgun_scriptname',
-                table=bookmark_db.BookmarkTable
-            )
-
-            if not all((shotgun_api_key, shotgun_scriptname)):
-                self.shotgun_type_editor.parent().parent().parent().setDisabled(True)
-                self.shotgun_type_editor.parent().parent().parent().setHidden(True)
+        sg_properties = shotgun.get_properties(
+            self.server,
+            self.job,
+            self.root,
+            self.name()
+        )
+        if not shotgun.is_valid(sg_properties):
+            self.shotgun_type_editor.parent().parent().parent().setDisabled(True)
 
     def _set_completer(self):
         """Add the current list of assets to the name editor's completer.
@@ -283,14 +287,22 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         common.set_custom_stylesheet(completer.popup())
         self.name_editor.setCompleter(completer)
 
+    def _emit_model_update_signals(self):
+        self.modelValueUpdated.emit(
+            self.db_source(),
+            common.DescriptionRole,
+            self.description_editor.text()
+        )
+        sg_actions.asset_configuration_changed(self.server, self.job, self.root, self.name())
+
+
     def save_changes(self):
         """Save changed data to the database.
 
         """
         try:
             self._save_db_data()
-            v = self.description_editor.text()
-            self.valueUpdated.emit(self.db_source(), common.DescriptionRole, v)
+            self._emit_model_update_signals()
         except:
             s = u'Could not save properties to the database.'
             log.error(s)
@@ -309,11 +321,32 @@ class AssetPropertiesWidget(base.PropertiesWidget):
         self.itemUpdated.emit(self.db_source())
         return True
 
+
+    def shotgun_properties(self):
+        sg_properties = shotgun.get_properties(
+            self.server,
+            self.job,
+            self.root,
+            self.name()
+        )
+
+        sg_properties[shotgun.SGAssetEntityType] = self.shotgun_type_editor.currentText()
+        _id = self.shotgun_id_editor.text()
+        _id = int(_id) if _id else None
+        sg_properties[shotgun.SGAssetEntityID] = _id
+        sg_properties[shotgun.SGAssetEntityName] = self.shotgun_name_editor.text()
+
+        return sg_properties
+
+
+
     def done(self, result):
         if result == QtWidgets.QDialog.Accepted:
             if not self._create_asset():
                 return
         super(AssetPropertiesWidget, self).done(result)
+
+
 
     def _create_asset(self):
         name = self.name()
@@ -359,21 +392,5 @@ class AssetPropertiesWidget(base.PropertiesWidget):
     @common.error
     @QtCore.Slot()
     def link_button_clicked(self):
-        if self._db_table is not None:
-            self.save_changes()
-
-        from ..shotgun import bulk_link_widget
-        if self.shotgun_name_editor.text():
-            custom_suggestions = (self.shotgun_name_editor.text(), )
-        else:
-            custom_suggestions = ()
-
-        w = bulk_link_widget.BulkLinkWidget(
-            (self.name(), ),
-            self.server,
-            self.job,
-            self.root,
-            custom_suggestions=custom_suggestions,
-        )
-        w.dataSaved.connect(self.init_data)
-        w.open()
+        sg_properties = self.shotgun_properties()
+        sg_actions.link_asset_entity(sg_properties)

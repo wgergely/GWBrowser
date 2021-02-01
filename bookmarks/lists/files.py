@@ -25,28 +25,43 @@ FILTER_EXTENSIONS = False
 class FilesWidgetContextMenu(contextmenu.BaseContextMenu):
     def setup(self):
         self.window_menu()
+
         self.separator()
-        self.add_file_menu()
         self.task_toggles_menu()
+        self.separator()
+
+        self.title()
+
         self.services_menu()
+        self.add_file_menu()
+        self.bookmark_url_menu()
+        self.asset_url_menu()
+        self.sg_url_menu()
+        self.reveal_item_menu()
+
         self.separator()
-        if self.index.isValid():
-            self.mode_toggles_menu()
-            self.separator()
+
+        self.sg_link_asset_menu()
+        self.edit_active_bookmark_menu()
+        self.edit_active_asset_menu()
+        self.notes_menu()
+        self.toggle_item_flags_menu()
+
         self.separator()
-        self.urls_menu()
-        self.separator()
-        if self.index.isValid():
-            self.notes_menu()
-            self.copy_menu()
-            self.reveal_item_menu()
-        self.separator()
-        self.collapse_sequence_menu()
+
         self.set_generate_thumbnails_menu()
         self.row_size_menu()
         self.sort_menu()
-        self.separator()
+        self.list_filter_menu()
         self.refresh_menu()
+
+        self.separator()
+
+        self.preferences_menu()
+
+        self.separator()
+
+        self.quit_menu()
 
 
 class FilesModel(base.BaseModel):
@@ -670,7 +685,7 @@ class FilesWidget(base.ThreadedBaseWidget):
 
         # Set pixmap
         path = index.data(QtCore.Qt.StatusTipRole)
-        source = images.get_thumbnail_path(
+        source = images.get_cached_thumbnail_path(
             index.data(common.ParentPathRole)[0],
             index.data(common.ParentPathRole)[1],
             index.data(common.ParentPathRole)[2],
@@ -681,7 +696,7 @@ class FilesWidget(base.ThreadedBaseWidget):
             source = images.get_placeholder_path(source)
             pixmap = images.ImageCache.get_pixmap(source, height)
 
-        bookmark = u'/'.join(index.data(common.ParentPathRole)[:3])
+        bookmark = u'/'.join(index.data(common.ParentPathRole)[0:3])
         path = path.replace(bookmark, u'')
         path = path.strip(u'/')
         if no_modifier:
@@ -744,6 +759,9 @@ class FilesWidget(base.ThreadedBaseWidget):
     def select_list_item(self, v, role=QtCore.Qt.DisplayRole, update=True, limit=10000):
         model = self.model().sourceModel()
         task = model.task()
+
+        if not all(model.parent_path()):
+            return
         parent_path = u'/'.join(model.parent_path())
 
         # We probably saved outside the asset, we won't be looking showing the

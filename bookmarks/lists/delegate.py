@@ -130,7 +130,6 @@ def get_rectangles(rectangle, count):
     return RECTANGLE_CACHE[k]
 
 
-
 def paintmethod(func):
     """Decorator to manage painter states."""
     @functools.wraps(func)
@@ -140,7 +139,6 @@ def paintmethod(func):
         args[1].restore()
         return res
     return func_wrapper
-
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -401,19 +399,18 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(HOVER_COLOR)
             painter.drawRect(rect)
 
-
     def _paint_inline_background(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         c = self.parent().inline_icons_count()
         if c:
-            o = (common.MARGIN() + (common.INDICATOR_WIDTH() * 2)) * c + common.MARGIN()
+            o = (common.MARGIN() + (common.INDICATOR_WIDTH() * 2)) * \
+                c + common.MARGIN()
             rect = QtCore.QRect(rectangles[BackgroundRect])
             rect.setLeft(rect.right() - o)
             painter.setBrush(common.SEPARATOR)
             painter.setOpacity(0.3)
             painter.drawRect(rect)
         painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
-
 
     @paintmethod
     def paint_inline_icons(self, *args):
@@ -427,7 +424,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         self._paint_inline_add(*args)
         self._paint_inline_properties(*args)
 
-
     @paintmethod
     def _paint_inline_favourite(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -440,7 +436,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         sunken = option.state & QtWidgets.QStyle.State_Sunken
 
-        color = QtGui.QColor(255,255,255, 150) if rect.contains(cursor_position) else common.SEPARATOR
+        color = QtGui.QColor(255, 255, 255, 150) if rect.contains(
+            cursor_position) else common.SEPARATOR
         color = common.TEXT_SELECTED if favourite else color
         color = QtGui.QColor(0, 0, 0, 150) if sunken else color
         pixmap = images.ImageCache.get_rsc_pixmap(
@@ -521,7 +518,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             count = index.data(common.AssetCountRole)
             self.draw_count(painter, rect, cursor_position, count, 'assets')
 
-
     @paintmethod
     def _paint_inline_properties(self, *args):
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
@@ -537,7 +533,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'settings', color, common.MARGIN())
         painter.drawPixmap(rect, pixmap)
-
 
     def draw_count(self, painter, rect, cursor_position, count, icon):
         if not isinstance(count, (int, float, long)):
@@ -571,7 +566,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(common.TEXT)
         path = get_painter_path(x, y, _font, text)
         painter.drawPath(path)
-
 
     @paintmethod
     def paint_selection_indicator(self, *args):
@@ -640,6 +634,29 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setOpacity(0.8)
         painter.drawRect(option.rect)
 
+    @paintmethod
+    def paint_shotgun_status(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        if not index.isValid():
+            return
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
+        if not index.data(common.ParentPathRole):
+            return
+        if not index.data(common.SGConfiguredRole):
+            return
+
+        rect = QtCore.QRect(0, 0, common.MARGIN(), common.MARGIN())
+
+        offset = QtCore.QPoint(common.INDICATOR_WIDTH(),
+                               common.INDICATOR_WIDTH())
+        rect.moveBottomRight(
+            rectangles[ThumbnailRect].bottomRight() - offset)
+        painter.setOpacity(0.9) if hover else painter.setOpacity(0.8)
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            'shotgun', common.TEXT, common.MARGIN())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
 
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
@@ -664,27 +681,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def get_description_rect(self, *args):
         """We don't have editable descriptions for bookmark items."""
         return QtCore.QRect()
-
-    @paintmethod
-    def paint_shotgun_status(self, *args):
-        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-        if not index.isValid():
-            return
-        if not index.data(QtCore.Qt.DisplayRole):
-            return
-        if not index.data(common.ParentPathRole):
-            return
-        if not index.data(common.SGConfiguredRole):
-            return
-
-        rect = QtCore.QRect(0, 0, common.MARGIN(), common.MARGIN())
-
-        offset = QtCore.QPoint(common.INDICATOR_WIDTH(), common.INDICATOR_WIDTH())
-        rect.moveBottomRight(
-            rectangles[ThumbnailRect].bottomRight() - offset)
-        painter.setOpacity(0.9) if hover else painter.setOpacity(0.8)
-        pixmap = images.ImageCache.get_rsc_pixmap('shotgun', common.TEXT, common.MARGIN())
-        painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     @paintmethod
     def paint_name(self, *args):
@@ -816,6 +812,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         self.paint_file_shadow(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_drop_indicator(*args)
+        self.paint_shotgun_status(*args)
 
     def get_description_rect(self, rectangles, index):
         """Returns the description area of an ``AssetsWidget`` item."""
@@ -1543,7 +1540,8 @@ class FilesWidgetDelegate(BaseDelegate):
 class FavouritesWidgetDelegate(FilesWidgetDelegate):
 
     def get_paint_arguments(self, *args, **kwargs):
-        args = super(FavouritesWidgetDelegate, self).get_paint_arguments(*args, **kwargs)
+        args = super(FavouritesWidgetDelegate,
+                     self).get_paint_arguments(*args, **kwargs)
         rects = args[0].copy()
         rects[FavouriteRect] = QtCore.QRect()
         args = list(args)

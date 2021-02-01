@@ -8,24 +8,26 @@ Example:
 
     code-block:: python
 
-        import bookmarks.alembicpreview as alembicpreview
-        w = alembicpreview.AlembicView('c:/path/to/my/alembic.abc')
+        w = AlembicPreviewWidget('c:/path/to/my/alembic.abc')
         w.show()
 
 """
-from PySide2 import QtCore, QtWidgets, QtGui
 import alembic
 
-from . import log
-from . import common
-from . import common_ui
-from . import images
+from PySide2 import QtCore, QtWidgets, QtGui
 
-_viewer_instance = None
+from .. import common
+from .. import common_ui
+from .. import images
 
 
+instance = None
 BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 230)
-
+TREE_STYLESHEET = """QTreeView {{
+    padding: {p}px;
+    border-radius: {p}px;
+    border: {s}px solid black;
+}}"""
 
 class BaseNode(QtCore.QObject):
     def __init__(self, iobject, parentNode=None, parent=None):
@@ -329,16 +331,16 @@ class AlembicTree(QtWidgets.QTreeView):
         event.ignore()
 
 
-class AlembicView(QtWidgets.QWidget):
+class AlembicPreviewWidget(QtWidgets.QWidget):
     """Widget used  to display the contents of an alembic archive.
 
     """
 
     def __init__(self, path, parent=None):
-        global _viewer_instance
-        _viewer_instance = self
+        global instance
+        instance = self
 
-        super(AlembicView, self).__init__(parent=parent)
+        super(AlembicPreviewWidget, self).__init__(parent=parent)
         if not isinstance(path, unicode):
             raise ValueError(
                 u'Expected <type \'unicode\'>, got {}'.format(type(path)))
@@ -348,11 +350,7 @@ class AlembicView(QtWidgets.QWidget):
 
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
-            s = '{} does not exists.'.format(path)
-            common_ui.ErrorBox(
-                u'Error viewing the alembic contents.', s).open()
-            log.error(s)
-            raise RuntimeError(s)
+            raise RuntimeError('{} does not exists.'.format(path))
 
         self.path = path
         self.view = AlembicTree(path, parent=self)
@@ -366,11 +364,15 @@ class AlembicView(QtWidgets.QWidget):
             QtCore.Qt.WindowStaysOnTopHint
         )
 
-        self._create_UI()
-        self.view.setStyleSheet(u'QTreeView {{padding:{p}px; border-radius: {p}px; border: {s}px solid black;}}'.format(
-            p=common.INDICATOR_WIDTH() * 2, s=common.ROW_SEPARATOR()))
+        self._create_ui()
+        self.view.setStyleSheet(
+            TREE_STYLESHEET.format(
+                p=common.INDICATOR_WIDTH() * 2,
+                s=common.ROW_SEPARATOR()
+            )
+        )
 
-    def _create_UI(self):
+    def _create_ui(self):
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN()
         self.layout().setSpacing(o)
@@ -385,11 +387,6 @@ class AlembicView(QtWidgets.QWidget):
         row.layout().addStretch(1)
         row.layout().addWidget(self.view, 1)
         row.layout().addStretch(1)
-
-    def _fit_screen_geometry(self):
-        app = QtWidgets.QApplication.instance()
-        rect = app.primaryScreen().availableGeometry()
-        self.setGeometry(rect)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -424,4 +421,4 @@ class AlembicView(QtWidgets.QWidget):
         self.close()
 
     def showEvent(self, event):
-        self._fit_screen_geometry()
+        common.fit_screen_geometry(self)

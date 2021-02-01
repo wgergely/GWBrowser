@@ -351,7 +351,16 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
 
         self.asset_config_editor = None
         self._add_asset_config()
-        sg_actions.signals.bookmarkLinked.connect(self.update_sg_entity)
+
+    def _connect_signals(self):
+        super(BookmarkPropertiesWidget, self)._connect_signals()
+
+        self.thumbnailUpdated.connect(actions.signals.thumbnailUpdated)
+        self.valueUpdated.connect(actions.signals.bookmarkValueUpdated)
+        self.itemUpdated.connect(actions.signals.bookmarkUpdated)
+
+        self.valueUpdated.connect(actions.signals.bookmarkValueUpdated)
+        actions.signals.bookmarkValueUpdated.connect(self.update_editor_value)
 
     def db_source(self):
         return u'{}/{}/{}'.format(self.server, self.job, self.root)
@@ -362,13 +371,11 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
     def save_changes(self):
         try:
             self._save_db_data()
-            v = self.description_editor.text()
-            self.valueUpdated.emit(self.db_source(), common.DescriptionRole, v)
-            self.emit_shotgun_status()
+            self._emit_model_update_signals()
         except:
             s = u'Could not save properties to the database.'
             log.error(s)
-            common_ui.ErrorBox('Error', s).open()
+            common_ui.ErrorBox(u'Error', s).open()
             return False
 
         try:
@@ -376,7 +383,7 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         except:
             s = u'Could not save asset config to the database.'
             log.error(s)
-            common_ui.ErrorBox('Error', s).open()
+            common_ui.ErrorBox(u'Error', s).open()
             return False
 
         try:
@@ -391,15 +398,56 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         self.itemUpdated.emit(self.db_source())
         return True
 
-    def emit_shotgun_status(self):
-        sg_properties = self.shotgun_properties()
-        if not all((sg_properties[shotgun.SGDomain], sg_properties[shotgun.SGKey], sg_properties[shotgun.SGScript])):
-            self.valueUpdated.emit(self.db_source(), common.SGConfiguredRole, False)
-            return
-        if not all((sg_properties[shotgun.SGBookmarkEntityType], sg_properties[shotgun.SGBookmarkEntityID], sg_properties[shotgun.SGBookmarkEntityName])):
-            self.valueUpdated.emit(self.db_source(), common.SGConfiguredRole, False)
-            return
-        self.valueUpdated.emit(self.db_source(), common.SGConfiguredRole, True)
+    def shotgun_properties(self):
+        """Returns the properties needed to connect to shotgun.
+
+        """
+        sg_properties = shotgun.SGProperties.copy()
+
+        sg_properties[settings.ServerKey] = self.server
+        sg_properties[settings.JobKey] = self.job
+        sg_properties[settings.RootKey] = self.root
+
+        sg_properties[shotgun.SGDomain] = self.shotgun_domain_editor.text()
+        sg_properties[shotgun.SGKey] = self.shotgun_api_key_editor.text()
+        sg_properties[shotgun.SGScript] = self.shotgun_scriptname_editor.text()
+
+        _id = self.shotgun_id_editor.text()
+        _id = int(_id) if _id else None
+        sg_properties[shotgun.SGBookmarkEntityType] = self.shotgun_type_editor.currentText()
+        sg_properties[shotgun.SGBookmarkEntityID] = _id
+        sg_properties[shotgun.SGBookmarkEntityName] = self.shotgun_name_editor.text()
+
+        return sg_properties
+
+    def _emit_db_update_signals(self):
+        """Emits the signals used to update BaseModel values."""
+        emit = functools.partial(self.valueUpdated.emit, self.db_source())
+
+        desc = self.description_editor.text()
+
+        emit(common.DescriptionRole, desc)
+        sg_actions.signals.bookmarkConnectionChanged.emit(self.server, self.job, self.root)
+
+
+    def _emit_model_update_signals(self):
+        """Emits the signals used to update BaseModel values.
+
+        """
+        emit = functools.partial(self.modelValueUpdated.emit, self.db_source())
+
+        sgp = self.shotgun_properties()
+        desc = self.description_editor.text()
+
+        emit(common.DescriptionRole, desc)
+
+        no_domain = not all((sgp[shotgun.SGDomain], sgp[shotgun.SGKey], sgp[shotgun.SGScript]))
+        no_project = not all((sgp[shotgun.SGBookmarkEntityType], sgp[shotgun.SGBookmarkEntityID], sgp[shotgun.SGBookmarkEntityName]))
+
+        if no_domain or no_project:
+            emit(common.SGConfiguredRole, False)
+        else:
+            emit(common.SGConfiguredRole, True)
 
     def _add_asset_config(self):
         parent = self.scrollarea.widget()
@@ -410,6 +458,9 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
             parent=parent
         )
         parent.layout().addWidget(self.asset_config_editor, 1)
+
+    def _get_name(self):
+        return self.job
 
     @QtCore.Slot()
     def prefix_button_clicked(self):
@@ -446,29 +497,6 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         if v:
             QtGui.QDesktopServices.openUrl(v)
 
-    def _get_name(self):
-        return self.job
-
-    def shotgun_properties(self):
-        """Returns the properties needed to connect to shotgun.
-
-        """
-        sg_properties = shotgun.SGProperties.copy()
-
-        sg_properties[settings.ServerKey] = self.server
-        sg_properties[settings.JobKey] = self.job
-        sg_properties[settings.RootKey] = self.root
-
-        sg_properties[shotgun.SGDomain] = self.shotgun_domain_editor.text()
-        sg_properties[shotgun.SGKey] = self.shotgun_api_key_editor.text()
-        sg_properties[shotgun.SGScript] = self.shotgun_scriptname_editor.text()
-
-        sg_properties[shotgun.SGBookmarkEntityType] = self.shotgun_type_editor.currentText()
-        sg_properties[shotgun.SGBookmarkEntityID] = self.shotgun_id_editor.text()
-        sg_properties[shotgun.SGBookmarkEntityName] = self.shotgun_name_editor.text()
-
-        return sg_properties
-
     @QtCore.Slot()
     def shotgun_domain_button2_clicked(self):
         """Check the validity of the Shotgun token.
@@ -476,17 +504,3 @@ class BookmarkPropertiesWidget(base.PropertiesWidget):
         """
         sg_properties = self.shotgun_properties()
         sg_actions.test_shotgun_connection(sg_properties)
-
-    @QtCore.Slot()
-    def url1_button_clicked(self):
-        v = self.url1_editor.text()
-        if not v:
-            return
-        QtGui.QDesktopServices.openUrl(v)
-
-    @QtCore.Slot()
-    def url2_button_clicked(self):
-        v = self.url2_editor.text()
-        if not v:
-            return
-        QtGui.QDesktopServices.openUrl(v)

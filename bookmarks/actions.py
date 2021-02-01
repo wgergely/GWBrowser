@@ -18,17 +18,132 @@ from . import images
 class Signals(QtCore.QObject):
     thumbnailUpdated = QtCore.Signal(unicode)
 
-    bookmarkValueUpdated = QtCore.Signal(unicode, int, object)
-    assetValueUpdated = QtCore.Signal(unicode, int, object)
-    fileValueUpdated = QtCore.Signal(unicode, int, object)
+    # Signals used to update values in BaseModels
+    bookmarkModelValueUpdated = QtCore.Signal(unicode, int, object)
+    assetModelValueUpdated = QtCore.Signal(unicode, int, object)
+    fileModelValueUpdated = QtCore.Signal(unicode, int, object)
+    favouriteModelValueUpdated = QtCore.Signal(unicode, int, object)
 
+    # Signal to indicate changed bookmark database values
+    bookmarkValueUpdated = QtCore.Signal(unicode, unicode, object)
+    assetValueUpdated = QtCore.Signal(unicode, unicode, object)
+    fileValueUpdated = QtCore.Signal(unicode, unicode, object)
+
+    # Used to indicate an item has been added or removed
     bookmarksChanged = QtCore.Signal()
     assetAdded = QtCore.Signal(unicode)
     fileAdded = QtCore.Signal(unicode)
+    favouriteAdded = QtCore.Signal(unicode)
 
     bookmarkUpdated = QtCore.Signal(unicode)
     assetUpdated = QtCore.Signal(unicode)
     fileUpdated = QtCore.Signal(unicode)
+    favouriteUpdated = QtCore.Signal(unicode)
+
+    toggleFilterButton = QtCore.Signal()
+    toggleSequenceButton = QtCore.Signal()
+    toggleArchivedButton = QtCore.Signal()
+    toggleSimpleButton = QtCore.Signal()
+    toggleFavouritesButton = QtCore.Signal()
+    toggleMakeThumbnailsButton = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super(Signals, self).__init__(parent=parent)
+        self.toggleFilterButton.connect(toggle_filter_editor)
+        self.toggleSequenceButton.connect(toggle_sequence)
+        self.toggleArchivedButton.connect(toggle_archived_items)
+        self.toggleSimpleButton.connect(toggle_simple)
+        self.toggleFavouritesButton.connect(toggle_favourite_items)
+        self.toggleMakeThumbnailsButton.connect(toggle_make_thumbnails)
+
+
+@common.error
+@common.debug
+def toggle_filter_editor():
+    w = instance().widget()
+    if w.filter_editor.isHidden():
+        w.filter_editor.open()
+    else:
+        w.filter_editor.done(QtWidgets.QDialog.Rejected)
+
+
+@common.error
+@common.debug
+def toggle_sequence():
+    from .lists import base
+    idx = instance().stackedwidget.currentIndex()
+    if idx not in (base.FileTab, base.FavouriteTab):
+        return
+
+    model = instance().widget().model().sourceModel()
+    datatype = model.data_type()
+    if datatype == common.FileItem:
+        model.dataTypeChanged.emit(common.SequenceItem)
+    else:
+        model.dataTypeChanged.emit(common.FileItem)
+
+
+@common.error
+@common.debug
+def toggle_archived_items():
+    w = instance().widget()
+    proxy = w.model()
+    val = proxy.filter_flag(common.MarkedAsArchived)
+    proxy.set_filter_flag(common.MarkedAsArchived, not val)
+    proxy.filterFlagChanged.emit(common.MarkedAsArchived, not val)
+
+@common.error
+@common.debug
+def toggle_active_item():
+    w = instance().widget()
+    proxy = w.model()
+    val = proxy.filter_flag(common.MarkedAsActive)
+    proxy.set_filter_flag(common.MarkedAsActive, not val)
+    proxy.filterFlagChanged.emit(common.MarkedAsActive, not val)
+
+
+@common.error
+@common.debug
+def toggle_favourite_items():
+    w = instance().widget()
+    proxy = w.model()
+    val = proxy.filter_flag(common.MarkedAsFavourite)
+    proxy.set_filter_flag(common.MarkedAsFavourite, not val)
+    proxy.filterFlagChanged.emit(common.MarkedAsFavourite, not val)
+
+
+@common.error
+@common.debug
+def toggle_simple():
+    widget = instance().widget()
+    state = not widget.buttons_hidden()
+
+    common.SORT_WITH_BASENAME = state
+    widget.set_buttons_hidden(state)
+
+    widget.model().sourceModel().sort_data()
+    widget.reset()
+
+    widget.model().sourceModel().set_local_setting(
+        settings.SortByBaseNameKey,
+        state,
+        key=widget.__class__.__name__,
+        section=settings.UIStateSection
+    )
+
+
+@common.error
+@common.debug
+def toggle_make_thumbnails():
+    widget = instance().widget()
+    model = widget.model().sourceModel()
+    state = not model.generate_thumbnails_enabled()
+    model.set_generate_thumbnails_enabled(state)
+
+    widget.queue_visible_indexes(
+        common.ThumbnailLoaded,
+        common.ThumbnailThread
+    )
 
 
 signals = Signals()
@@ -118,7 +233,6 @@ def add_asset(server=None, job=None, root=None):
 
     from .properties import asset_properties_widget as editor
     widget = editor.show(server, job, root)
-    widget.itemCreated.connect(signals.assetAdded)
     return widget
 
 
@@ -167,10 +281,6 @@ def edit_bookmark(server=None, job=None, root=None):
 
     from .properties import bookmark_properties_widget as editor
     widget = editor.show(server, job, root)
-
-    widget.valueUpdated.connect(signals.bookmarkValueUpdated)
-    widget.thumbnailUpdated.connect(signals.thumbnailUpdated)
-    widget.itemUpdated.connect(signals.bookmarkUpdated)
 
     widget.open()
     return widget
@@ -259,21 +369,18 @@ def show_slack():
     if not all(args):
         return
 
-    try:
-        from .. import slack
-    except ImportError as e:
-        raise
-
     with bookmark_db.transactions(*args) as db:
         token = db.value(
             db.source(),
             u'slacktoken',
             table=bookmark_db.BookmarkTable
         )
-    if token:
-        return None
+    if token is None:
+        raise RuntimeError(u'Slack is not yet configured.')
 
-    return slack.show(token)
+    from . import slack
+    widget = slack.show(token)
+    return widget
 
 
 @common.error
@@ -314,7 +421,7 @@ def edit_item(index):
 
     idx = instance().stackedwidget.currentIndex()
     if idx == base.BookmarkTab:
-        server, job, root = index.data(common.ParentPathRole)
+        server, job, root = index.data(common.ParentPathRole)[0:3]
         edit_bookmark(
             server=server,
             job=job,
@@ -324,8 +431,8 @@ def edit_item(index):
         asset = index.data(common.ParentPathRole)[-1]
         edit_asset(asset=asset)
     elif idx == base.FileTab:
-        file = index.data(QtCore.Qt.StatusTipRole)
-        edit_file(file)
+        _file = index.data(QtCore.Qt.StatusTipRole)
+        edit_file(_file)
     elif idx == base.FavouriteTab:
         file = index.data(QtCore.Qt.StatusTipRole)
         edit_favourite(file)
@@ -337,12 +444,6 @@ def refresh():
     w = instance().widget()
     model = w.model().sourceModel()
     model.modelDataResetRequested.emit()
-
-
-@common.error
-@common.debug
-def toggle_search():
-    instance().topbar.filter_button.clicked.emit()
 
 
 @common.error
@@ -489,7 +590,6 @@ def toggle_sort_order():
     model = instance().widget().model().sourceModel()
     order = model.sort_order()
     role = model.sort_role()
-
     model.sortingChanged.emit(role, not order)
 
 
@@ -562,8 +662,8 @@ def preview(index):
     ext = source.split(u'.').pop()
 
     if ext.lower() == u'abc':
-        from . import alembicpreview
-        editor = alembicpreview.AlembicView(source)
+        from .editors import alembic_preview
+        editor = alembic_preview.AlembicPreviewWidget(source)
         instance().widget().selectionModel().currentChanged.connect(editor.close)
         instance().widget().selectionModel().currentChanged.connect(editor.deleteLater)
         editor.show()
@@ -583,8 +683,6 @@ def preview(index):
             job,
             root,
             index.data(QtCore.Qt.StatusTipRole),
-            int(images.THUMBNAIL_IMAGE_SIZE),
-            fallback_thumb=u'placeholder',
             get_path=True
         )
         if not thumb_path:
@@ -592,7 +690,8 @@ def preview(index):
 
     # Finally, we'll create and show our widget, and destroy it when the
     # selection changes
-    editor = images.ImageViewer(thumb_path, parent=instance().widget())
+    from .editors import item_preview
+    editor = item_preview.ImageViewer(thumb_path, parent=instance().widget())
     instance().widget().selectionModel().currentChanged.connect(editor.delete_timer.start)
     editor.open()
 
@@ -770,4 +869,173 @@ def suggest_prefix(job):
     else:
         prefix = u''.join([f[0] for f in substrings]).upper()
     return prefix
-    
+
+
+@common.debug
+@common.error
+@selection
+def capture_thumbnail(index):
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+    source = index.data(QtCore.Qt.StatusTipRole)
+
+    from .editors import thumb_capture as editor
+    widget = editor.show(
+        server=server,
+        job=job,
+        root=root,
+        source=source,
+        proxy=False
+    )
+
+    widget.captureFinished.connect(widget.save_image)
+    model = index.model().sourceModel()
+    widget.accepted.connect(
+        functools.partial(model.updateIndex.emit, index)
+    )
+
+
+@common.debug
+@common.error
+@selection
+def pick_thumbnail_from_file(index):
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+    source = index.data(QtCore.Qt.StatusTipRole)
+
+    from .editors import thumb_picker as editor
+    widget = editor.show(
+        server=server,
+        job=job,
+        root=root,
+        source=source
+    )
+
+    widget.fileSelected.connect(widget.save_image)
+    model = index.model().sourceModel()
+    widget.fileSelected.connect(lambda x: model.updateIndex.emit(index))
+
+
+@common.debug
+@common.error
+@selection
+def pick_thumbnail_from_library(index):
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+    source = index.data(QtCore.Qt.StatusTipRole)
+
+    from .editors import thumb_library as editor
+    widget = editor.show(
+        server=server,
+        job=job,
+        root=root,
+        source=source
+    )
+    widget.thumbnailSelected.connect(widget.save_image)
+    model = index.model().sourceModel()
+    widget.thumbnailSelected.connect(lambda x: model.updateIndex.emit(index))
+
+
+@common.debug
+@common.error
+@selection
+def remove_thumbnail(index):
+    """Deletes a thumbnail file and the cached entries associated
+    with it.
+
+    """
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+    source = index.data(QtCore.Qt.StatusTipRole)
+
+    thumbnail_path = images.get_cached_thumbnail_path(
+        server, job, root, source
+    )
+    images.ImageCache.flush(thumbnail_path)
+
+    if QtCore.QFile(thumbnail_path).exists():
+        if not QtCore.QFile(thumbnail_path).remove():
+            raise RuntimeError(u'Could not remove the thumbnail')
+
+    source_index = index.model().mapToSource(index)
+    idx = source_index.row()
+
+    data = source_index.model().model_data()[idx]
+    data[common.ThumbnailLoaded] = False
+    source_index.model().updateIndex.emit(source_index)
+
+
+@common.error
+@common.debug
+def copy_properties():
+    from .lists import base
+    idx = instance().stackedwidget.currentIndex()
+    if idx == base.BookmarkTab:
+        copy_bookmark_properties()
+    elif idx == base.AssetTab:
+        copy_asset_properties()
+    else:
+        return
+
+@common.error
+@common.debug
+def paste_properties():
+    from .lists import base
+    idx = instance().stackedwidget.currentIndex()
+    if idx == base.BookmarkTab:
+        paste_bookmark_properties()
+    elif idx == base.AssetTab:
+        paste_asset_properties()
+    else:
+        return
+
+
+@common.error
+@common.debug
+@selection
+def copy_bookmark_properties(index):
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+    bookmark_db.copy_properties(
+        server,
+        job,
+        root,
+        None,
+        table=bookmark_db.BookmarkTable
+    )
+
+
+@common.error
+@common.debug
+@selection
+def paste_bookmark_properties(index):
+    server, job, root = index.data(common.ParentPathRole)[0:3]
+    bookmark_db.paste_properties(
+        server,
+        job,
+        root,
+        None,
+        table=bookmark_db.BookmarkTable
+    )
+
+@common.error
+@common.debug
+@selection
+def copy_asset_properties(index):
+    server, job, root, asset = index.data(common.ParentPathRole)[0:4]
+    bookmark_db.copy_properties(
+        server,
+        job,
+        root,
+        asset,
+        table=bookmark_db.AssetTable
+    )
+
+
+@common.error
+@common.debug
+@selection
+def paste_asset_properties(index):
+    server, job, root, asset = index.data(common.ParentPathRole)[0:4]
+    bookmark_db.paste_properties(
+        server,
+        job,
+        root,
+        asset,
+        table=bookmark_db.AssetTable
+    )

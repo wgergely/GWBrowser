@@ -375,7 +375,10 @@ class FilePropertiesWidget(base.PropertiesWidget):
     def db_source(self):
         """The final file path."""
         if self._file is not None:
-            return common.proxy_path(self._file)
+            if common.is_collapsed(self._file):
+                return common.proxy_path(self._file)
+            else:
+                return self._file
 
         if not self.parent_folder():
             return None

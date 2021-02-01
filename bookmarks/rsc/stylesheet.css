@@ -554,7 +554,7 @@ NameModeWidget:disabled {{
 
 
 LineEdit:!read-only:focus{{
-    border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
+    border-bottom: {ROW_SEPARATOR}px solid rgba({ADD});
 }}
 
 Bookmarks {{

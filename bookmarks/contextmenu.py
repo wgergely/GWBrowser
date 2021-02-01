@@ -227,7 +227,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             'action': actions.toggle_frameless
         }
 
-        self.separator()
+        self.separator(self.menu[k])
 
         w = self.parent().window()
         try:
@@ -479,7 +479,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 self.menu[k][m]['shortcut'] = shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyAltItemPath).key()
                 self.menu[k][m]['description'] = shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyAltItemPath)
 
-    def mode_toggles_menu(self):
+    def toggle_item_flags_menu(self):
         if not self.index.isValid():
             return
 
@@ -516,7 +516,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
         return
 
-    def display_toggles_menu(self):
+    def list_filter_menu(self):
         item_on = self.get_icon(u'check', color=common.ADD)
         item_off = None
 
@@ -527,8 +527,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.menu[k][u'EditSearchFilter'] = {
             'text': u'Edit Search Filter...',
             'icon': self.get_icon(u'filter'),
-            'action': actions.toggle_search,
+            'action': actions.toggle_filter_editor,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSearch).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSearch),
         }
 
         proxy = self.parent().model()
@@ -546,6 +547,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'disabled': favourite,
                 'action': functools.partial(actions.toggle_flag, common.MarkedAsActive, not active),
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleActive).key(),
+                'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleActive),
             }
         if favourite or all_off:
             self.menu[k][u'favourite'] = {
@@ -554,6 +556,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'disabled': active,
                 'action': functools.partial(actions.toggle_flag, common.MarkedAsFavourite, not favourite),
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleFavourite).key(),
+                'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleFavourite),
             }
         if archived or all_off:
             self.menu[k][u'archived'] = {
@@ -562,6 +565,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'disabled': active if active else favourite,
                 'action': functools.partial(actions.toggle_flag, common.MarkedAsArchived, not archived),
                 'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleArchived).key(),
+                'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleArchived),
             }
 
     def row_size_menu(self):
@@ -630,7 +634,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.menu['generate'] = {
             'text': u'Make Thumbnails',
             'icon': item_on_icon if enabled else item_off_icon,
-            'action': self.parent().parent().parent().topbar.generate_thumbnails_button.clicked,
+            'action': actions.signals.toggleMakeThumbnailsButton,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleGenerateThumbnails).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleGenerateThumbnails),
         }
@@ -647,12 +651,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         if not self.index.isValid():
             return
 
-        capture_thumbnail_pixmap = self.get_icon(u'capture_thumbnail')
-        pick_thumbnail_pixmap = self.get_icon(u'pick_thumbnail')
-        pick_thumbnail_pixmap = self.get_icon(u'pick_thumbnail')
-        remove_thumbnail_pixmap = self.get_icon(u'remove', color=common.REMOVE)
-        show_thumbnail = self.get_icon(u'active')
-
         self.menu[u'header'] = {
             'text': u'Thumbnail',
             'disabled': True,
@@ -661,7 +659,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.separator()
 
         server, job, root = self.index.data(common.ParentPathRole)[0:3]
-        custom_thumbnail_path = images.get_thumbnail_path(
+        item_thumbnail_path = images.get_cached_thumbnail_path(
             server,
             job,
             root,
@@ -672,57 +670,56 @@ class BaseContextMenu(QtWidgets.QMenu):
             job,
             root,
             self.index.data(QtCore.Qt.StatusTipRole),
-            int(images.THUMBNAIL_IMAGE_SIZE),
             fallback_thumb=self.parent().itemDelegate().fallback_thumb,
             get_path=True
         )
 
-        self.menu[u'Show'] = {
-            'icon': show_thumbnail,
-            'action': self.parent().key_space
+        self.menu[key()] = {
+            'text': u'Preview',
+            'icon': self.get_icon(u'active'),
+            'action': actions.preview
         }
 
         self.separator()
 
         source_index = self.index.model().mapToSource(self.index)
         self.menu[u'capture'] = {
-            'text': u'Capture Screen',
-            'icon': capture_thumbnail_pixmap,
-            'action': functools.partial(images.capture, source_index)}
+            'text': u'Capture Screen...',
+            'icon': self.get_icon(u'capture_thumbnail'),
+            'action': actions.capture_thumbnail
+        }
 
         self.menu[u'file'] = {
-            'text': u'Pick...',
-            'icon': pick_thumbnail_pixmap,
-            'action': functools.partial(
-                images.pick, source_index)
+            'text': u'Pick Thumbnail File...',
+            'icon': self.get_icon(u'pick_thumbnail'),
+            'action': actions.pick_thumbnail_from_file
         }
 
         self.menu[u'library'] = {
-            'text': u'Pick from library...',
-            'icon': pick_thumbnail_pixmap,
-            'action': functools.partial(
-                images.pick_from_library, source_index)
+            'text': u'Pick Thumbnail From Library...',
+            'icon': self.get_icon(u'pick_thumbnail'),
+            'action': actions.pick_thumbnail_from_library
         }
 
         self.separator()
 
-        if QtCore.QFileInfo(custom_thumbnail_path).exists():
-            self.menu[u'remove'] = {
-                'text': u'Remove thumbnail',
-                'action': functools.partial(
-                    images.remove, source_index),
-                'icon': remove_thumbnail_pixmap
-            }
+        if QtCore.QFileInfo(item_thumbnail_path).exists():
             self.menu[u'reveal'] = {
-                'text': u'Reveal thumbnail...',
+                'text': u'Reveal Thumbnail...',
                 'action': functools.partial(
                     actions.reveal,
-                    custom_thumbnail_path,
+                    item_thumbnail_path,
                 )
+            }
+            self.separator()
+            self.menu[u'remove'] = {
+                'text': u'Remove Thumbnail',
+                'action': actions.remove_thumbnail,
+                'icon': self.get_icon(u'remove', color=common.REMOVE)
             }
         elif QtCore.QFileInfo(thumbnail_path).exists():
             self.menu[u'reveal'] = {
-                'text': u'Reveal thumbnail...',
+                'text': u'Reveal File...',
                 'action': functools.partial(
                     actions.reveal,
                     thumbnail_path,
@@ -754,15 +751,15 @@ class BaseContextMenu(QtWidgets.QMenu):
         collapse_pixmap = self.get_icon(u'collapse', common.ADD)
 
         currenttype = self.parent().model().sourceModel().data_type()
-        newtype = common.SequenceItem if currenttype == common.FileItem else common.FileItem
         groupped = currenttype == common.SequenceItem
 
-        self.menu[uuid.uuid1().get_hex()] = {
-            'text': u'Expand Sequences' if groupped else u'Group Sequences',
+        self.menu[key()] = {
+            'text': u'Show Sequences' if groupped else u'Show Files',
             'icon': expand_pixmap if groupped else collapse_pixmap,
             'checkable': False,
-            'action': functools.partial(
-                self.parent().model().sourceModel().dataTypeChanged.emit, newtype)
+            'action': actions.signals.toggleSequenceButton,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSequence).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.ToggleSequence),
         }
 
     def task_toggles_menu(self):
@@ -837,12 +834,23 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
 
     def add_file_menu(self):
-        self.menu[u'add_file...'] = {
+        self.menu[key()] = {
             'text': u'Add Template File...',
             'icon': self.get_icon(u'add_file', color=common.ADD),
             'action': actions.add_file,
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.AddItem).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.AddItem),
+        }
+
+    def add_file_to_asset_menu(self):
+        if not self.index.isValid():
+            return
+
+        asset = self.index.data(common.ParentPathRole)[3]
+        self.menu[key()] = {
+            'text': u'Add Template File...',
+            'icon': self.get_icon(u'add_file'),
+            'action': functools.partial(actions.add_file, asset=asset)
         }
 
     def notes_menu(self):
@@ -881,45 +889,58 @@ class BaseContextMenu(QtWidgets.QMenu):
         if not self.index.isValid():
             return
 
-        settings_icon = self.get_icon(u'settings')
-        copy_icon = self.get_icon(u'copy')
-
         k = u'Properties'
         if k not in self.menu:
             self.menu[k] = collections.OrderedDict()
-            self.menu['{}:icon'.format(k)] = settings_icon
-
-        from .properties import base
-        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+            self.menu['{}:icon'.format(k)] = self.get_icon(u'settings')
 
         self.separator(menu=self.menu[k])
+
         self.menu[k][key()] = {
-            'text': u'Copy Properties',
-            'action': functools.partial(
-                base.copy_properties,
-                server,
-                job,
-                root,
-                table=bookmark_db.BookmarkTable
-            ),
-            'icon': copy_icon,
+            'text': u'Copy Bookmark Properties',
+            'action': actions.copy_bookmark_properties,
+            'icon': self.get_icon(u'copy'),
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyProperties).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyProperties),
         }
 
-        if not base.CLIPBOARD[bookmark_db.BookmarkTable]:
+        if not bookmark_db.CLIPBOARD[bookmark_db.BookmarkTable]:
             return
 
         self.menu[k][key()] = {
-            'text': u'Paste Properties',
-            'action': functools.partial(
-                base.paste_properties,
-                server,
-                job,
-                root,
-                table=bookmark_db.BookmarkTable
-            ),
-            'icon': copy_icon,
+            'text': u'Paste Bookmark Properties',
+            'action': actions.paste_bookmark_properties,
+            'icon': self.get_icon(u'copy'),
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.PasteProperties).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.PasteProperties),
+        }
+
+    def asset_clipboard_menu(self):
+        if not self.index.isValid():
+            return
+
+        k = u'Properties'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = self.get_icon(u'settings')
+
+        self.separator(menu=self.menu[k])
+
+        self.menu[k][key()] = {
+            'text': u'Copy Asset Properties',
+            'action': actions.copy_asset_properties,
+            'icon': self.get_icon(u'copy'),
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.CopyProperties).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.CopyProperties),
+        }
+
+        if not bookmark_db.CLIPBOARD[bookmark_db.AssetTable]:
+            return
+
+        self.menu[k][key()] = {
+            'text': u'Paste Asset Properties',
+            'action': actions.paste_asset_properties,
+            'icon': self.get_icon(u'copy'),
             'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.PasteProperties).key(),
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.PasteProperties),
         }
@@ -936,8 +957,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             'text': u'Edit Bookmark Properties...',
             'icon': settings_icon,
             'action': actions.edit_bookmark,
-            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.EditItem).key(),
-            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
         }
 
     def edit_selected_asset_menu(self):
@@ -960,6 +979,42 @@ class BaseContextMenu(QtWidgets.QMenu):
             'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
         }
 
+    def edit_active_asset_menu(self):
+        settings_icon = self.get_icon(u'settings')
+
+        k = u'Properties'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = settings_icon
+
+        self.menu[k][key()] = {
+            'text': u'Edit Asset Properties...',
+            'icon': settings_icon,
+            'action': actions.edit_asset,
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.EditItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
+        }
+
+    def edit_selected_file_menu(self):
+        if not self.index.isValid():
+            return
+
+        settings_icon = self.get_icon(u'settings')
+        _file = self.index.data(QtCore.Qt.StatusTipRole)
+
+        k = u'Properties'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = settings_icon
+
+        self.menu[k][key()] = {
+            'text': u'Edit File Properties...',
+            'icon': settings_icon,
+            'action': functools.partial(actions.edit_file, _file),
+            'shortcut': shortcuts.get(shortcuts.MainWidgetShortcuts, shortcuts.EditItem).key(),
+            'description': shortcuts.hint(shortcuts.MainWidgetShortcuts, shortcuts.EditItem),
+        }
+
     def show_addasset_menu(self):
         add_pixmap = self.get_icon(u'add', color=common.ADD)
         self.menu[u'add_asset'] = {
@@ -975,12 +1030,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         sg_pixmap = self.get_icon(u'shotgun')
         parent_path = self.parent().model().sourceModel().parent_path()
 
-        sg_properties = shotgun.get_properties(*parent_path[0:3])
-        if not all((
-            sg_properties['shotgun_domain'],
-            sg_properties['shotgun_scriptname'],
-            sg_properties['shotgun_api_key']
-        )):
+        sg_properties = shotgun.get_properties(*parent_path[0:4])
+        if not shotgun.is_valid(sg_properties):
             return
 
         self.menu[u'sg_bulk_link'] = {
@@ -1000,6 +1051,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             return
 
         p = self.index.data(common.ParentPathRole)
+        source = self.index.data(QtCore.Qt.StatusTipRole)
         server, job, root = p[0:3]
         asset = p[3] if len(p) > 3 else None
 
@@ -1008,25 +1060,28 @@ class BaseContextMenu(QtWidgets.QMenu):
             return
 
         shotgun_icon = self.get_icon(u'shotgun')
-        display_thumbnail_path = images.get_thumbnail(
-            self.index.data(common.ParentPathRole)[0],
-            self.index.data(common.ParentPathRole)[1],
-            self.index.data(common.ParentPathRole)[2],
-            self.index.data(QtCore.Qt.StatusTipRole),
-            common.MARGIN(),
+        thumbnail_path = images.get_thumbnail(
+            server,
+            job,
+            root,
+            source,
             fallback_thumb=self.parent().itemDelegate().fallback_thumb,
             get_path=True
         )
 
         k = u'Shotgun'
-        self.menu[k] = collections.OrderedDict()
-        self.menu['{}:icon'.format(k)] = shotgun_icon
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu['{}:icon'.format(k)] = shotgun_icon
 
-        if QtCore.QFileInfo(display_thumbnail_path).exists():
-            self.menu[k]['Upload thumbnail to Shotgun'] = {
-                'action': sg_actions.upload_thumbnail,
-                'icon': shotgun_icon
-            }
+        if not QtCore.QFileInfo(thumbnail_path).exists():
+            return
+
+        self.menu[k][key()] = {
+            'text': u'Upload Thumbnail to Shotgun...',
+            'action': functools.partial(sg_actions.upload_thumbnail, sg_properties, thumbnail_path),
+            'icon': shotgun_icon
+        }
 
     def sg_url_menu(self):
         if not self.index.isValid():
@@ -1051,4 +1106,43 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'text': url,
                 'icon': self.get_icon('shotgun'),
                 'action': functools.partial(QtGui.QDesktopServices.openUrl, QtCore.QUrl(url))
+            }
+
+    def sg_link_bookmark_menu(self):
+        if not self.index.isValid():
+            return
+        if not self.index.data(QtCore.Qt.StatusTipRole):
+            return
+
+        server, job, root = self.index.data(common.ParentPathRole)[0:3]
+        asset = None
+
+        sg_properties = shotgun.get_properties(server, job, root, asset)
+        self.menu[key()] = {
+            'text': u'Link with Shotgun...',
+            'icon': self.get_icon('shotgun'),
+            'action': functools.partial(sg_actions.link_bookmark_entity, sg_properties)
+        }
+
+    def sg_link_asset_menu(self):
+        if not self.index.isValid():
+            return
+        if not self.index.data(QtCore.Qt.StatusTipRole):
+            return
+
+        server, job, root, asset = self.index.data(common.ParentPathRole)[0:4]
+
+        k = u'Link with Shotgun...'
+        if k not in self.menu:
+            self.menu[k] = collections.OrderedDict()
+            self.menu[k + ':icon'] = self.get_icon('shotgun')
+
+        sg_properties = shotgun.get_properties(server, job, root, asset)
+        for entity_type in (shotgun.AssetEntity, shotgun.ShotEntity, shotgun.SequenceEntity):
+            _sg_properties = sg_properties.copy()
+            _sg_properties[shotgun.SGAssetEntityType] = entity_type
+            self.menu[k][key()] = {
+                'text': u'Link {}...'.format(entity_type.title()),
+                'icon': self.get_icon('shotgun'),
+                'action': functools.partial(sg_actions.link_asset_entity, _sg_properties)
             }

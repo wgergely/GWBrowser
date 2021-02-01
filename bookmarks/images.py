@@ -112,58 +112,70 @@ def _check_for_thumbnail(source):
     return None
 
 
-def get_thumbnail(server, job, root, source, size, fallback_thumb='placeholder', get_path=False):
-    """Loads a thumbnail for a bookmark, asset or file item.
+def get_thumbnail(server, job, root, source, size=THUMBNAIL_IMAGE_SIZE, fallback_thumb='placeholder', get_path=False):
+    """Loads a thumbnail for a given item.
 
-    The method defines logic for finding fallback images when loading
-    thumbnails. When an item is missing a bespoke cached thumbnail file, we
-    will try to load a fallback image. For files, this will be an
-    image associated with the file-format, or for asset and bookmark items,
-    we will look in the bookmark, then job folder's root to find a
-    `thumbnail.png` or `thumbnail.jpg` file. When all lookup fails we will
-    use the provided `fallback_thumb`.
+    When an item is missing a bespoke cached thumbnail file, we will try to load
+    a fallback image instead. For files, this will be an image associated with
+    the file-format, or for asset and bookmark items, we will look in
+    bookmark's, then the job's root folder to see if we can find a
+    `thumbnail.png` file. When all lookup fails we'll return the provided
+    `fallback_thumb`.
+
+    See also :func:`get_cached_thumbnail_path()` for a lower level method used
+    to find a cached image file.
 
     Args:
-        parent_paths (tuple):    A tuple of path segments, eg. as stored in `common.ParentPathRole`.
+        server (unicode):        A server name.
+        job (unicode):           A job name.
+        root (unicode):          A root folder name.
         source (unicode):        Full file path of source item.
         size (int):              The size of the thumbnail image in pixels.
         fallback_thumb(unicode): A fallback thumbnail image.
+        get_path (bool):         Returns a path instead of a QPixmap if set to `True`.
 
     Returns:
-        QPixmap:                 A thumbnail pixmap or `None`.
-        QColor:                  A background color to use for the pixmap or `None`.
+        tuple:                   QPixmap and QColor, or (`None`, `None)`.
+        unicode:                 Path to the thumbnail file when `get_path` is `True`.
 
 
     """
-    args = (server, job, root)
-    thumbnail_path = get_thumbnail_path(server, job, root, source)
-
-    pixmap = ImageCache.get_pixmap(thumbnail_path, size)
-    if pixmap:
-        # The simplest of all cases, the source has a bespoke thumbnail saved
+    def get(server, job, root, source, proxy):
+        thumbnail_path = get_cached_thumbnail_path(server, job, root, source, proxy=proxy)
+        pixmap = ImageCache.get_pixmap(thumbnail_path, size)
+        if not pixmap:
+            return None
         if get_path:
             return thumbnail_path
         color = ImageCache.get_color(thumbnail_path)
         if color:
-            return pixmap, color
-        return pixmap, None
+            return (pixmap, color)
+        return (pixmap, None)
+
+
+    if isinstance(size, (int, long, float)):
+        size = int(size)
+    else:
+        raise TypeError(u'Invalid size')
+
+    args = (server, job, root)
+
+    # In the simplest of all cases, the source has a bespoke thumbnail saved we
+    # can return outright.
+    res = get(server, job, root, source, False)
+    if res is not None:
+        return res
 
     # If this item is an un-collapsed sequence item, the sequence
-    # might have a thumbnail:
-    thumbnail_path = get_thumbnail_path(server, job, root, source, proxy=True)
-    pixmap = ImageCache.get_pixmap(thumbnail_path, size)
-    if pixmap:
-        if get_path:
-            return thumbnail_path
-        color = ImageCache.get_color(thumbnail_path)
-        if color:
-            return pixmap, color
-        return pixmap, None
+    # might have a thumbnail instead.
+    res = get(server, job, root, source, True)
+    if res is not None:
+        return res
 
-    # If the item refers to a folder, eg. an asset or a bookmark we'll check for a
-    # 'thumbnail.{ext}' file in the folder's root and if this fails, we will check the
-    # job folder. If both fails will we proceed to load a placeholder
-    # thumbnail.
+    # If the item refers to a folder, eg. an asset or a bookmark item,  we'll
+    # check for a 'thumbnail.{ext}' file in the folder's root and if this fails,
+    # we will check the job folder. If both fails will we proceed to load a
+    # placeholder thumbnail.
     if QtCore.QFileInfo(source).isDir():
         _hash = common.get_hash(source)
 
@@ -182,185 +194,70 @@ def get_thumbnail(server, job, root, source, size, fallback_thumb='placeholder',
                     return thumb_path
                 color = ImageCache.get_color(thumb_path)
                 if color:
-                    return pixmap, color
+                    return (pixmap, color)
                 return pixmap, None
 
     # Let's load a placeholder if there's no generated thumbnail or
     # tumbnail file present in the source's root.
-    if not pixmap:
-        thumb_path = get_placeholder_path(
-            source, fallback=fallback_thumb)
-        pixmap = ImageCache.get_pixmap(
-            thumb_path,
-            size
-        )
-        if pixmap:
-            if get_path:
-                return thumb_path
-            return pixmap, None
+    thumb_path = get_placeholder_path(source, fallback=fallback_thumb)
+    pixmap = ImageCache.get_pixmap(thumb_path, size)
+    if pixmap:
+        if get_path:
+            return thumb_path
+        return pixmap, None
 
     # If the placeholder fails to load there's nothing left for us to do...
     if get_path:
         return None
-    return None, None
+    return (None, None)
 
 
-@QtCore.Slot(QtCore.QModelIndex)
-@QtCore.Slot(unicode)
-def set_from_source(index, source):
-    """Method used to load a resource from source and cache to `ImageCache`.
+@common.error
+@common.debug
+def load_thumbnail_from_image(server, job, root, source, image, proxy=False):
+    """Used to load a resource from a source file and cache to `ImageCache`.
 
     """
-    if not index.isValid():
-        return
-
-    destination = get_thumbnail_path(
-        index.data(common.ParentPathRole)[0],
-        index.data(common.ParentPathRole)[1],
-        index.data(common.ParentPathRole)[2],
-        index.data(QtCore.Qt.StatusTipRole)
-    )
-    if QtCore.QFileInfo(destination).exists():
-        if not QtCore.QFile(destination).remove():
-            from . import common_ui
-            s = u'Error removing the previous thumbnail file'
-            log.error(s)
-            common_ui.ErrorBox(s, u'').open()
+    thumbnail_path = get_cached_thumbnail_path(server, job, root, source, proxy=proxy)
+    if QtCore.QFileInfo(thumbnail_path).exists():
+        if not QtCore.QFile(thumbnail_path).remove():
+            s = u'Failed to remove existing thumbnail file.'
             raise RuntimeError(s)
 
     res = ImageCache.oiio_make_thumbnail(
-        source,
-        destination,
+        image,
+        thumbnail_path,
         THUMBNAIL_IMAGE_SIZE
     )
     if not res:
-        from . import common_ui
-        s = u'Failed to make thumbnail.'
-        log.error(s)
-        common_ui.ErrorBox(s, u'').open()
-        raise RuntimeError(s)
+        raise RuntimeError(u'Failed to make thumbnail.')
 
-    # Flush and re-cache
-    size = int(index.data(QtCore.Qt.SizeHintRole).height())
-
-    ImageCache.flush(destination)
-    ImageCache.get_image(destination, size)
-    ImageCache.make_color(destination)
-
-    if hasattr(index.model(), 'updateIndex'):
-        index.model().updateIndex.emit(index)
-    else:
-        index.model().sourceModel().updateIndex.emit(index)
+    ImageCache.flush(thumbnail_path)
 
 
-@QtCore.Slot(QtCore.QModelIndex)
-def capture(index):
-    """Used to capture and save and cache a thumbnail.
+def get_cached_thumbnail_path(server, job, root, source, proxy=False):
+    """Returns the path to a cached thumbnail file.
 
-    Args:
-        index (QtCore.QModelIndex):     An index associated with a file.
-
-    """
-    if not isinstance(index, QtCore.QModelIndex):
-        s = u'Expected <type \'QModelIndex\'>, got {}'.format(type(index))
-        log.error(s)
-        raise TypeError(s)
-
-    if not index.isValid():
-        return
-
-    widget = ScreenCapture()
-    widget.captureFinished.connect(functools.partial(set_from_source, index))
-    widget.open()
-
-
-@QtCore.Slot(QtCore.QModelIndex)
-def pick(index):
-    """Prompts the user to select and image on the computer.
-
-    Args:
-        index (QtCore.QModelIndex):     A valid model index.
-
-    """
-    if not index.isValid():
-        return
-
-    global _filedialog_widget
-    _filedialog_widget = QtWidgets.QFileDialog()
-    _filedialog_widget.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-    _filedialog_widget.setViewMode(QtWidgets.QFileDialog.List)
-    _filedialog_widget.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-    _filedialog_widget.setNameFilter(get_oiio_namefilters())
-    _filedialog_widget.setFilter(
-        QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-    _filedialog_widget.setLabelText(
-        QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
-    # _filedialog_widget.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-    _filedialog_widget.fileSelected.connect(
-        functools.partial(set_from_source, index))
-    _filedialog_widget.open()
-
-
-@QtCore.Slot(QtCore.QModelIndex)
-def remove(index):
-    """Deletes the thumbnail file and the cached entries associated
-    with it.
-
-    """
-    if not index.isValid():
-        return
-    source = get_thumbnail_path(
-        index.data(common.ParentPathRole)[0],
-        index.data(common.ParentPathRole)[1],
-        index.data(common.ParentPathRole)[2],
-        index.data(QtCore.Qt.StatusTipRole),
-    )
-    ImageCache.flush(source)
-
-    if QtCore.QFile(source).exists():
-        if not QtCore.QFile(source).remove():
-            from . import common_ui
-            s = u'Could not remove the thumbnail'
-            log.error(s)
-            common_ui.ErrorBox(u'Error.', s).open()
-            raise RuntimeError(s)
-
-    data = index.model().model_data()[index.row()]
-    data[common.ThumbnailLoaded] = False
-    index.model().updateIndex.emit(index)
-
-
-@QtCore.Slot(QtCore.QModelIndex)
-def pick_from_library(index):
-    global _filedialog_widget
-    widget = ThumbnailLibraryWidget()
-    widget.thumbnailSelected.connect(functools.partial(set_from_source, index))
-    widget.open()
-
-
-def get_thumbnail_path(server, job, root, file_path, proxy=False):
-    """Returns the path of a thumbnail.
-
-    If the `file_path` is a sequence, we will use the sequence's first
-    item as our thumbnail.
+    When `proxy` is set to `True` or the source file is a sequence, we will use
+    the sequence's first item as our thumbnail source.
 
     Args:
         server (unicode):       The `server` segment of the file path.
         job (unicode):          The `job` segment of the file path.
         root (unicode):         The `root` segment of the file path.
-        file_path (unicode):    The full file path.
+        source (unicode):       The full file path.
 
     Returns:
         unicode:                The resolved thumbnail path.
 
     """
-    for arg in (server, job, root, file_path):
+    for arg in (server, job, root, source):
         if not isinstance(arg, unicode):
             raise TypeError('Invalid type. Expected {}, got {}'.format(unicode, type(arg)))
-            
-    if common.is_collapsed(file_path) or proxy:
-        file_path = common.proxy_path(file_path)
-    name = common.get_hash(file_path) + u'.' + THUMBNAIL_FORMAT
+
+    if proxy or common.is_collapsed(source):
+        source = common.proxy_path(source)
+    name = common.get_hash(source) + u'.' + THUMBNAIL_FORMAT
     return server + u'/' + job + u'/' + root + u'/.bookmark/' + name
 
 
@@ -1076,804 +973,3 @@ class ImageCache(QtCore.QObject):
         oiio_cache.invalidate(source, force=True)
         oiio_cache.invalidate(destination, force=True)
         return True
-
-
-class ScreenCapture(QtWidgets.QDialog):
-    """A modal capture widget used to save a thumbnail.
-
-    Signals:
-        captureFinished (unicode): Emited with a filepath to the captured image.
-
-    """
-    captureFinished = QtCore.Signal(unicode)
-
-    def __init__(self, parent=None):
-        global _capture_widget
-        _capture_widget = self
-        super(ScreenCapture, self).__init__(parent=parent)
-
-        effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(effect)
-
-        self.capture_path = None
-
-        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(0.5)
-        self.fade_in.setDuration(500)
-        self.fade_in.setEasingCurve(QtCore.QEasingCurve.InOutQuad)
-
-        self._mouse_pos = None
-        self._click_pos = None
-        self._offset_pos = None
-
-        self._capture_rect = QtCore.QRect()
-
-        self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self.setCursor(QtCore.Qt.CrossCursor)
-
-        self.setMouseTracking(True)
-        self.installEventFilter(self)
-
-        self.accepted.connect(self.capture)
-
-    def _fit_screen_geometry(self):
-        """Compute the union of all screen geometries, and resize to fit.
-
-        """
-        app = QtWidgets.QApplication.instance()
-        geo = app.primaryScreen().geometry()
-        x = []
-        y = []
-        w = 0
-        h = 0
-
-        try:
-            for screen in app.screens():
-                g = screen.geometry()
-                x.append(g.topLeft().x())
-                y.append(g.topLeft().y())
-                w += g.width()
-                h += g.height()
-            topleft = QtCore.QPoint(
-                min(x),
-                min(y)
-            )
-            size = QtCore.QSize(w - min(x), h - min(y))
-            geo = QtCore.QRect(topleft, size)
-        except:
-            pass
-
-        self.setGeometry(geo)
-
-    @QtCore.Slot()
-    def capture(self):
-        """Capture the screen using the current `capture_rectangle`.
-
-        Saves the resulting pixmap as `png` and emits the `captureFinished`
-        signal with the file's path. The slot is called by the dialog's
-        accepted signal.
-
-        """
-        app = QtWidgets.QApplication.instance()
-        screen = app.screenAt(self._capture_rect.topLeft())
-        if not screen:
-            log.error(u'Unable to find screen.')
-            return
-
-        geo = screen.geometry()
-        pixmap = screen.grabWindow(
-            0,
-            self._capture_rect.x() - geo.x(),
-            self._capture_rect.y() - geo.y(),
-            self._capture_rect.width(),
-            self._capture_rect.height()
-        )
-        if pixmap.isNull():
-            from . import common_ui
-            s = u'Unknown error occured capturing the pixmap.'
-            log.error(s)
-            common_ui.ErrorBox(u'Capture failed', s).open()
-            raise RuntimeError(s)
-
-        destination = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.GenericDataLocation)
-        destination = u'{}/{}/temp/{}.{}'.format(
-            destination,
-            common.PRODUCT,
-            uuid.uuid1(),
-            THUMBNAIL_FORMAT
-        )
-        f = QtCore.QFileInfo(destination)
-        if not f.dir().exists():
-            if not f.dir().mkpath(u'.'):
-                from . import common_ui
-                s = u'Could not create temp folder.'
-                log.error(s)
-                common_ui.ErrorBox(u'Capture failed', s).open()
-                raise RuntimeError(s)
-
-        res = pixmap.save(
-            destination,
-            format='png',
-            quality=100
-        )
-
-        if not res:
-            from . import common_ui
-            s = u'Could not save the capture.'
-            log.error(s)
-            common_ui.ErrorBox(
-                s, u'Was trying to save to {}'.format(destination)).open()
-            raise RuntimeError(s)
-
-        self.capture_path = destination
-        self.captureFinished.emit(destination)
-
-    def paintEvent(self, event):
-        """Paint the capture window."""
-        # Convert click and current mouse positions to local space.
-        if not self._mouse_pos:
-            mouse_pos = self.mapFromGlobal(common.cursor.pos())
-        else:
-            mouse_pos = self.mapFromGlobal(self._mouse_pos)
-
-        click_pos = None
-        if self._click_pos is not None:
-            click_pos = self.mapFromGlobal(self._click_pos)
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        # Draw background. Aside from aesthetics, this makes the full
-        # tool region accept mouse events.
-        painter.setBrush(QtGui.QColor(0, 0, 0, 255))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(self.rect())
-
-        # Clear the capture area
-        if click_pos is not None:
-            capture_rect = QtCore.QRect(click_pos, mouse_pos)
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Clear)
-            painter.drawRect(capture_rect)
-            painter.setCompositionMode(
-                QtGui.QPainter.CompositionMode_SourceOver)
-
-        pen = QtGui.QPen(QtGui.QColor(255, 255, 255, 64),
-                         common.ROW_SEPARATOR(), QtCore.Qt.DotLine)
-        painter.setPen(pen)
-
-        # Draw cropping markers at click position
-        if click_pos is not None:
-            painter.drawLine(event.rect().left(), click_pos.y(),
-                             event.rect().right(), click_pos.y())
-            painter.drawLine(click_pos.x(), event.rect().top(),
-                             click_pos.x(), event.rect().bottom())
-
-        # Draw cropping markers at current mouse position
-        painter.drawLine(event.rect().left(), mouse_pos.y(),
-                         event.rect().right(), mouse_pos.y())
-        painter.drawLine(mouse_pos.x(), event.rect().top(),
-                         mouse_pos.x(), event.rect().bottom())
-
-        painter.end()
-
-    def keyPressEvent(self, event):
-        """Cancel the capture on keypress."""
-        if event.key() == QtCore.Qt.Key_Escape:
-            self.reject()
-
-    def mousePressEvent(self, event):
-        """Start the capture"""
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self._click_pos = event.globalPos()
-
-    def mouseReleaseEvent(self, event):
-        """Finalise the caputre"""
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-
-        if event.button() != QtCore.Qt.NoButton and self._click_pos is not None and self._mouse_pos is not None:
-            # End click drag operation and commit the current capture rect
-            self._capture_rect = QtCore.QRect(
-                self._click_pos,
-                self._mouse_pos
-            ).normalized()
-            self._click_pos = None
-            self._offset_pos = None
-            self._mouse_pos = None
-            self.accept()
-
-    def mouseMoveEvent(self, event):
-        """Constrain and resize the capture window."""
-        self.update()
-
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-
-        if not self._click_pos:
-            return
-
-        self._mouse_pos = event.globalPos()
-
-        app = QtWidgets.QApplication.instance()
-        modifiers = app.queryKeyboardModifiers()
-
-        no_modifier = modifiers == QtCore.Qt.NoModifier
-
-        control_modifier = modifiers & QtCore.Qt.ControlModifier
-        alt_modifier = modifiers & QtCore.Qt.AltModifier
-
-        const_mod = modifiers & QtCore.Qt.ShiftModifier
-        move_mod = (not not control_modifier) or (not not alt_modifier)
-
-        if no_modifier:
-            self.__click_pos = None
-            self._offset_pos = None
-            self.update()
-            return
-
-        # Allowing the shifting of the rectagle with the modifier keys
-        if move_mod:
-            if not self._offset_pos:
-                self.__click_pos = QtCore.QPoint(self._click_pos)
-                self._offset_pos = QtCore.QPoint(event.globalPos())
-
-            self._click_pos = QtCore.QPoint(
-                self.__click_pos.x() - (self._offset_pos.x() - event.globalPos().x()),
-                self.__click_pos.y() - (self._offset_pos.y() - event.globalPos().y())
-            )
-
-        # Shift constrains the rectangle to a square
-        if const_mod:
-            rect = QtCore.QRect()
-            rect.setTopLeft(self._click_pos)
-            rect.setBottomRight(event.globalPos())
-            rect.setHeight(rect.width())
-            self._mouse_pos = rect.bottomRight()
-
-        self.update()
-
-    def showEvent(self, event):
-        self._fit_screen_geometry()
-        self.fade_in.start()
-
-
-class Viewer(QtWidgets.QGraphicsView):
-    """The graphics view used to display an QPixmap read using OpenImageIO.
-
-    """
-
-    def __init__(self, parent=None):
-        super(Viewer, self).__init__(parent=parent)
-        self.item = QtWidgets.QGraphicsPixmapItem()
-        self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
-        self.setScene(QtWidgets.QGraphicsScene(parent=self))
-        self.scene().addItem(self.item)
-
-        self._track = True
-        self._pos = None
-
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setBackgroundBrush(QtGui.QColor(0, 0, 0, 0))
-        self.setInteractive(True)
-        self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
-
-        self.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        self.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
-
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setMouseTracking(True)
-
-    def index(self):
-        return self.parent().index()
-
-    def paintEvent(self, event):
-        """Custom paint event"""
-        super(Viewer, self).paintEvent(event)
-
-        index = self.index()
-        if not index.isValid():
-            return
-
-        painter = QtGui.QPainter()
-        painter.begin(self.viewport())
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = common.MARGIN()
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
-
-        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-        rect.setHeight(metrics.height())
-
-        # Filename
-        text = index.data(QtCore.Qt.StatusTipRole)
-        if text:
-            common.draw_aliased_text(painter, font, QtCore.QRect(
-                rect), text, QtCore.Qt.AlignLeft, common.TEXT)
-            rect.moveTop(rect.center().y() + metrics.lineSpacing())
-
-        text = index.data(common.DescriptionRole)
-        if text:
-            text = text if text else u''
-            common.draw_aliased_text(painter, font, QtCore.QRect(
-                rect), text, QtCore.Qt.AlignLeft, common.FAVOURITE)
-            rect.moveTop(rect.center().y() + metrics.lineSpacing())
-        text = index.data(common.FileDetailsRole)
-        if text:
-            text = u'{}'.format(text)
-            text = u'   |   '.join(text.split(u';')) if text else u'-'
-            common.draw_aliased_text(painter, font, QtCore.QRect(
-                rect), text, QtCore.Qt.AlignLeft, common.TEXT)
-            rect.moveTop(rect.center().y() + metrics.lineSpacing())
-
-        # Image info
-        ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
-        if ext.lower() in oiio_get_extensions():
-            font, metrics = common.font_db.secondary_font(
-                common.SMALL_FONT_SIZE())
-
-            path = index.data(QtCore.Qt.StatusTipRole)
-            path = common.get_sequence_endpath(path)
-            img = OpenImageIO.ImageBuf(path)
-            image_info = img.spec().serialize().split('\n')
-            image_info = [f.strip() for f in image_info if f]
-            for n, text in enumerate(image_info):
-                if n > 2:
-                    break
-                common.draw_aliased_text(
-                    painter,
-                    font,
-                    QtCore.QRect(rect),
-                    text,
-                    QtCore.Qt.AlignLeft,
-                    common.SECONDARY_TEXT
-                )
-                rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
-        painter.end()
-
-    def set_image(self, path):
-        """Loads an image using OpenImageIO and displays the contents as a
-        QPoxmap item.
-
-        """
-        image = oiio_get_qimage(path)
-
-        if not image:
-            return None
-        if image.isNull():
-            return None
-
-        # Let's make sure we're not locking the resource
-        oiio_cache.invalidate(path, force=True)
-
-        pixmap = QtGui.QPixmap.fromImage(image)
-        if pixmap.isNull():
-            log.error('Could not convert QImage to QPixmap')
-            return None
-
-        self.item.setPixmap(pixmap)
-        self.item.setShapeMode(QtWidgets.QGraphicsPixmapItem.MaskShape)
-        self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
-
-        size = self.item.pixmap().size()
-        if size.height() > self.height() or size.width() > self.width():
-            self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
-        return self.item
-
-    def wheelEvent(self, event):
-        # Zoom Factor
-        zoom_in_factor = 1.25
-        zoom_out_factor = 1.0 / zoom_in_factor
-
-        # Set Anchors
-        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
-        self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
-
-        # Save the scene pos
-        original_pos = self.mapToScene(event.pos())
-
-        # Zoom
-        if event.angleDelta().y() > 0:
-            zoom_factor = zoom_in_factor
-        else:
-            zoom_factor = zoom_out_factor
-        self.scale(zoom_factor, zoom_factor)
-
-        # Get the new position
-        new_position = self.mapToScene(event.pos())
-
-        # Move scene to old position
-        delta = new_position - original_pos
-        self.translate(delta.x(), delta.y())
-
-    def keyPressEvent(self, event):
-        event.ignore()
-
-
-class ImageViewer(QtWidgets.QDialog):
-    """Used to view an image.
-
-    The image data is loaded using OpenImageIO and is then wrapped in a QGraphicsScene,
-    using a QPixmap. See ``Viewer``.
-
-    """
-
-    def __init__(self, path, parent=None):
-        global _viewer_widget
-        _viewer_widget = self
-        super(ImageViewer, self).__init__(parent=parent)
-
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(
-            QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
-
-        self.delete_timer = QtCore.QTimer(parent=self)
-        self.delete_timer.setSingleShot(True)
-        self.delete_timer.setInterval(50)
-        self.delete_timer.timeout.connect(self.close)
-        self.delete_timer.timeout.connect(self.delete_timer.deleteLater)
-        self.delete_timer.timeout.connect(self.deleteLater)
-
-        self.load_timer = QtCore.QTimer(parent=self)
-        self.load_timer.setSingleShot(True)
-        self.load_timer.setInterval(10)
-        self.load_timer.timeout.connect(self.load_timer.deleteLater)
-
-        if not isinstance(path, unicode):
-            self.done(QtWidgets.QDialog.Rejected)
-            raise ValueError(
-                u'Expected <type \'unicode\'>, got {}'.format(type(path)))
-
-        from . import common_ui
-
-        self.path = path
-
-        if not self.parent():
-            common.set_custom_stylesheet(self)
-
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
-            s = u'{} does not exists.'.format(path)
-            common_ui.ErrorBox(
-                u'Error previewing image.', s).open()
-            log.error(s)
-            self.done(QtWidgets.QDialog.Rejected)
-            raise RuntimeError(s)
-
-        if not oiio_get_buf(path, force=True):
-            s = u'{} seems invalid.'.format(path)
-            common_ui.ErrorBox(
-                u'Error previewing image.', s).open()
-            log.error(s)
-            self.done(QtWidgets.QDialog.Rejected)
-            raise RuntimeError(s)
-
-        QtWidgets.QVBoxLayout(self)
-        height = common.ROW_HEIGHT() * 0.6
-        o = 0
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(o)
-
-        self.hide_button = common_ui.ClickableIconButton(
-            u'close',
-            (common.REMOVE, common.REMOVE),
-            height,
-            parent=self
-        )
-        self.hide_button.clicked.connect(
-            lambda: self.done(QtWidgets.QDialog.Accepted))
-
-        def get_row(parent=None):
-            row = QtWidgets.QWidget(parent=parent)
-            row.setFixedHeight(height)
-            QtWidgets.QHBoxLayout(row)
-            row.layout().setContentsMargins(0, 0, 0, 0)
-            row.layout().setSpacing(0)
-            parent.layout().addWidget(row)
-            row.setStyleSheet('background-color: rgba(0, 0, 0, 255);')
-            return row
-
-        row = get_row(parent=self)
-        row.layout().addStretch(1)
-        row.layout().addWidget(self.hide_button, 0)
-
-        self.viewer = Viewer(parent=self)
-        self.load_timer.timeout.connect(self.load_timer.deleteLater)
-        self.load_timer.timeout.connect(lambda: self.viewer.set_image(path))
-
-        self.layout().addWidget(self.viewer, 1)
-
-        row = get_row(parent=self)
-
-    def index(self):
-        if self.parent():
-            return self.parent().selectionModel().currentIndex()
-        return QtCore.QModelIndex()
-
-    def _fit_screen_geometry(self):
-        app = QtWidgets.QApplication.instance()
-        rect = app.primaryScreen().geometry()
-        self.setGeometry(rect)
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidth(common.ROW_SEPARATOR())
-        painter.setPen(pen)
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
-        color = ImageCache.get_color(self.path)
-        if not color:
-            color = ImageCache.make_color(self.path)
-        if not color:
-            color = QtGui.QColor(20, 20, 20, 240)
-        painter.setBrush(color)
-        painter.drawRect(self.rect())
-
-        painter.end()
-
-    def mousePressEvent(self, event):
-        event.accept()
-        self.close()
-        self.deleteLater()
-
-    def keyPressEvent(self, event):
-        """We're mapping the key press events to the parent list."""
-        if self.parent():
-            if event.key() == QtCore.Qt.Key_Down:
-                self.parent().key_down()
-                self.parent().key_space()
-            elif event.key() == QtCore.Qt.Key_Up:
-                self.parent().key_up()
-                self.parent().key_space()
-            elif event.key() == QtCore.Qt.Key_Tab:
-                self.parent().key_up()
-                self.parent().key_space()
-            elif event.key() == QtCore.Qt.Key_Backtab:
-                self.parent().key_down()
-                self.parent().key_space()
-
-        self.delete_timer.start()
-
-    def showEvent(self, event):
-        self._fit_screen_geometry()
-        self.load_timer.start()
-
-
-class ThumbnailLibraryItem(QtWidgets.QLabel):
-    """Custom QLabel ssed by the ThumbnailLibraryWidget to display an image.
-
-    """
-    clicked = QtCore.Signal(unicode)
-
-    def __init__(self, path, parent=None):
-        super(ThumbnailLibraryItem, self).__init__(parent=parent)
-        self._path = path
-        self._pixmap = None
-
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setScaledContents(True)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding,
-        )
-        self.setMinimumSize(QtCore.QSize(
-            common.ROW_HEIGHT() * 2, common.ROW_HEIGHT() * 2))
-
-    def enterEvent(self, event):
-        self.update()
-
-    def leaveEvent(self, event):
-        self.update()
-
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.clicked.emit(self._path)
-
-    def paintEvent(self, event):
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
-        o = 1.0 if hover else 0.7
-        painter.setOpacity(o)
-
-        if not self._pixmap:
-            self._pixmap = ImageCache.get_pixmap(
-                self._path,
-                self.height(),
-                force=True
-            )
-            if not self._pixmap:
-                return
-
-        s = float(min((self.rect().height(), self.rect().width())))
-        longest_edge = float(
-            max((self._pixmap.width(), self._pixmap.height())))
-        ratio = s / longest_edge
-        w = self._pixmap.width() * ratio
-        h = self._pixmap.height() * ratio
-        _rect = QtCore.QRect(0, 0, w, h)
-        _rect.moveCenter(self.rect().center())
-        painter.drawPixmap(
-            _rect,
-            self._pixmap,
-        )
-        if not hover:
-            painter.end()
-            return
-
-        painter.setPen(common.TEXT)
-        rect = self.rect()
-        rect.moveTopLeft(rect.topLeft() + QtCore.QPoint(1, 1))
-
-        text = self._path.split(u'/').pop()
-        text = text.replace(u'thumb_', u'')
-        font, metrics = common.font_db.primary_font(common.MEDIUM_FONT_SIZE())
-
-        common.draw_aliased_text(
-            painter,
-            font,
-            rect,
-            text,
-            QtCore.Qt.AlignCenter,
-            QtGui.QColor(0, 0, 0, 255),
-        )
-
-        rect = self.rect()
-        common.draw_aliased_text(
-            painter,
-            font,
-            rect,
-            text,
-            QtCore.Qt.AlignCenter,
-            common.TEXT_SELECTED,
-        )
-        painter.end()
-
-
-class ThumbnailLibraryWidget(QtWidgets.QDialog):
-    """The widget used to browser and select a thumbnai from a set of
-    predefined thumbnails.
-
-    The thumbnail files are stored in the ./rsc folder and are prefixed by
-    `thumb_*`.
-
-    """
-    thumbnailSelected = QtCore.Signal(unicode)
-    label_size = common.ASSET_ROW_HEIGHT()
-
-    def __init__(self, parent=None):
-
-        # Global binding to avoid the widget being garbage collected.
-        global _library_widget
-        _library_widget = self
-
-        super(ThumbnailLibraryWidget, self).__init__(parent=parent)
-        self.scrollarea = None
-        self.columns = 5
-
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowTitle(u'Select thumbnail')
-
-        self._create_UI()
-        self._add_thumbnails()
-
-    def _create_UI(self):
-        """Using scandir we will get all the installed thumbnail files from the rsc directory."""
-        from . import common_ui
-
-        if not self.parent():
-            common.set_custom_stylesheet(self)
-
-        QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN()
-
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        row = common_ui.add_row(
-            None, height=common.ROW_HEIGHT(), padding=None, parent=self)
-        label = common_ui.PaintedLabel(
-            u'Select a thumbnail',
-            color=common.TEXT,
-            size=common.LARGE_FONT_SIZE(),
-            parent=self
-        )
-        row.layout().addWidget(label)
-
-        widget = QtWidgets.QWidget(parent=self)
-        widget.setStyleSheet(
-            u'background-color: rgba({})'.format(common.rgb(common.SEPARATOR)))
-
-        QtWidgets.QGridLayout(widget)
-        widget.layout().setAlignment(QtCore.Qt.AlignCenter)
-        widget.layout().setContentsMargins(
-            common.INDICATOR_WIDTH(),
-            common.INDICATOR_WIDTH(),
-            common.INDICATOR_WIDTH(),
-            common.INDICATOR_WIDTH())
-        widget.layout().setSpacing(common.INDICATOR_WIDTH())
-
-        self.scrollarea = QtWidgets.QScrollArea(parent=self)
-        self.scrollarea.setWidgetResizable(True)
-        self.scrollarea.setWidget(widget)
-        self.layout().addWidget(self.scrollarea, 1)
-
-    def _add_thumbnails(self):
-        row = 0
-        path = u'{}/../rsc/{}'.format(__file__, ThumbnailResource)
-        path = os.path.normpath(os.path.abspath(path))
-
-        idx = 0
-        for entry in _scandir.scandir(path):
-            label = ThumbnailLibraryItem(
-                entry.path.replace(u'\\', u'/'),
-                parent=self
-            )
-
-            column = idx % self.columns
-            if column == 0:
-                row += 1
-            self.scrollarea.widget().layout().addWidget(label, row, column)
-            label.clicked.connect(self.thumbnailSelected)
-            label.clicked.connect(self.close)
-
-            idx += 1
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setBrush(common.SEPARATOR)
-        pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 50))
-        pen.setWidth(common.ROW_SEPARATOR())
-        painter.setPen(pen)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        o = common.INDICATOR_WIDTH() * 2.0
-        painter.setOpacity
-        painter.drawRoundedRect(
-            self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)),
-            o, o
-        )
-        painter.end()
-
-    def showEvent(self, event):
-        self._resize_widget()
-
-    def _resize_widget(self):
-        app = QtWidgets.QApplication.instance()
-        rect = app.primaryScreen().availableGeometry()
-
-        w = rect.width() * 0.66
-        h = rect.height() * 0.66
-
-        _rect = QtCore.QRect(0, 0, int(w), int(h))
-        _rect.moveCenter(rect.center())
-        self.setGeometry(_rect)

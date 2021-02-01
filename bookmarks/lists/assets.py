@@ -22,32 +22,48 @@ from . import base
 class AssetsWidgetContextMenu(contextmenu.BaseContextMenu):
     """The context menu associated with the AssetsWidget."""
 
+    @common.debug
+    @common.error
     def setup(self):
         self.window_menu()
+
         self.separator()
+
         self.show_addasset_menu()
+
         self.separator()
-        self.sg_bulk_link_menu()
+        self.title()
+
+        self.bookmark_url_menu()
+        self.asset_url_menu()
+        self.sg_url_menu()
+        self.reveal_item_menu()
+
         self.separator()
+
+        self.sg_link_asset_menu()
+        self.add_file_to_asset_menu()
+        self.edit_active_bookmark_menu()
         self.edit_selected_asset_menu()
+        self.asset_clipboard_menu()
+        self.notes_menu()
+        self.toggle_item_flags_menu()
+
         self.separator()
-        if self.index.isValid():
-            self.mode_toggles_menu()
-        self.separator()
-        self.urls_menu()
-        self.separator()
-        if self.index.isValid():
-            self.notes_menu()
-            self.copy_menu()
-            self.reveal_item_menu()
-        self.separator()
+
         self.set_generate_thumbnails_menu()
         self.row_size_menu()
         self.sort_menu()
-        self.display_toggles_menu()
-        self.separator()
+        self.list_filter_menu()
         self.refresh_menu()
 
+        self.separator()
+
+        self.preferences_menu()
+
+        self.separator()
+
+        self.quit_menu()
 
 class AssetModel(base.BaseModel):
     """Asset data model."""
@@ -218,7 +234,14 @@ class AssetsWidget(base.ThreadedBaseWidget):
         self.setWindowTitle(u'Assets')
         self._background_icon = u'assets'
 
-        actions.signals.assetValueUpdated.connect(self.update_model_value)
+        actions.signals.assetAdded.connect(
+            functools.partial(
+                self.select_list_item,
+                role=QtCore.Qt.StatusTipRole,
+            )
+        )
+        actions.signals.assetModelValueUpdated.connect(
+            self.update_model_value)
 
     def inline_icons_count(self):
         """The number of icons on the right - hand side."""

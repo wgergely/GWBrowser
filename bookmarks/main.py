@@ -311,7 +311,6 @@ class MainWidget(QtWidgets.QWidget):
             l.model().modelDataResetRequested)
         f.model().sourceModel().modelDataResetRequested.connect(
             l.model().modelDataResetRequested)
-        l.model().taskFolderChangeRequested.connect(lc.files_button.show_view)
 
         #####################################################
         # Stacked widget navigation
@@ -327,7 +326,9 @@ class MainWidget(QtWidgets.QWidget):
         lc.taskFolderChanged.connect(f.model().sourceModel().taskFolderChanged)
         lc.taskFolderChanged.connect(lc.textChanged)
         f.model().sourceModel().taskFolderChanged.connect(lc.textChanged)
+
         #####################################################
+
         b.activated.connect(
             lambda: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
         b.model().sourceModel().activeChanged.connect(
@@ -336,7 +337,9 @@ class MainWidget(QtWidgets.QWidget):
             lambda: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
         a.model().sourceModel().activeChanged.connect(
             lambda x: lc.textChanged.emit(f.model().sourceModel().task()) if f.model().sourceModel().task() else 'Files')
+
         #####################################################
+
         lc.listChanged.connect(lb.update)
         lc.listChanged.connect(lc.update_buttons)
 
@@ -345,6 +348,7 @@ class MainWidget(QtWidgets.QWidget):
 
         f.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)
         ff.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)
+
         b.model().filterFlagChanged.connect(lc.update_buttons)
         a.model().filterFlagChanged.connect(lc.update_buttons)
         f.model().filterFlagChanged.connect(lc.update_buttons)
@@ -353,6 +357,7 @@ class MainWidget(QtWidgets.QWidget):
         a.model().filterTextChanged.connect(lc.update_buttons)
         f.model().filterTextChanged.connect(lc.update_buttons)
         ff.model().filterTextChanged.connect(lc.update_buttons)
+
         b.model().modelReset.connect(lc.update_buttons)
         a.model().modelReset.connect(lc.update_buttons)
         f.model().modelReset.connect(lc.update_buttons)
@@ -414,6 +419,8 @@ class MainWidget(QtWidgets.QWidget):
         #####################################################
         f.model().sourceModel().taskFolderChanged.connect(f.model().sourceModel().init_row_size)
         f.model().sourceModel().taskFolderChanged.connect(f.reset_row_layout)
+        #####################################################
+        lc.taskswidget.connect_signals()
 
     @common.error
     @common.debug
@@ -438,10 +445,11 @@ class MainWidget(QtWidgets.QWidget):
         self.deleteLater()
 
         for widget in (
+            self.bookmarkswidget,
             self.assetswidget,
             self.fileswidget,
             self.favouriteswidget,
-            self.topbar.task_view
+            self.topbar.taskswidget
         ):
             try:
                 widget.removeEventFilter(self)
@@ -505,6 +513,7 @@ class MainWidget(QtWidgets.QWidget):
         settings.local_settings.touch_mode_lockfile()
         settings.local_settings.save_mode_lockfile()
 
+        self._init_shortcuts()
         self._create_ui()
         self._connect_signals()
 
@@ -541,7 +550,6 @@ class MainWidget(QtWidgets.QWidget):
             model.modelReset.connect(
                 functools.partial(update_window_title, model.active_index()))
 
-        self.init_shortcuts()
         self.init_queued_transaction_thread()
 
         self._initialized = True
@@ -560,7 +568,7 @@ class MainWidget(QtWidgets.QWidget):
 
     @common.debug
     @common.error
-    def init_shortcuts(self):
+    def _init_shortcuts(self):
         connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
 
         # Adding shortcuts to the MainWidget
@@ -569,6 +577,8 @@ class MainWidget(QtWidgets.QWidget):
         connect(shortcuts.RowIncrease, actions.increase_row_size)
         connect(shortcuts.RowDecrease, actions.decrease_row_size)
         connect(shortcuts.RowReset, actions.reset_row_size)
+
+        connect(shortcuts.ToggleSortOrder, actions.toggle_sort_order)
 
         connect(shortcuts.ShowBookmarksTab, functools.partial(actions.change_tab, base.BookmarkTab))
         connect(shortcuts.ShowAssetsTab, functools.partial(actions.change_tab, base.AssetTab))
@@ -582,9 +592,37 @@ class MainWidget(QtWidgets.QWidget):
         connect(shortcuts.EditItem, actions.edit_item)
 
         connect(shortcuts.Refresh, actions.refresh)
-        connect(shortcuts.ToggleSortOrder, actions.toggle_sort_order)
+
+        connect(shortcuts.CopyItemPath, actions.copy_selected_path)
+        connect(shortcuts.CopyAltItemPath, actions.copy_selected_alt_path)
         connect(shortcuts.RevealItem, actions.reveal_selected)
         connect(shortcuts.RevealAltItem, actions.reveal_url)
+
+        connect(shortcuts.CopyProperties, actions.copy_properties)
+        connect(shortcuts.PasteProperties, actions.paste_properties)
+
+        if common.STANDALONE:
+            connect(shortcuts.Quit, actions.quit)
+            connect(shortcuts.Minimize, actions.toggle_minimized)
+            connect(shortcuts.Maximize, actions.toggle_maximized)
+            connect(shortcuts.FullScreen, actions.toggle_fullscreen)
+            connect(shortcuts.OpenNewInstance, actions.exec_instance)
+
+        connect(shortcuts.ToggleGenerateThumbnails, actions.signals.toggleMakeThumbnailsButton)
+        connect(shortcuts.ToggleSearch, actions.signals.toggleFilterButton)
+        connect(shortcuts.ToggleSequence, actions.signals.toggleSequenceButton)
+        connect(shortcuts.ToggleArchived, actions.signals.toggleArchivedButton)
+        connect(shortcuts.ToggleFavourite, actions.signals.toggleFavouritesButton)
+        connect(shortcuts.ToggleActive, actions.toggle_active_item)
+
+        connect(shortcuts.HideInlineButtons, actions.signals.toggleSimpleButton)
+
+        connect(shortcuts.OpenSlack, actions.show_slack)
+        connect(shortcuts.OpenPreferences, actions.show_preferences)
+        connect(shortcuts.OpenTodo, actions.show_todos)
+
+        connect(shortcuts.ToggleItemArchived, actions.toggle_archived)
+        connect(shortcuts.ToggleItemFavourite, actions.toggle_favourite)
 
 
 

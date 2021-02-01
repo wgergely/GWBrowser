@@ -27,7 +27,7 @@ def close():
     instance = None
 
 
-def show(server, job, root, asset, extension=None):
+def show():
     global instance
     close()
     instance = PreferencesWidget()

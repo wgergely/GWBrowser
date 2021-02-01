@@ -42,12 +42,6 @@ instance = None
 CLIENTS = {}
 
 
-def close():
-    global instance
-    instance.close()
-    instance.deleteLater()
-    instance = None
-
 
 def show(token):
     global instance
@@ -56,7 +50,6 @@ def show(token):
         instance.raise_()
         return
 
-    close()
     instance = SlackWidget(token)
     instance.open()
     return instance

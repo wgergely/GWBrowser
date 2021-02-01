@@ -764,3 +764,9 @@ class FontDatabase(QtGui.QFontDatabase):
 class DataDict(dict):
     """Subclassed dict type for weakref compatibility."""
     pass
+
+
+def fit_screen_geometry(widget):
+    app = QtWidgets.QApplication.instance()
+    rect = app.primaryScreen().availableGeometry()
+    widget.setGeometry(rect)

@@ -3,8 +3,10 @@
 https://developer.shotgunsoftware.com/python-api/reference.html
 
 """
+import sys
 import contextlib
 import functools
+import traceback
 
 import shotgun_api3
 
@@ -65,7 +67,7 @@ SGBookmarkEntityID = SGBookmarkEntityName + 1
 
 SGAssetEntityType = SGBookmarkEntityID + 1
 SGAssetEntityName = SGAssetEntityType + 1
-SGAssetEntityID = SGBookmarkEntityName + 1
+SGAssetEntityID = SGAssetEntityName + 1
 
 
 SGProperties = {
@@ -92,32 +94,32 @@ ENTITY_URL = u'{domain}/detail/{shotgun_type}/{shotgun_id}'
 
 DB_KEYS = {
     u'shotgun_id': {
-        'type': int,
+        'type': bookmark_db.TABLES[bookmark_db.AssetTable]['shotgun_id']['type'],
         'role': IdRole,
         'columns': (IdColumn, ),
     },
     u'shotgun_type': {
-        'type': unicode,
+        'type': bookmark_db.TABLES[bookmark_db.AssetTable]['shotgun_type']['type'],
         'role': TypeRole,
         'columns': (TypeColumn, ),
     },
     u'shotgun_name': {
-        'type': unicode,
+        'type': bookmark_db.TABLES[bookmark_db.AssetTable]['shotgun_name']['type'],
         'role': NameRole,
         'columns': (NameColumn, CodeColumn),
     },
     u'cut_duration': {
-        'type': int,
+        'type': bookmark_db.TABLES[bookmark_db.AssetTable]['cut_duration']['type'],
         'role': CutDurationRole,
         'columns': (CutDurationColumn, SGCutDurationColumn),
     },
     u'cut_in': {
-        'type': int,
+        'type': bookmark_db.TABLES[bookmark_db.AssetTable]['cut_in']['type'],
         'role': CutInRole,
         'columns': (CutInColumn, SGCutInColumn),
     },
     u'cut_out': {
-        'type': int,
+        'type': bookmark_db.TABLES[bookmark_db.AssetTable]['cut_out']['type'],
         'role': CutOutRole,
         'columns': (CutOutColumn, SGCutOutColumn),
     },
@@ -125,6 +127,56 @@ DB_KEYS = {
 
 
 __SG_CONNECTIONS = {}
+
+connecting_message = None
+
+
+def columns():
+    columns = ()
+    for v in DB_KEYS.values():
+        columns += v['columns']
+    return list(set((columns)))
+
+
+class Signals(QtCore.QObject):
+    connectionAttemptStarted = QtCore.Signal()
+    connectionSuccessful = QtCore.Signal()
+    connectionFailed = QtCore.Signal(unicode)
+    connectionClosed = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super(Signals, self).__init__(parent=parent)
+        self._connect_signals()
+
+    def _connect_signals(self):
+        self.connectionAttemptStarted.connect(self.show_connecting_message)
+        self.connectionSuccessful.connect(self.hide_connecting_message)
+        self.connectionFailed.connect(self.hide_connecting_message)
+        self.connectionClosed.connect(self.hide_connecting_message)
+
+        self.connectionFailed.connect(self.show_error_message)
+
+    def show_error_message(self, v):
+        common_ui.ErrorBox(
+            u'Shotgun encountered an error.',
+            v
+        ).open()
+
+    def show_connecting_message(self):
+        global connecting_message
+        connecting_message = common_ui.MessageBox(u'Connecting to Shotgun...', no_buttons=True)
+        connecting_message.open()
+        QtWidgets.QApplication.instance().processEvents()
+
+    def hide_connecting_message(self):
+        try:
+            connecting_message.hide()
+            QtWidgets.QApplication.instance().processEvents()
+        except:
+            pass
+
+
+signals = Signals()
 
 
 def name_key(entity):
@@ -147,12 +199,15 @@ def name_key(entity):
         return entity[NameColumn]
     if has(CodeColumn):
         return entity[CodeColumn]
-    if has(CodeColumn) and has(IdColumn):
+    if has(TypeColumn) and has(IdColumn):
         return u'{}{}'.format(
             entity[TypeColumn],
             entity[IdColumn],
         )
-
+    if has(IdColumn):
+        return u'Unknown Entity{}'.format(
+            entity[IdColumn],
+        )
     return u'Unknown entity'
 
 
@@ -161,7 +216,7 @@ def get_urls(sg_properties):
 
     Returns:
         list:   A list of urls.
-        
+
     """
     if not sg_properties[SGDomain]:
         return []
@@ -276,7 +331,7 @@ def connection(sg_properties):
     """
     if not is_valid(sg_properties, connection_only=True):
         s = u'Bookmark not yet configured to use Shotgun. You must enter a valid domain name, script name and api key before connecting.'
-        raise ValueError(s)
+        signals.connectionFailed.emit(s)
 
     try:
         sg = _get_sg(
@@ -284,12 +339,21 @@ def connection(sg_properties):
             sg_properties[SGScript],
             sg_properties[SGKey]
         )
+        signals.connectionAttemptStarted.emit()
         sg.connect()
+        signals.connectionSuccessful.emit()
         yield sg
-    except:
+    except Exception as e:
+        # info = sys.exc_info()
+        # if all(info):
+        #     e = u''.join(traceback.format_exception(*info))
+        # else:
+        #     e = u''
+        signals.connectionFailed.emit(u'{}'.format(e))
         raise
     else:
         sg.close()
+        signals.connectionClosed.emit()
 
 
 def _get_sg(*args):
@@ -332,24 +396,6 @@ def _get_thread_key(*args):
     t = unicode(repr(QtCore.QThread.currentThread()))
     return u'/'.join(args) + t
 
-
-def catcherror(func):
-    """Decorator used to log errors.
-
-    """
-    @functools.wraps(func)
-    def func_wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            log.error(e)
-            if QtWidgets.QApplication.instance():
-                common_ui.ErrorBox(
-                    u'Shotgun error',
-                    u'{}'.format(e)
-                ).open()
-            raise
-    return func_wrapper
 
 
 class SGScriptConnection(shotgun_api3.Shotgun):
@@ -401,7 +447,6 @@ class SGScriptConnection(shotgun_api3.Shotgun):
                     entity_type, field_name=None, project_entity=None)
         return self.schema
 
-    @catcherror
     def find_projects(self, columns=[IdColumn, NameColumn, u'visible', u'is_template', u'is_demo', u'is_template_project', 'archived']):
         """Get all active projects from Shotgun.
 
@@ -425,7 +470,6 @@ class SGScriptConnection(shotgun_api3.Shotgun):
             _entities.append(entity)
         return _entities
 
-    @catcherror
     def find_project(self, project_name, columns=[IdColumn, NameColumn]):
         """Find a Shotgun project using its name.
 

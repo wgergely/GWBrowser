@@ -60,11 +60,6 @@ from ..shotgun import shotgun
 
 SLACK_API_URL = u'https://api.slack.com/apps'
 
-CLIPBOARD = {
-    bookmark_db.BookmarkTable: {},
-    bookmark_db.AssetTable: {},
-}
-
 asset_config_help = u'Settings for asset folder names, filters and file name templates.'
 instance = None
 
@@ -90,51 +85,6 @@ span = {
 }
 
 TEMP_THUMBNAIL_PATH = u'{temp}/{product}/temp/{uuid}.{ext}'
-
-
-def copy_properties(server, job, root, asset=None, table=bookmark_db.BookmarkTable):
-    """Copies the given bookmark's properties from the database to `CLIPBOARD`.
-
-    Args:
-        server (unicode):   The server's name.
-        job (unicode):   The job's name.
-        root (unicode):   The root's name.
-
-
-    """
-    data = {}
-    source = u'{}/{}/{}'.format(server, job, root) if not asset else u'{}/{}/{}/{}'.format(
-        server, job, root, asset)
-    with bookmark_db.transactions(server, job, root) as db:
-        for k in bookmark_db.TABLES[table]:
-            if k == 'id':
-                continue
-            v = db.value(source, k, table=table)
-            if v is None:
-                continue
-            data[k] = v
-
-    if data:
-        global CLIPBOARD
-        CLIPBOARD[table] = data
-        log.success(u'{} copied.'.format(table.title()))
-
-    return data
-
-
-def paste_properties(server, job, root, asset=None, table=bookmark_db.BookmarkTable):
-    """Pastes the saved bookmark properties from `CLIPBOARD` to the given
-    bookmark's properties.
-
-    """
-    if not CLIPBOARD[table]:
-        return
-
-    source = u'/'.join((server, job, root)) if not asset else u'/'.join((server, job, root, asset))
-    with bookmark_db.transactions(server, job, root) as db:
-        for k in CLIPBOARD[table]:
-            db.setValue(source, k, CLIPBOARD[table][k], table=table)
-    log.success(u'{} data pasted.'.format(table.title()))
 
 
 def add_section(icon, label, parent, color=None):
@@ -172,7 +122,8 @@ def add_section(icon, label, parent, color=None):
     return parent
 
 
-@QtCore.Slot(unicode)
+@common.error
+@common.debug
 def process_image(source):
     """Converts resizes and loads an image file as a QImage.
 
@@ -187,16 +138,13 @@ def process_image(source):
         temp=QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.GenericDataLocation),
         product=common.PRODUCT,
-        uuid=uuid.uuid1(),
+        uuid=uuid.uuid1().get_hex(),
         ext=images.THUMBNAIL_FORMAT
     )
     f = QtCore.QFileInfo(destination)
     if not f.dir().exists():
         if not f.dir().mkpath(u'.'):
-            s = u'Could not create temp folder.'
-            log.error(s)
-            common_ui.ErrorBox(u'Capture failed', s).open()
-            return None
+            raise RuntimeError(u'Could not create temp folder')
 
     res = images.ImageCache.oiio_make_thumbnail(
         source,
@@ -204,11 +152,8 @@ def process_image(source):
         images.THUMBNAIL_IMAGE_SIZE
     )
 
-    s = u'Error converting the thumbnail.'
     if not res:
-        log.error(s)
-        common_ui.ErrorBox(s, u'').open()
-        return None
+        raise RuntimeError(u'Failed to convert the thumbnail')
 
     images.ImageCache.flush(destination)
     image = images.ImageCache.get_image(
@@ -217,12 +162,10 @@ def process_image(source):
         force=True
     )
     if not image or image.isNull():
-        log.error(s)
-        common_ui.ErrorBox(s, u'').open()
-        return None
+        raise RuntimeError(u'Failed to load converted image')
 
     if not QtCore.QFile(destination).remove():
-        log.error('Failed to remove temp file')
+        raise RuntimeError(u'Failed to load converted image')
 
     return image
 
@@ -285,7 +228,6 @@ class ThumbnailContextMenu(contextmenu.BaseContextMenu):
         }
 
 
-
 class ThumbnailWidget(common_ui.ClickableIconButton):
     """Widget used to select and save thumbnails.
 
@@ -319,6 +261,10 @@ class ThumbnailWidget(common_ui.ClickableIconButton):
     def image(self):
         return self._image
 
+    def process_image(self, source):
+        image = process_image(source)
+        self.set_image(image)
+
     @QtCore.Slot()
     def set_image(self, image):
         if not isinstance(image, QtGui.QImage) or image.isNull():
@@ -344,35 +290,26 @@ class ThumbnailWidget(common_ui.ClickableIconButton):
             return
 
         if destination is None:
-            destination = images.get_thumbnail_path(*args)
+            destination = images.get_cached_thumbnail_path(*args)
 
         if not self._image.save(destination):
-            log.error(u'Failed to save thumbnail.')
-            return
-        # Remove any previous cahed images from `ImageCache`
+            raise RuntimeError(u'Failed to save thumbnail.')
+
         images.ImageCache.flush(destination)
 
     @QtCore.Slot()
     def reset_image(self):
         self.set_image(None)
 
-    @QtCore.Slot()
+    @common.error
+    @common.debug
     def pick_image(self):
-        """Prompt to select an image file."""
-        dialog = QtWidgets.QFileDialog(parent=self)
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        dialog.setViewMode(QtWidgets.QFileDialog.List)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter(images.get_oiio_namefilters())
-        dialog.setFilter(
-            QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dialog.setLabelText(
-            QtWidgets.QFileDialog.Accept, u'Pick a thumbnail...')
+        from ..editors import thumb_picker as editor
+        widget = editor.show()
+        widget.fileSelected.connect(self.process_image)
 
-        dialog.fileSelected.connect(lambda s: self.set_image(process_image(s)))
-        dialog.open()
-
-    @QtCore.Slot()
+    @common.error
+    @common.debug
     def capture(self):
         """Captures a thumbnail and save it as a QImage.
 
@@ -380,18 +317,17 @@ class ThumbnailWidget(common_ui.ClickableIconButton):
         saves the new file.
 
         """
+        self.window().hide()
+
         try:
-            self.window().hide()
-            widget = images.ScreenCapture()
-            widget.captureFinished.connect(
-                lambda s: self.set_image(process_image(s)))
-            widget.exec_()
+            from ..editors import thumb_capture as editor
+            widget = editor.show()
+            widget.accepted.connect(self.window().show)
+            widget.rejected.connect(self.window().show)
+            widget.captureFinished.connect(self.process_image)
         except:
-            s = u'Error saving capture'
-            log.error(s)
-            common_ui.ErrorBox(s, u'').open()
-        finally:
             self.window().show()
+            raise
 
     def _paint_proposed_thumbnail(self, painter):
         o = common.ROW_SEPARATOR()
@@ -543,7 +479,7 @@ class ThumbnailWidget(common_ui.ClickableIconButton):
 
         for url in event.mimeData().urls():
             s = url.toLocalFile()
-            self.set_image(process_image(s))
+            self.process_image(s)
             break
 
         self.repaint()
@@ -570,9 +506,12 @@ class PropertiesWidget(QtWidgets.QDialog):
 
     """
     itemCreated = QtCore.Signal(unicode)
+
     itemUpdated = QtCore.Signal(unicode)
-    valueUpdated = QtCore.Signal(unicode, int, object)
     thumbnailUpdated = QtCore.Signal(unicode)
+
+    modelValueUpdated = QtCore.Signal(unicode, int, object)
+    valueUpdated = QtCore.Signal(unicode, unicode, object)
 
     def __init__(
         self,
@@ -856,7 +795,6 @@ class PropertiesWidget(QtWidgets.QDialog):
                 )
             )
 
-
     def _add_buttons(self):
         if not self._buttons:
             return
@@ -971,14 +909,15 @@ class PropertiesWidget(QtWidgets.QDialog):
         if self.db_source() is None:
             return
 
-        with bookmark_db.transactions(self.server, self.job, self.root) as db:
-            for k, v in self.changed_data.iteritems():
+        for k, v in self.changed_data.copy().iteritems():
+            with bookmark_db.transactions(self.server, self.job, self.root) as db:
                 db.setValue(
                     self.db_source(),
                     k,
                     v,
                     table=self._db_table
                 )
+            self.valueUpdated.emit(self.db_source(), k, v)
 
     def _get_shotgun_attrs(self):
         source = u'{}/{}/{}'.format(self.server, self.job, self.root)
@@ -1088,17 +1027,49 @@ class PropertiesWidget(QtWidgets.QDialog):
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH() * 1.33, common.HEIGHT() * 1.5)
 
-    @QtCore.Slot(int)
     @QtCore.Slot(unicode)
-    def update_sg_entity(self, sg_entity_id, sg_entity_name):
-        """Slot used updat the shotgun entity id and name.
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(object)
+    def update_editor_value(self, source, k, v):
+        """Slot responsible updating the gui when  database value is updated.
 
         """
-        self.current_data['shotgun_id'] = sg_entity_id
-        sg_entity_id = u'{}'.format(sg_entity_id)
-        self.shotgun_id_editor.setText(sg_entity_id)
-        self.shotgun_id_editor.textEdited.emit(sg_entity_id)
+        # We can ignore
+        if source != self.db_source():
+            return
 
-        self.current_data['shotgun_name'] = sg_entity_name
-        self.shotgun_name_editor.setText(sg_entity_name)
-        self.shotgun_name_editor.textEdited.emit(sg_entity_name)
+        if not hasattr(self, k + '_editor'):
+            return
+        editor = getattr(self, k + '_editor')
+
+        self.current_data[k] = v
+        self.changed_data[k] = v
+
+        if v is None:
+            v = u''
+        elif not isinstance(v, unicode):
+            v = u'{}'.format(v)
+
+        if hasattr(editor, 'setText'):
+            editor.setText(v)
+            editor.textChanged.emit(v)
+        elif hasattr(editor, 'setCurrentText'):
+            if not v:
+                editor.setCurrentIndex(-1)
+            else:
+                editor.setCurrentText(v)
+
+
+    @QtCore.Slot()
+    def url1_button_clicked(self):
+        v = self.url1_editor.text()
+        if not v:
+            return
+        QtGui.QDesktopServices.openUrl(v)
+
+    @QtCore.Slot()
+    def url2_button_clicked(self):
+        v = self.url2_editor.text()
+        if not v:
+            return
+        QtGui.QDesktopServices.openUrl(v)

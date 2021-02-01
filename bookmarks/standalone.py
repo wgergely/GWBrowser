@@ -301,16 +301,6 @@ class StandaloneMainWidget(main.MainWidget):
         else:
             self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
 
-    def init_shortcuts(self):
-        super(StandaloneMainWidget, self).init_shortcuts()
-        connect = functools.partial(shortcuts.connect, shortcuts.MainWidgetShortcuts)
-
-        connect(shortcuts.Quit, actions.quit)
-        connect(shortcuts.Minimize, actions.toggle_minimized)
-        connect(shortcuts.Maximize, actions.toggle_maximized)
-        connect(shortcuts.FullScreen, actions.toggle_fullscreen)
-        connect(shortcuts.OpenNewInstance, actions.exec_instance)
-
     def init_tray(self):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'icon_bw', None, common.ROW_HEIGHT() * 7.0)

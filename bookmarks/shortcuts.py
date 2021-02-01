@@ -22,20 +22,22 @@ ShowBookmarksTab = ToggleSortOrder + 1
 ShowAssetsTab = ShowBookmarksTab + 1
 ShowFilesTab = ShowAssetsTab + 1
 ShowFavouritesTab = ShowFilesTab + 1
+
 NextTab = ShowFavouritesTab + 1
 PreviousTab = NextTab + 1
 
 AddItem = PreviousTab + 1
-RemoveItem = AddItem + 1
+EditItem = AddItem + 1
+RemoveItem = EditItem + 1
 
-Refresh = AddItem + 1
+Refresh = RemoveItem + 1
+
 CopyItemPath = Refresh + 1
 CopyAltItemPath = CopyItemPath + 1
 RevealItem = CopyAltItemPath + 1
 RevealAltItem = RevealItem + 1
 
-EditItem = RevealAltItem + 1
-CopyProperties = EditItem + 1
+CopyProperties = RevealAltItem + 1
 PasteProperties = CopyProperties + 1
 
 Quit = PasteProperties + 1
@@ -49,6 +51,7 @@ ToggleSequence = ToggleSearch + 1
 ToggleArchived = ToggleSequence + 1
 ToggleFavourite = ToggleArchived + 1
 ToggleActive = ToggleFavourite + 1
+
 HideInlineButtons = ToggleActive + 1
 OpenSlack = HideInlineButtons + 1
 OpenPreferences = OpenSlack + 1
@@ -362,6 +365,12 @@ def connect(shortcuts, key, func):
 
 def get(shortcuts, k):
     return shortcuts[k]['shortcut']
+
+def string(shortcuts, k):
+    v = shortcuts[k]['shortcut'].key()
+    if hasattr(v, 'toString'):
+        return v.toString(format=QtGui.QKeySequence.NativeText)
+    return v
 
 def hint(shortcuts, k):
     return shortcuts[k]['description']
